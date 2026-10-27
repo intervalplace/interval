@@ -7798,6 +7798,24 @@ addEventListener('pointerdown', (e) => {
 // inline with a different regex in about forty places, and half of them used
 // `replace('-', ' ')` -- which replaces the FIRST hyphen only, so
 // `quick-fire-arrows` came out as "quick fire-arrows".
+// §7f-ix: WHAT THIS WINDOW CANNOT DRAW, SAID OUT LOUD.
+//
+// The Unreal window has had this rule for a while and it is the reason the
+// project trusts a grep of the log over a reading of the tables: the window is
+// already doing the test, so it should report it. The flat window's landmark
+// chain used to fall through to the broken tower, which is a real thing, so a
+// gap in the art was invisible by construction.
+//
+// Once per word, whatever reaches it.
+const _undrawn = new Set()
+function undrawnKind(kind) {
+  const w = String(kind ?? '(no kind)')
+  if (_undrawn.has(w)) return
+  _undrawn.add(w)
+  try {
+    console.warn("the world says '" + w + "' is standing here and this window has no art for it")
+  } catch {}
+}
 const say1 = (w) => String(w ?? '').replace(/-/g, ' ')
 const cap1 = (t) => String(t ?? '').charAt(0).toUpperCase() + String(t ?? '').slice(1)
 function chooseAction(opts, at) {
@@ -12563,7 +12581,18 @@ function drawScene(now) {
           cx.beginPath(); cx.ellipse(X + 13, Y + 15, 1.9, 0.9, 0, 0, 7); cx.fill()
           cx.fillStyle = 'rgba(120,140,120,.35)'         // the grass comes right up
           cx.fillRect(X + 2, Y + 20, 28, 3)
-        } else { // broken-tower: masonry that remembers being taller
+        } else if (K === 'broken-tower') {
+          // §7f-ix: ITS OWN ARM, NOT THE FALLBACK.
+          //
+          // This chain used to END in the broken tower, so every landmark kind
+          // the window did not know was painted as ruined masonry. The
+          // wellspring note above records how close that came to mattering:
+          // the one place on the island that takes a wound off would have
+          // looked like a ruin, and a citizen standing on it would have seen
+          // something else.
+          //
+          // A fallback that draws a real thing cannot be noticed. One that
+          // draws a marker and names the word can.
           shadow(X, Y, 12)
           cx.fillStyle = '#5e5952'
           cx.fillRect(X + 6, Y + 10, 20, 16)
@@ -12571,6 +12600,19 @@ function drawScene(now) {
           cx.fillRect(X + 8, Y - 2, 7, 14); cx.fillRect(X + 18, Y + 2, 8, 10)
           cx.fillStyle = '#4a463f'
           cx.fillRect(X + 10, Y - 8, 4, 8)
+        } else {
+          // the world stands up a word this window has no art for. Say so once,
+          // and draw something that is plainly a marker and plainly not the
+          // thing, so nobody mistakes the gap for the world.
+          undrawnKind(K)
+          shadow(X, Y, 7)
+          cx.fillStyle = '#6f6b64'
+          for (let i = 0; i < 4; i++) {
+            const a7 = (i / 4) * Math.PI * 2
+            cx.beginPath()
+            cx.ellipse(X + 20 + Math.cos(a7) * 5, Y + 24 + Math.sin(a7) * 3, 4, 2.6, 0, 0, 7)
+            cx.fill()
+          }
         }
         return
       }

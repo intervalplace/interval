@@ -3023,6 +3023,73 @@ const tintedMat = (hex, rough = 0.9, extra = null) => {
   if (!m) { m = new THREE.MeshStandardMaterial({ color: hex, roughness: rough, ...(extra ?? {}) }); _tintMat.set(k, m) }
   return m
 }
+// §7f-ix: THE LANDMARK VEGETATION AND THE SMALL WORKS.
+//
+// Fifty-five landmark kinds had no arm in this window's drawing chain, so all
+// 1,821 of them on the island fell to the `else` at the bottom of it, which
+// built a hull and a mast. A meadow of beached boats, and white ones, because
+// the hull was built with a material that did not exist.
+//
+// The leaf and bark colours are window-web's, kind for kind: two windows that
+// disagree about what a pine looks like are two windows showing different
+// worlds. `form` picks the silhouette, which is what carries a likeness at
+// range, and `h` is how tall this kind stands against the others.
+const LM_TREE = {
+  'pine':       { form: 'conifer', bark: 0x4d3d28, leaf: 0x20402a, h: 1.15 },
+  'yew':        { form: 'conifer', bark: 0x40311f, leaf: 0x182a1c, h: 0.9, dense: true },
+  'old-oak-lm': { form: 'broad', bark: 0x54422b, leaf: 0x3f6128, lit: 0x6f9740, h: 1.3 },
+  'avenue-oak': { form: 'broad', bark: 0x54422b, leaf: 0x3f6128, lit: 0x6f9740, h: 1.2 },
+  'apple-tree': { form: 'broad', bark: 0x54422b, leaf: 0x4e7030, lit: 0x7fa84a, h: 0.8, fruit: 0xc4402a },
+  'pear-tree':  { form: 'broad', bark: 0x54422b, leaf: 0x4e7030, lit: 0x7fa84a, h: 0.85, fruit: 0xc9b04a },
+  'willow':     { form: 'willow', bark: 0x4d3d28, leaf: 0x5f7d38, h: 1.0 },
+  'dead-tree':  { form: 'dead', bark: 0x8d8474, h: 1.1 },
+  'thorn':      { form: 'thorn', bark: 0x4a5636, leaf: 0x3b4f2c, h: 0.75 },
+  'wind-thorn': { form: 'thorn', bark: 0x4a5636, leaf: 0x3b4f2c, h: 0.7, lean: 0.55 },
+  'rag-tree':   { form: 'thorn', bark: 0x4a3f2e, leaf: 0x3b4f2c, h: 0.85, lean: 0.2, rags: true },
+  'topiary':    { form: 'topiary', bark: 0x4a3a22, leaf: 0x2f5720, lit: 0x3d6d29, h: 0.9 },
+}
+// and the small works: what people leave behind them. Heaps, stacks, posts,
+// marks, and a handful of things somebody built and walked away from.
+const LM_PROP = new Set([
+  'reeds', 'bog-pool', 'dew-pond',
+  'stone-heap', 'rubble-heap', 'fallen-stone', 'ore-heap', 'ash-heap',
+  'slag-lump', 'wood-chips', 'turf-stack', 'peat-stack', 'withy-stack', 'peat-cut',
+  'trestle', 'sawhorse', 'bench', 'chopping-block', 'ladder', 'scaffold',
+  'hay-wain', 'broken-cart', 'upturned-boat', 'fish-trap', 'sheep-hurdle', 'staithe',
+  'way-post', 'tally-post', 'gazebo-post', 'bridge-stone', 'half-wall', 'window-arch',
+  'birdbath', 'flowerbed',
+  'wheel-rut', 'dew-mark', 'daub-mark', 'shot-hole', 'charcoal-ring', 'salt-lick',
+  'wool-snag', 'windfall', 'sheep-skull',
+  // §7f-ix: these two were found by BUILDING every kind rather than by
+  // sweeping the island. The island does not currently grow either of them, so
+  // no sweep could see them, and both words appear elsewhere in this file as
+  // text, so the word check said they were named. They had no drawing at all.
+  'wellspring', 'grave',
+])
+// §7f-ix: WHAT THIS WINDOW CANNOT DRAW, SAID OUT LOUD.
+//
+// Lifted from the Unreal window's rule, which has had it for a while and is
+// the reason the project trusts a grep of the log over a reading of the
+// tables: the window is already doing the test, so it should report it.
+//
+// Once per word, whatever the chain reaches. A line in the log is a gap
+// somebody can act on; a shape that is not the thing is a gap somebody has to
+// notice by looking, and nobody did for 1,821 of them.
+const _undrawn = new Set()
+function undrawnKind(kind) {
+  const w = String(kind ?? '(no kind)')
+  if (_undrawn.has(w)) return
+  _undrawn.add(w)
+  try {
+    console.warn("the world says '" + w + "' is standing here and this window has no shape for it")
+  } catch {}
+}
+// one colour lifted toward the light, for a leaf that catches the sun
+const mix = (hex, amt) => {
+  const r = (hex >> 16) & 255, g2 = (hex >> 8) & 255, b = hex & 255
+  const u = (v) => Math.min(255, Math.round(v + (255 - v) * amt))
+  return (u(r) << 16) | (u(g2) << 8) | u(b)
+}
 const famOf = (t) => NODE_FAMILY[t] ?? t
 const mats = { // shared PBR skins
   bark: new THREE.MeshStandardMaterial({ color: 0x39230d, roughness: 0.95 }),
@@ -3053,6 +3120,20 @@ const mats = { // shared PBR skins
   // the ground at the foot of a wall is not meadow: it is the earth of
   // everyone who has ever walked the line of it
   trodden: new THREE.MeshStandardMaterial({ color: 0x4a4132, roughness: 1 }),
+  // §7f-ix: TIMBER, AND THE FOURTEEN WHITE MESHES.
+  //
+  // `mats.trunk` was used fourteen times in this file and defined NOWHERE.
+  // `new THREE.Mesh(geo, undefined)` does not fail and does not warn: three.js
+  // hands the mesh a default `MeshBasicMaterial`, which is unlit white. So
+  // every one of those fourteen drew as a glowing white shape with no shading
+  // on it at all, and one of them was the landmark fallback, which this window
+  // reaches 1,821 times on the island.
+  //
+  // What was wanted at all fourteen is TIMBER: a trunk, a stave, a cart bed
+  // and its wheels, three sticks, the arms and axle of a siege engine, a
+  // hull, a mast. The bark skin, which they will have thought they were
+  // getting, since `mats.bark` is one letter away.
+  trunk: new THREE.MeshStandardMaterial({ color: 0x3d2a14, roughness: 0.95 }),
 }
 const rockDetail = makeDetail(5, { bump: 3.4, roughBase: 190 })
 mats.stone.map = rockDetail.albedo; mats.stone.normalMap = rockDetail.normal
@@ -3061,7 +3142,7 @@ mats.plaster.map = rockDetail.albedo; mats.plaster.normalMap = rockDetail.normal
 mats.plaster.normalScale = new THREE.Vector2(0.5, 0.5)
 const barkDetail = makeDetail(11, { bump: 3.8, roughBase: 210 })
 barkDetail.albedo.repeat.set(1, 3); barkDetail.normal.repeat.set(1, 3); barkDetail.rough.repeat.set(1, 3)
-for (const bm of [mats.bark, mats.wood, mats.roof]) {
+for (const bm of [mats.bark, mats.wood, mats.roof, mats.trunk]) {
   bm.map = barkDetail.albedo; bm.normalMap = barkDetail.normal
   bm.roughnessMap = barkDetail.rough; bm.normalScale = new THREE.Vector2(1.1, 1.1)
 }
@@ -3071,7 +3152,17 @@ const clothDetail = makeDetail(17, { bump: 1.6, roughBase: 220 })
 const furDetail = makeDetail(19, { bump: 3, roughBase: 225 })
 // canopies breathe: each crown sways on a phase drawn from where it
 // stands, and the whole forest stiffens together when a storm leans in
-for (const lm of [mats.leaf0, mats.leaf1, mats.leaf2, mats.leafBlob]) {
+// §7f-ix: AND A TINTED LEAF STOOD STILL.
+//
+// The sway lives in the leaf MATERIALS, as an `onBeforeCompile` on four of
+// them, so anything drawn in a tinted material of its own was rigid while
+// every tree around it moved: the ironbark, the gallows-oak, and every
+// landmark tree added since. A still tree in a moving wood is more obviously
+// wrong than a still wood.
+//
+// So the wind is a function applied to a material, and `leafMat` is the way to
+// ask for a leaf: a tinted skin that already knows how to move.
+const windLeaf = (lm) => {
   lm.onBeforeCompile = (sh) => {
     sh.uniforms.uWindT = uWindT; sh.uniforms.uWindA = uWindA
     sh.vertexShader = sh.vertexShader
@@ -3083,6 +3174,17 @@ for (const lm of [mats.leaf0, mats.leaf1, mats.leaf2, mats.leafBlob]) {
         transformed += vec3(sw, .4 * sin(uWindT * 1.7 + wp0.z), sw * .6) * (.045 + .06 * uWindA);
       }`)
   }
+  return lm
+}
+for (const lm of [mats.leaf0, mats.leaf1, mats.leaf2, mats.leafBlob]) windLeaf(lm)
+// a leaf of any colour, cached like every other tinted skin, and it moves
+const _leafMats = new Map()
+const leafMat = (hex, extra = null) => {
+  const k = hex + (extra ? ':' + JSON.stringify(extra) : '')
+  let m = _leafMats.get(k)
+  if (!m) { m = windLeaf(new THREE.MeshStandardMaterial({
+    color: hex, roughness: 0.9, ...(extra ?? {}) })); _leafMats.set(k, m) }
+  return m
 }
 const craggy = (radius, seed) => {
   const g = new THREE.IcosahedronGeometry(radius, 1)
@@ -4159,6 +4261,510 @@ function nodeBody(n) {
       }
       if (g.userData.ghostH === undefined)
         g.userData.ghostH = K === 'gibbet' ? 2.6 : K === 'haystack' ? 1.6 : 0.9
+    // ---- §7f-ix: THE FIFTY-FIVE KINDS THIS WINDOW DREW AS A SHIPWRECK ----
+    //
+    // The chain below used to end in an `else` that built a hull and a mast,
+    // so every landmark kind without a branch of its own drew as a boat
+    // beached in a meadow. On this island that is 1,821 of them, including 464
+    // pines, 304 oaks, 247 wind-thorns, 199 willows and 150 dead trees: the
+    // whole of the vegetation that is not a gatherable tree. And the hull was
+    // built with `mats.trunk`, which did not exist, so they were WHITE boats.
+    //
+    // The colours are window-web's, kind for kind, because two windows that
+    // disagree about what a thing looks like are two windows showing different
+    // worlds. The shapes are this window's: a silhouette does the work at
+    // range, so each one is a few meshes with a recognisable outline.
+    } else if (LM_TREE[n.kind]) {
+      const T = LM_TREE[n.kind]
+      const sc = (T.h ?? 1) * (0.85 + (hsh9 % 30) / 100)
+      const bk = tintedMat(T.bark, 0.95)
+      const lean = (T.lean ?? 0) * (((hsh9 % 2) ? 1 : -1))
+      g.rotation.y = (hsh9 % 251) / 40
+      if (T.form === 'conifer') {
+        // bare trunk, three skirts of needle, narrower as it climbs
+        const tr = add(new THREE.Mesh(new THREE.CylinderGeometry(0.06 * sc, 0.16 * sc, 2.2 * sc, 7), bk), 0, 1.1 * sc, 0)
+        tr.castShadow = true
+        for (let i = 0; i < (T.dense ? 4 : 3); i++) {
+          const c = add(new THREE.Mesh(new THREE.ConeGeometry((0.74 - i * 0.16) * sc, (T.dense ? 0.7 : 0.9) * sc, 8),
+            leafMat(i === 0 ? T.leaf : i === 1 ? mix(T.leaf, 0.08) : mix(T.leaf, 0.16))),
+            0, (1.2 + i * 0.52) * sc, 0)
+          c.castShadow = true; c.userData.canopy = true
+        }
+      } else if (T.form === 'broad') {
+        const tr = add(new THREE.Mesh(new THREE.CylinderGeometry(0.1 * sc, 0.22 * sc, 1.8 * sc, 7), bk), 0, 0.88 * sc, 0)
+        tr.castShadow = true
+        for (const [bx2, bz2, rz2] of [[0.26, 0.1, -0.7], [-0.22, -0.12, 0.8]]) {
+          const b = add(new THREE.Mesh(new THREE.CylinderGeometry(0.04 * sc, 0.07 * sc, 0.8 * sc, 5), bk),
+            bx2 * sc, 1.5 * sc, bz2 * sc)
+          b.rotation.z = rz2; b.castShadow = true
+        }
+        const crown = add(new THREE.Mesh(canopyGeo(hsh9), leafMat(T.leaf, { roughness: 0.88, vertexColors: true })), 0, 2.3 * sc, 0)
+        crown.scale.setScalar(1.25 * sc); crown.scale.x *= 1.12
+        crown.castShadow = true; crown.userData.canopy = true
+        const lit = add(new THREE.Mesh(canopyGeo(hsh9 + 3), leafMat(T.lit ?? mix(T.leaf, 0.2), { roughness: 0.88, vertexColors: true })),
+          -0.3 * sc, 2.6 * sc, -0.2 * sc)
+        lit.scale.setScalar(0.72 * sc); lit.userData.canopy = true
+        if (T.fruit) for (let i = 0; i < 5; i++) {
+          const a2 = (i / 5) * Math.PI * 2 + (hsh9 % 7)
+          add(new THREE.Mesh(new THREE.SphereGeometry(0.055 * sc, 6, 5), tintedMat(T.fruit, 0.6)),
+            Math.cos(a2) * 0.62 * sc, (1.95 + (i % 3) * 0.3) * sc, Math.sin(a2) * 0.62 * sc, false)
+        }
+      } else if (T.form === 'willow') {
+        // the whole likeness is the FALL: a pale crown and curtains of withy
+        // hanging off it, which is why it is drawn by a water's edge
+        const tr = add(new THREE.Mesh(new THREE.CylinderGeometry(0.12 * sc, 0.2 * sc, 1.5 * sc, 7), bk), 0, 0.74 * sc, 0)
+        tr.rotation.z = 0.12; tr.castShadow = true
+        const crown = add(new THREE.Mesh(canopyGeo(hsh9 + 5), leafMat(T.leaf, { roughness: 0.9, vertexColors: true })), 0, 1.85 * sc, 0)
+        crown.scale.set(1.5 * sc, 0.9 * sc, 1.5 * sc)
+        crown.castShadow = true; crown.userData.canopy = true
+        // THE WITHIES ARE THE WILLOW. Nine pale sticks read as nine pale
+        // sticks; a willow is a curtain. Twenty-two fine ones, hung from the
+        // rim of the crown rather than from its middle, splayed outward as
+        // they fall, and in the crown's own green rather than a lighter one,
+        // which is what made the first set look like bones.
+        const withy = leafMat(mix(T.leaf, 0.06))
+        for (let i = 0; i < 22; i++) {
+          const a2 = (i / 22) * Math.PI * 2 + (hsh9 % 17) / 17
+          const r2 = 1.05 + ((i * 5) % 7) / 24
+          const len = (1.0 + ((i * 3) % 5) * 0.18) * sc
+          const fall = add(new THREE.Mesh(
+            new THREE.CylinderGeometry(0.012 * sc, 0.004 * sc, len, 4), withy),
+            Math.cos(a2) * r2 * sc, (1.72 * sc) - len / 2, Math.sin(a2) * r2 * sc, false)
+          // splayed: the tip hangs further out than the root, which is what
+          // makes a curtain rather than a fringe
+          fall.rotation.set(Math.sin(a2) * 0.26, 0, -Math.cos(a2) * 0.26)
+          fall.userData.canopy = true
+        }
+      } else if (T.form === 'dead') {
+        // no leaf at all: three lines, and the shape IS the three lines
+        const tr = add(new THREE.Mesh(new THREE.CylinderGeometry(0.07 * sc, 0.15 * sc, 2.3 * sc, 6), bk), 0, 1.15 * sc, 0)
+        tr.castShadow = true
+        for (const [ax, az, rz2, rx2, lenf] of [[0.4, 0.1, -1.0, 0.1, 0.9], [-0.34, -0.14, 1.1, -0.2, 0.75], [0.1, 0.36, -0.2, -1.0, 0.6]]) {
+          const b = add(new THREE.Mesh(new THREE.CylinderGeometry(0.025 * sc, 0.055 * sc, lenf * sc, 5), bk),
+            ax * sc, (1.5 + lenf * 0.2) * sc, az * sc)
+          b.rotation.set(rx2, 0, rz2); b.castShadow = true
+        }
+      } else if (T.form === 'thorn') {
+        // a thorn leans off the wind and carries one dense mass at the top of
+        // the lean, which is the whole of why a wind-thorn is a landmark
+        // A LEAN YOU CAN SEE FROM ACROSS A FIELD. The first one bent a stem
+        // the height of a knee and nudged its mass a hand's breadth, so a
+        // wind-thorn and a thorn looked like the same shrub: the one thing
+        // that names this tree was the one thing not visible. The stem is
+        // taller now, it is hinged at the GROUND rather than at its middle,
+        // and the mass sits at the top of the lean where the wind put it.
+        const tl = 1.55 * sc
+        const tr = add(new THREE.Mesh(new THREE.CylinderGeometry(0.045 * sc, 0.1 * sc, tl, 6), bk),
+          -Math.sin(lean) * tl / 2, Math.cos(lean) * tl / 2, 0)
+        tr.rotation.z = lean; tr.castShadow = true
+        const mass = add(new THREE.Mesh(canopyGeo(hsh9 + 1), leafMat(T.leaf, { roughness: 0.92, vertexColors: true })),
+          -Math.sin(lean) * tl * 1.08, Math.cos(lean) * tl * 0.98, 0)
+        mass.scale.set(0.78 * sc, 0.52 * sc, 0.68 * sc)
+        mass.castShadow = true; mass.userData.canopy = true
+        // and the windward side is bare: a few stubs on the side the weather
+        // comes from, which is the other half of why a thorn looks blown
+        for (let i = 0; i < 3; i++) {
+          const st = add(new THREE.Mesh(new THREE.CylinderGeometry(0.014 * sc, 0.022 * sc, 0.3 * sc, 4), bk),
+            Math.sin(lean) * 0.12 * sc, (0.5 + i * 0.3) * sc, (i % 2 ? 0.08 : -0.08) * sc, false)
+          st.rotation.z = lean - 0.5
+        }
+        if (T.rags) {
+          // §7dq: cloth tied on by somebody, and cloth HANGS, so it moves.
+          // Six colours off window-web's rag palette, one per strip.
+          const RAG = [0xb04a3a, 0xc9b98a, 0x4a6fa8, 0x8a6f9c, 0xc98a3a, 0xa8c4b0]
+          for (let i = 0; i < 6; i++) {
+            const a2 = (i / 6) * Math.PI * 2 + (hsh9 % 5)
+            const rag = add(new THREE.Mesh(new THREE.PlaneGeometry(0.1 * sc, (0.3 + (i % 3) * 0.1) * sc),
+              leafMat(RAG[i], { side: THREE.DoubleSide, roughness: 0.95 })),
+              Math.cos(a2) * 0.4 * sc - Math.sin(lean) * 0.7 * sc,
+              (0.8 - (i % 3) * 0.08) * sc, Math.sin(a2) * 0.4 * sc, false)
+            rag.rotation.y = a2; rag.userData.canopy = true
+          }
+        }
+      } else {   // topiary: clipped, and a clipped thing is unmistakable
+        const tr = add(new THREE.Mesh(new THREE.CylinderGeometry(0.07 * sc, 0.09 * sc, 0.5 * sc, 6), bk), 0, 0.25 * sc, 0)
+        tr.castShadow = true
+        const ball = add(new THREE.Mesh(new THREE.SphereGeometry(0.4 * sc, 10, 8), leafMat(T.leaf)), 0, 0.88 * sc, 0)
+        ball.castShadow = true
+        const top = add(new THREE.Mesh(new THREE.ConeGeometry(0.28 * sc, 0.42 * sc, 9), leafMat(T.lit ?? T.leaf)), 0, 1.42 * sc, 0)
+        top.castShadow = true
+      }
+      g.userData.ghostH = (T.form === 'conifer' ? 3.4 : T.form === 'broad' ? 3.2
+        : T.form === 'dead' ? 2.6 : T.form === 'willow' ? 2.6 : 1.3) * sc
+    } else if (LM_PROP.has(n.kind)) {
+      // ---- the small works: what people leave behind them ----
+      //
+      // Four shared shapes do most of it, because most of what a countryside
+      // is covered in is a heap, a stack, a post or a mark on the ground. Each
+      // kind then adds the one detail that makes it itself.
+      const K = n.kind
+      const bx = (w, h, d, mat, x = 0, y = 0, z = 0, ry = 0, shadow = true) => {
+        const m = add(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat), x, y, z, shadow)
+        m.rotation.y = ry; return m
+      }
+      const cy = (r1, r2, h, mat, x = 0, y = 0, z = 0, rx = 0, rz = 0, shadow = true) => {
+        const m = add(new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, 7), mat), x, y, z, shadow)
+        m.rotation.x = rx; m.rotation.z = rz; return m
+      }
+      // a heap: lumps piled, sized and coloured by the thing heaped
+      const heap = (hex, n2, rad, lump) => {
+        const mt = tintedMat(hex, 0.95)
+        for (let i = 0; i < n2; i++) {
+          const a2 = (i / n2) * Math.PI * 2 + (hsh9 % 11) / 4
+          const rr = rad * (0.25 + ((i * 7) % 10) / 14)
+          const r2 = add(new THREE.Mesh(rockGeo(tileHash(n.x + i, n.y, 41)), mt),
+            Math.cos(a2) * rr, lump * (0.5 + (i % 3) * 0.22), Math.sin(a2) * rr)
+          r2.scale.setScalar(lump * (0.8 + (i % 4) * 0.2))
+          r2.rotation.set(i, a2, i * 0.7)
+        }
+      }
+      // a stack: cut stuff squared up and left to dry, with its courses showing
+      const stack = (hex, w, h, d, courses) => {
+        const mt = tintedMat(hex, 0.98)
+        const body = bx(w, h, d, mt, 0, h / 2, 0)
+        body.castShadow = true
+        const dark = tintedMat(0x1d1813, 1)
+        for (let i = 1; i < courses; i++)
+          bx(w * 1.01, 0.02, d * 1.01, dark, 0, (h / courses) * i, 0, 0, false)
+        return body
+      }
+      // a post: driven, weathered, and leaning however it was driven
+      const post = (hex, h, r = 0.055) => {
+        const p2 = cy(r, r * 1.2, h, tintedMat(hex, 0.95), 0, h / 2, 0, 0, (hsh9 % 13 - 6) / 90)
+        p2.castShadow = true; return p2
+      }
+      // a mark: a flat patch on the ground, which is all some of these are
+      const mark = (hex, rad, flat = 0.02, op = 1) => {
+        const m = add(new THREE.Mesh(new THREE.CircleGeometry(rad, 14),
+          tintedMat(hex, 1, op < 1 ? { transparent: true, opacity: op } : null)), 0, flat, 0, false)
+        m.rotation.x = -Math.PI / 2; m.receiveShadow = true; return m
+      }
+      g.rotation.y = (hsh9 % 211) / 34
+      // --- water, bog and reed ---
+      if (K === 'reeds') {
+        const rd = leafMat(0x6d7a3a)
+        for (let i = 0; i < 14; i++) {
+          const a2 = (i / 14) * Math.PI * 2, rr = 0.1 + (i % 4) * 0.1
+          const st = cy(0.014, 0.022, 0.75 + (i % 5) * 0.14, rd,
+            Math.cos(a2) * rr, 0.4 + (i % 5) * 0.07, Math.sin(a2) * rr, 0, (i % 3 - 1) * 0.16, false)
+          st.userData.canopy = true
+        }
+        mark(0x5b4a2c, 0.5, 0.015)
+        g.userData.ghostH = 1.1
+      } else if (K === 'bog-pool' || K === 'dew-pond') {
+        const pond = K === 'dew-pond'
+        mark(pond ? 0x8d8578 : 0x39322a, pond ? 0.72 : 0.6, 0.012)
+        const water = add(new THREE.Mesh(new THREE.CircleGeometry(pond ? 0.58 : 0.46, 18),
+          new THREE.MeshStandardMaterial({ color: pond ? 0x3c5a68 : 0x203030, roughness: 0.14, metalness: 0.2 })),
+          0, 0.022, 0, false)
+        water.rotation.x = -Math.PI / 2
+        if (!pond) for (let i = 0; i < 5; i++) {   // the tufts a bog leaves standing in it
+          const a2 = (i / 5) * Math.PI * 2
+          const tf = add(new THREE.Mesh(canopyGeo(tileHash(n.x + i, n.y, 23)), leafMat(0x5d5a44)),
+            Math.cos(a2) * 0.5, 0.1, Math.sin(a2) * 0.5, false)
+          tf.scale.set(0.2, 0.13, 0.2); tf.userData.canopy = true
+        }
+        g.userData.ghostH = 0.4
+      // --- heaps and stacks ---
+      } else if (K === 'stone-heap' || K === 'rubble-heap' || K === 'fallen-stone') {
+        if (K === 'fallen-stone') {
+          // one stone, down, and it was clearly UP once
+          const sl = add(new THREE.Mesh(new THREE.BoxGeometry(0.34, 1.45, 0.24), mats.stone), 0, 0.2, 0)
+          sl.rotation.set(Math.PI / 2 - 0.12, (hsh9 % 31) / 10, 0.06)
+          sl.castShadow = true
+          mark(0x3c3a34, 0.42, 0.014)
+        } else heap(K === 'stone-heap' ? 0x79736a : 0x6e685f, 7, 0.44, 0.3)
+        g.userData.ghostH = 0.6
+      } else if (K === 'ore-heap' || K === 'ash-heap' || K === 'slag-lump' || K === 'wood-chips') {
+        heap(K === 'ore-heap' ? 0x6a5a4a : K === 'ash-heap' ? 0x5a544c
+          : K === 'slag-lump' ? 0x4a4a52 : 0xa8905c,
+          K === 'wood-chips' ? 9 : 6, K === 'wood-chips' ? 0.5 : 0.36,
+          K === 'wood-chips' ? 0.12 : 0.26)
+        if (K === 'ash-heap') mark(0x2e2a26, 0.5, 0.014)
+        g.userData.ghostH = 0.5
+      } else if (K === 'turf-stack' || K === 'peat-stack' || K === 'withy-stack') {
+        stack(K === 'turf-stack' ? 0x4a5a2e : K === 'peat-stack' ? 0x463b30 : 0x9a8a58,
+          0.72, 0.62, 0.52, 4)
+        g.userData.ghostH = 0.9
+      } else if (K === 'peat-cut') {
+        // a cut is a NEGATIVE: the bank it was taken out of, and the dark floor
+        mark(0x2e2622, 0.56, 0.013)
+        const bank = bx(1.1, 0.26, 0.3, tintedMat(0x3f3630, 1), 0, 0.13, -0.42)
+        bank.castShadow = true
+        for (let i = 0; i < 3; i++) bx(0.3, 0.14, 0.22, tintedMat(0x4f4238, 1), -0.3 + i * 0.3, 0.07, 0.2)
+        g.userData.ghostH = 0.4
+      // --- timber works ---
+      } else if (K === 'trestle' || K === 'sawhorse' || K === 'bench') {
+        const top = bx(K === 'bench' ? 1.0 : 0.9, 0.07, K === 'bench' ? 0.3 : 0.26,
+          tintedMat(K === 'trestle' ? 0x8a6d3e : K === 'bench' ? 0x8a6d3e : 0x6b5330, 0.92),
+          0, K === 'sawhorse' ? 0.54 : 0.44, 0)
+        top.castShadow = true
+        const lg = tintedMat(0x5a462a, 0.95)
+        for (const [lx, lz] of [[-0.36, -0.1], [0.36, -0.1], [-0.36, 0.1], [0.36, 0.1]]) {
+          const l = cy(0.035, 0.045, K === 'sawhorse' ? 0.54 : 0.44, lg, lx, (K === 'sawhorse' ? 0.27 : 0.22), lz,
+            0, K === 'sawhorse' ? (lx > 0 ? -0.22 : 0.22) : 0)
+          l.castShadow = true
+        }
+        g.userData.ghostH = 0.8
+      } else if (K === 'chopping-block') {
+        const blk = cy(0.3, 0.33, 0.44, mats.trunk, 0, 0.22, 0)
+        blk.castShadow = true
+        add(new THREE.Mesh(new THREE.CircleGeometry(0.3, 12), tintedMat(0x7e6339, 0.9)), 0, 0.442, 0, false)
+          .rotation.x = -Math.PI / 2
+        const haft = cy(0.022, 0.026, 0.4, mats.wood, 0.1, 0.6, 0.02, 0, -0.5)
+        const head = bx(0.08, 0.13, 0.05, mats.iron, 0.2, 0.76, 0.02, 0)
+        head.rotation.z = -0.5; head.castShadow = true
+        g.userData.ghostH = 0.9
+      } else if (K === 'ladder' || K === 'scaffold') {
+        const wd = tintedMat(K === 'ladder' ? 0x7a6132 : 0x8e7440, 0.93)
+        const h2 = K === 'ladder' ? 2.1 : 2.4
+        for (const sx of [-0.21, 0.21]) {
+          const r2 = cy(0.032, 0.036, h2, wd, sx, h2 / 2, 0, 0, K === 'ladder' ? 0.1 : 0)
+          r2.castShadow = true
+        }
+        for (let i = 0; i < 6; i++) bx(0.46, 0.035, 0.035, wd, 0, 0.28 + i * 0.34, 0)
+        if (K === 'scaffold') {
+          const dk = bx(0.7, 0.05, 0.5, tintedMat(0x5a4526, 0.95), 0, 1.6, 0.22)
+          dk.castShadow = true
+          for (const sz of [-0.2, 0.2]) {
+            const br = cy(0.028, 0.03, 1.5, wd, 0, 0.9, sz, 0.5, 0)
+            br.castShadow = true
+          }
+        }
+        g.userData.ghostH = h2 + 0.2
+      } else if (K === 'hay-wain' || K === 'broken-cart') {
+        const broke = K === 'broken-cart'
+        const bed = bx(1.1, 0.12, 0.62, tintedMat(0x6b5330, 0.93), 0, broke ? 0.2 : 0.42, 0)
+        bed.rotation.z = broke ? 0.3 : 0; bed.castShadow = true
+        for (const sx of [-0.4, 0.4]) {
+          const wh = add(new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.055, 6, 12), tintedMat(0x4a3720, 0.95)),
+            sx, 0.3, broke && sx > 0 ? 0.45 : 0.34)
+          wh.rotation.y = Math.PI / 2
+          if (broke && sx > 0) { wh.rotation.x = 1.3; wh.position.y = 0.06 }
+          wh.castShadow = true
+        }
+        if (!broke) {
+          const load = add(new THREE.Mesh(canopyGeo(hsh9 + 2), tintedMat(0xb09144, 0.98, { vertexColors: true })), 0, 0.78, 0)
+          load.scale.set(0.58, 0.42, 0.34); load.castShadow = true
+        }
+        const shaft = cy(0.03, 0.038, 0.9, tintedMat(0x5a462a, 0.95), 0.86, broke ? 0.14 : 0.38, 0, 0, Math.PI / 2 - (broke ? 0.3 : 0.06))
+        shaft.castShadow = true
+        g.userData.ghostH = broke ? 0.7 : 1.1
+      } else if (K === 'upturned-boat') {
+        // §7du-ii: hull UP, which is what a boat on a shore looks like when
+        // nobody is using it, and the one shape that must not read as a wreck
+        // THE DOME GOES UP. A half cylinder laid along Z with the flat face
+        // anywhere but down reads as a TROUGH, which is what the first one
+        // did: a plank with legs, indistinguishable from the trestle twenty
+        // yards away. A boat on a shore is a smooth back and a keel line, and
+        // the keel is the only straight thing on it.
+        // ROTATE THE GEOMETRY, NOT THE MESH. A half cylinder's opening faces
+        // -X before anything is done to it, and a mesh Euler applies X before
+        // Z whatever order they are written in: `rotation.set(PI/2, 0, PI/2)`
+        // does not lay a shell down and then roll it, it rolls the axis too,
+        // and the boat came out as a plank on its edge twice. Geometry
+        // rotations happen in the order they are called, which is the only way
+        // to be sure: spin the opening round to -Z, then lay the hull along Z.
+        // Measured after, the shell sits entirely above zero, which is what a
+        // hull on a beach does.
+        const hullGeo = new THREE.CylinderGeometry(0.46, 0.34, 2.1, 9, 1, false, 0, Math.PI)
+        hullGeo.rotateY(Math.PI / 2); hullGeo.rotateX(Math.PI / 2)
+        const hull = add(new THREE.Mesh(hullGeo, tintedMat(0x6b5330, 0.93)), 0, 0.02, 0)
+        hull.castShadow = true
+        // two ribs over the back, so it is a BOAT and not a lump
+        for (const rz of [-0.6, 0.6]) {
+          const rib = add(new THREE.Mesh(new THREE.TorusGeometry(0.44, 0.028, 4, 9, Math.PI),
+            tintedMat(0x3b2c16, 0.95)), 0, 0.03, rz, false)
+          rib.rotation.y = Math.PI / 2
+        }
+        // the flat it sits on, so there is no hole where the ground meets it
+        const keel = bx(0.09, 0.06, 2.05, tintedMat(0x3b2c16, 0.95), 0, 0.47, 0)
+        keel.castShadow = true
+        g.userData.ghostH = 0.7
+      } else if (K === 'fish-trap') {
+        const wk = tintedMat(0x8a7442, 0.96)
+        const bod = add(new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.17, 0.78, 9, 1, true), wk), 0, 0.2, 0)
+        bod.rotation.z = Math.PI / 2 - 0.2; bod.castShadow = true
+        for (let i = 0; i < 4; i++) {
+          const hp = add(new THREE.Mesh(new THREE.TorusGeometry(0.25 - i * 0.02, 0.02, 4, 9), tintedMat(0x6e5a34, 0.96)),
+            -0.3 + i * 0.2, 0.2 + i * 0.01, 0, false)
+          hp.rotation.y = Math.PI / 2
+        }
+        g.userData.ghostH = 0.6
+      } else if (K === 'sheep-hurdle') {
+        const wd = tintedMat(0x7d6b46, 0.95)
+        for (const sx of [-0.5, 0.5]) { const p2 = cy(0.035, 0.04, 0.8, wd, sx, 0.4, 0); p2.castShadow = true }
+        for (let i = 0; i < 4; i++) bx(1.02, 0.04, 0.04, wd, 0, 0.18 + i * 0.2, 0)
+        for (const dx of [-0.25, 0.25]) {
+          const br = cy(0.025, 0.028, 0.84, wd, dx, 0.4, 0, 0, dx > 0 ? 0.5 : -0.5)
+        }
+        g.userData.ghostH = 1.0
+      } else if (K === 'staithe') {
+        // a landing stage: planks out over the water on driven piles
+        const dk = bx(0.8, 0.07, 1.5, tintedMat(0x7a6132, 0.93), 0, 0.42, 0.3)
+        dk.castShadow = true
+        for (const [px, pz] of [[-0.3, -0.3], [0.3, -0.3], [-0.3, 0.85], [0.3, 0.85]]) {
+          const p2 = cy(0.055, 0.065, 0.9, tintedMat(0x4a3720, 0.96), px, 0.2, pz)
+          p2.castShadow = true
+        }
+        g.userData.ghostH = 0.8
+      // --- posts, stones and walls ---
+      } else if (K === 'way-post' || K === 'tally-post' || K === 'gazebo-post') {
+        const p2 = post(K === 'gazebo-post' ? 0xb6b0a0 : K === 'tally-post' ? 0x5a462a : 0x6b5330,
+          K === 'gazebo-post' ? 1.9 : 1.3, K === 'gazebo-post' ? 0.07 : 0.055)
+        if (K === 'way-post') {
+          const arm = bx(0.52, 0.11, 0.05, tintedMat(0xc9b98a, 0.9), 0.24, 1.14, 0)
+          arm.castShadow = true
+        }
+        if (K === 'tally-post') for (let i = 0; i < 6; i++)
+          bx(0.12, 0.02, 0.014, tintedMat(0x2f2313, 1), 0.03, 0.5 + i * 0.12, 0.052, 0, false)
+        if (K === 'gazebo-post') {
+          const cap = bx(0.22, 0.07, 0.22, tintedMat(0xc6c0b0, 0.9), 0, 1.93, 0)
+          cap.castShadow = true
+        }
+        g.userData.ghostH = K === 'gazebo-post' ? 2.1 : 1.5
+      } else if (K === 'bridge-stone') {
+        // the stone at the end of a span, cut square and set deliberately
+        const st = bx(0.52, 0.56, 0.52, mats.stone, 0, 0.28, 0)
+        st.castShadow = true
+        const cap = bx(0.6, 0.08, 0.6, tintedMat(0x8a8378, 0.88), 0, 0.6, 0)
+        cap.castShadow = true
+        for (let i = 0; i < 3; i++)
+          bx(0.3, 0.015, 0.02, tintedMat(0x39352e, 1), 0, 0.36 + i * 0.09, 0.262, 0, false)
+        g.userData.ghostH = 0.8
+      } else if (K === 'half-wall' || K === 'window-arch') {
+        const w2 = tintedMat(0x6e6a62, 0.9)
+        for (let c = 0; c < 4; c++) for (let i = 0; i < 3; i++) {
+          const b = bx(0.34, 0.15, 0.3, tintedMat([0x6e6a62, 0x66625a, 0x726e66][(c + i) % 3], 0.9),
+            -0.34 + i * 0.34, 0.075 + c * 0.15, 0, 0)
+          b.castShadow = true
+        }
+        if (K === 'window-arch') {
+          // the opening, and the sky through it: the one detail that makes it
+          // an arch and not a piece of wall
+          for (let c = 0; c < 4; c++) {
+            bx(0.3, 0.15, 0.3, w2, -0.68, 0.075 + c * 0.15, 0)
+            bx(0.3, 0.15, 0.3, w2, 0.68, 0.075 + c * 0.15, 0)
+          }
+          const sky = add(new THREE.Mesh(new THREE.PlaneGeometry(0.98, 0.56),
+            new THREE.MeshBasicMaterial({ color: 0x100e0c })), 0, 0.3, 0.16, false)
+          const ring = add(new THREE.Mesh(new THREE.TorusGeometry(0.49, 0.07, 5, 11, Math.PI), w2), 0, 0.58, 0)
+          ring.castShadow = true
+        }
+        g.userData.ghostH = K === 'window-arch' ? 1.0 : 0.8
+      } else if (K === 'birdbath' || K === 'flowerbed') {
+        if (K === 'birdbath') {
+          const stem = cy(0.07, 0.1, 0.62, tintedMat(0x9a947f, 0.9), 0, 0.31, 0)
+          stem.castShadow = true
+          const bowl = cy(0.26, 0.2, 0.1, tintedMat(0xa8a290, 0.88), 0, 0.67, 0)
+          bowl.castShadow = true
+          const wtr = add(new THREE.Mesh(new THREE.CircleGeometry(0.22, 14),
+            new THREE.MeshStandardMaterial({ color: 0x3c5a68, roughness: 0.12, metalness: 0.2 })), 0, 0.715, 0, false)
+          wtr.rotation.x = -Math.PI / 2
+          g.userData.ghostH = 0.9
+        } else {
+          mark(0x4a3a28, 0.52, 0.016)
+          for (let i = 0; i < 11; i++) {
+            const a2 = (i / 11) * Math.PI * 2, rr = 0.16 + (i % 3) * 0.13
+            const st = cy(0.012, 0.014, 0.22, leafMat(0x3f6a2a), Math.cos(a2) * rr, 0.11, Math.sin(a2) * rr, 0, 0, false)
+            st.userData.canopy = true
+            const fl = add(new THREE.Mesh(new THREE.SphereGeometry(0.038, 6, 5),
+              leafMat([0x4a6fc4, 0x5f83d8, 0x3d5eb0, 0xc9d4f0][i % 4])),
+              Math.cos(a2) * rr, 0.24, Math.sin(a2) * rr, false)
+            fl.userData.canopy = true
+          }
+          g.userData.ghostH = 0.35
+        }
+      // --- marks on the ground, which is what most of a worked country is ---
+      } else if (K === 'wellspring') {
+        // §6c-ii: what it DOES is discoverable by drinking and by nothing
+        // else, so the drawing says spring and says nothing about the rest: a
+        // ring of set stones with water standing in it and a cut leading off.
+        const ring = add(new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.1, 6, 16), mats.stone), 0, 0.1, 0)
+        ring.rotation.x = Math.PI / 2; ring.castShadow = true
+        const wtr = add(new THREE.Mesh(new THREE.CircleGeometry(0.38, 18),
+          new THREE.MeshStandardMaterial({ color: 0x4a6f78, roughness: 0.1, metalness: 0.25 })), 0, 0.09, 0, false)
+        wtr.rotation.x = -Math.PI / 2
+        for (let i = 0; i < 5; i++) {   // the cut it runs away down
+          const rn = add(new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.02, 0.22),
+            tintedMat(0x3c5a68, 0.2, { metalness: 0.2 })), 0.02 * i, 0.03, 0.5 + i * 0.2, false)
+          rn.rotation.y = (i % 2 ? 0.1 : -0.1)
+        }
+        g.userData.ghostH = 0.5
+      } else if (K === 'grave') {
+        // a mound, settled, and one board with nothing legible left on it
+        const md = add(new THREE.Mesh(canopyGeo(hsh9 + 7), tintedMat(0x4a4132, 1, { vertexColors: true })), 0, 0.1, 0)
+        md.scale.set(0.46, 0.17, 0.72); md.castShadow = true
+        const brd = bx(0.26, 0.34, 0.035, tintedMat(0x5a462a, 0.96), 0, 0.2, -0.48)
+        brd.rotation.z = (hsh9 % 11 - 5) / 50; brd.castShadow = true
+        bx(0.2, 0.03, 0.02, tintedMat(0x3a2d1a, 1), 0, 0.26, -0.465, 0, false)
+        g.userData.ghostH = 0.6
+      } else if (K === 'wheel-rut') {
+        for (const sx of [-0.14, 0.14]) {
+          const rt = add(new THREE.Mesh(new THREE.PlaneGeometry(0.17, 1.5), tintedMat(0x4a4132, 1)), sx, 0.014, 0, false)
+          rt.rotation.x = -Math.PI / 2; rt.receiveShadow = true
+        }
+        g.userData.ghostH = 0.2
+      } else if (K === 'dew-mark' || K === 'daub-mark' || K === 'shot-hole'
+                 || K === 'charcoal-ring' || K === 'salt-lick' || K === 'wool-snag'
+                 || K === 'windfall' || K === 'sheep-skull') {
+        if (K === 'dew-mark') {
+          mark(0xb9c4a8, 0.46, 0.014)
+          mark(0xd8e0cc, 0.2, 0.018, 0.5)
+        } else if (K === 'daub-mark') {
+          mark(0x6e6a62, 0.34, 0.014)
+          const sm = add(new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.06), tintedMat(0x9c2b22, 1)), 0, 0.02, 0, false)
+          sm.rotation.set(-Math.PI / 2, 0, 0.6)
+        } else if (K === 'shot-hole') {
+          mark(0x6e6a62, 0.3, 0.014)
+          const hole = add(new THREE.Mesh(new THREE.CircleGeometry(0.1, 10),
+            new THREE.MeshBasicMaterial({ color: 0x0b0a09 })), 0, 0.02, 0, false)
+          hole.rotation.x = -Math.PI / 2
+        } else if (K === 'charcoal-ring') {
+          mark(0x46382e, 0.44, 0.014)
+          const ring = add(new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.05, 5, 16), tintedMat(0x2c2c2e, 1)), 0, 0.05, 0)
+          ring.rotation.x = Math.PI / 2; ring.receiveShadow = true
+        } else if (K === 'salt-lick') {
+          const lk = bx(0.3, 0.14, 0.26, tintedMat(0xcfc9b4, 0.85), 0, 0.07, 0)
+          lk.castShadow = true
+          mark(0x9a947f, 0.4, 0.013)
+        } else if (K === 'wool-snag') {
+          const p2 = post(0x4a3f2e, 0.5, 0.03)
+          for (let i = 0; i < 3; i++) {
+            const tuft = add(new THREE.Mesh(new THREE.SphereGeometry(0.07, 7, 5), leafMat(0xddd7c8, { roughness: 0.99 })),
+              0.03, 0.34 + i * 0.09, 0.03, false)
+            tuft.scale.set(1, 0.7, 0.8); tuft.userData.canopy = true
+          }
+          g.userData.ghostH = 0.7
+        } else if (K === 'windfall') {
+          // the fruit a tree dropped, which is the only reason to look down here
+          for (let i = 0; i < 6; i++) {
+            const a2 = (i / 6) * Math.PI * 2
+            add(new THREE.Mesh(new THREE.SphereGeometry(0.075, 6, 5), tintedMat(0x7a5a2a, 0.9)),
+              Math.cos(a2) * (0.2 + (i % 3) * 0.12), 0.07, Math.sin(a2) * (0.2 + (i % 3) * 0.12))
+          }
+        } else if (K === 'sheep-skull') {
+          const sk = add(new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 7), mats.bone), 0, 0.13, 0)
+          sk.scale.set(1, 0.85, 1.25); sk.castShadow = true
+          for (const sx of [-0.14, 0.14]) {
+            const hn = add(new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.025, 4, 8, Math.PI * 1.3),
+              tintedMat(0xc2baa6, 0.85)), sx, 0.2, -0.02, false)
+            hn.rotation.y = sx > 0 ? 0.3 : -0.3; hn.rotation.z = sx > 0 ? -0.5 : 0.5
+          }
+          for (const sx of [-0.06, 0.06]) {
+            const ey = add(new THREE.Mesh(new THREE.CircleGeometry(0.03, 8),
+              new THREE.MeshBasicMaterial({ color: 0x1a1712 })), sx, 0.15, 0.185, false)
+          }
+          g.userData.ghostH = 0.4
+        }
+        if (g.userData.ghostH === undefined) g.userData.ghostH = 0.3
+      } else {
+        // LM_PROP names it and the chain above has no arm for it, which is a
+        // fault in this file rather than in the world. A plain marker, and the
+        // report below names the word.
+        heap(0x6f6b64, 5, 0.3, 0.2)
+        g.userData.ghostH = 0.4
+      }
     } else if (n.kind === 'broken-tower') {
       // An ORIGINAL kind -- it has sat in LANDMARK_KINDS since the first
       // seven, between 'standing-stone' and 'sentinel' -- and this window
@@ -4193,21 +4799,40 @@ function nodeBody(n) {
         fl.castShadow = true; fl.receiveShadow = true
       }
       g.userData.ghostH = 3.6
-    } else { // shipwreck: the hull heels into the sand, the mast keeps its angle
-      const hull9 = add(new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.75, 2.6, 7), mats.trunk), 0, 0.32, 0)
-      hull9.rotation.z = Math.PI / 2; hull9.rotation.x = 0.28; hull9.scale.y = 1.15; hull9.castShadow = true
-      const mast9 = add(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.09, 2.4, 6), mats.trunk), 0.2, 1.1, 0.1)
-      mast9.rotation.z = -0.5; mast9.castShadow = true
+    } else {
+      // §7f-ix: A WINDOW SHOULD SAY WHAT IT CANNOT DRAW.
+      //
+      // This was a hull and a mast, so every landmark kind without an arm in
+      // the chain above drew as a beached boat, and `shipwreck` already had a
+      // branch of its own further up, so the one thing this shape was right
+      // for never reached it. 1,821 props on the island, all boats.
+      //
+      // A fallback must be HONEST: plainly a marker, obviously not a drawing
+      // of the thing, and it NAMES the word once per kind so the gap is a line
+      // in the log rather than something somebody has to notice by looking.
+      // The Unreal window has had this rule for a while (`bReportUndrawnKinds`)
+      // and the web windows did not.
+      undrawnKind(n.kind)
+      const st7 = tintedMat(0x6f6b64, 0.95)
+      for (let i = 0; i < 4; i++) {
+        const a7 = (i / 4) * Math.PI * 2
+        const c7 = add(new THREE.Mesh(rockGeo(tileHash(n.x + i, n.y, 59)), st7),
+          Math.cos(a7) * 0.16, 0.08 + (i % 2) * 0.06, Math.sin(a7) * 0.16)
+        c7.scale.setScalar(0.22); c7.rotation.y = a7
+      }
+      g.userData.ghostH = 0.4
     }
     return g
   }
   if (fam === 'tree') {
     // the named trees wear their own leaf: an ironbark is not an oak and a
     // gallows-oak is a thing you should recognise before you are under it
-    const lf0 = tint ? tintedMat(tint.dark) : mats.leaf0
-    const lf1 = tint ? tintedMat(tint.leaf) : mats.leaf1
-    const lf2 = tint ? tintedMat(tint.lit) : mats.leaf2
-    const blob = tint ? tintedMat(tint.leaf, 0.88, { vertexColors: true }) : mats.leafBlob
+    // §7f-ix: `leafMat`, not `tintedMat`: a named tree's leaf has to move like
+    // every other leaf, and a plain tinted skin has no wind in it.
+    const lf0 = tint ? leafMat(tint.dark) : mats.leaf0
+    const lf1 = tint ? leafMat(tint.leaf) : mats.leaf1
+    const lf2 = tint ? leafMat(tint.lit) : mats.leaf2
+    const blob = tint ? leafMat(tint.leaf, { roughness: 0.88, vertexColors: true }) : mats.leafBlob
     const barkM = n.type === 'ironbark-tree' ? tintedMat(0x2a2f2c, 0.95):
       n.type === 'gallows-oak' ? tintedMat(0x2a1c20, 0.95) : mats.bark
     if (hsh % 5 < 2) {

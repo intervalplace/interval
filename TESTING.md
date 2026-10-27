@@ -10,7 +10,7 @@ possible executions.
 
 ## Unit + property suite (`npm test`)
 
-`node --test test/*.test.mjs`, 634 tests across:
+`node --test test/*.test.mjs`, 638 tests across:
 
 - `leak.test.mjs`, §21c: no write reaches the caller's state. Exercises the
   paths where one citizen touches another (striking, being hunted, trading,
@@ -276,6 +276,27 @@ possible executions.
   of those tables are Sets, `JSON.stringify(new Set())` is `{}`, and
   /api/tables served all four whole -- so a window that trusted them would
   have learned that nothing in the world can be worn
+- `check-window-photo-landmarks.mjs`, wrapped in `photo.test.mjs`: every one of
+  the ninety-seven landmark kinds the engine will accept, BUILT against the
+  real three.js, and asked four things. Does it build; did it make anything; is
+  every material a material; does anything still fall through to the fallback.
+  Fifty-five kinds had no arm in that window's drawing chain, so all 1,821 of
+  them on the island drew as the `else` at the bottom of it, which built a hull
+  and a mast: a meadow of beached boats. And the hull used `mats.trunk`, which
+  was asked for fourteen times in the file and defined NOWHERE, so they were
+  WHITE boats -- `new THREE.Mesh(geo, undefined)` neither fails nor warns,
+  three.js hands the mesh its default unlit white. Both faults are silent by
+  construction and neither a grep of the source nor a sweep of the world finds
+  them. It also measures size and footing, which catches a bench the size of a
+  keep or a thing buried in the ground, and it is the only check that could
+  have found `wellspring` and `grave`: both are in LANDMARK_KINDS, the island
+  does not currently grow either, and both words appear elsewhere in the file
+  as text, so every other check called them drawn
+- `sweep-photo.mjs` is the eyes. It stands the real photo window up in a real
+  browser, hands it the real island and photographs the places where the new
+  art is. Not in the suite, because it needs Chrome: the standing rule here is
+  to test through the window's own interface, and no check of geometry will
+  tell you whether a pine looks like a pine
 - `photo.test.mjs`, whether a thumb can reach the world from the photo window.
   It could BUILD 83 of the 88 inputs a citizen may send and could REACH four:
   a beast to attack, a node to gather from, a pile to walk to, and ten verbs

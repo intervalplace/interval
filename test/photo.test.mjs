@@ -18,6 +18,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
+import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import E from '../engine.js'
 
@@ -328,4 +329,55 @@ test('the deeds that happen at a place are reachable from that place', () => {
     if (!WIN.SENT.some((s) => s.do === verb)) faults.push(`${what}: no row sends ${verb}`)
   }
   assert.deepEqual(faults, [], faults.join('\n  '))
+})
+
+// §7f-ix: NO MESH IS BUILT WITH A MATERIAL THAT DOES NOT EXIST.
+//
+// `mats.trunk` was used fourteen times in window-photo and defined nowhere.
+// `new THREE.Mesh(geo, undefined)` neither fails nor warns: three.js hands the
+// mesh a default `MeshBasicMaterial`, which is UNLIT WHITE. So fourteen shapes
+// drew as glowing white with no shading on them, and one of the fourteen was
+// the landmark fallback, which the island reaches 1,821 times.
+//
+// This is the "pale slabs lying in a meadow" signature the project has chased
+// before. A typo in a material name is silent by design in three.js, so it has
+// to be caught here.
+test('every material window-photo asks for is one it defines', () => {
+  const i = src.indexOf('const mats = {')
+  assert.ok(i > 0, 'window-photo no longer has a shared material table')
+  let depth = 0, close = -1
+  for (let k = src.indexOf('{', i); k < src.length; k++) {
+    if (src[k] === '{') depth++
+    else if (src[k] === '}') { depth--; if (!depth) { close = k; break } }
+  }
+  const body = src.slice(src.indexOf('{', i) + 1, close)
+  const defined = new Set([...body.matchAll(/^ {2}([A-Za-z_][A-Za-z0-9_]*)\s*:/gm)].map((m) => m[1]))
+  // and anything hung on the table afterwards, which is how the detail maps go on
+  for (const m of src.matchAll(/\bmats\.([A-Za-z_][A-Za-z0-9_]*)\s*=/g)) defined.add(m[1])
+  const used = new Map()
+  for (const m of src.matchAll(/\bmats\.([A-Za-z_][A-Za-z0-9_]*)/g))
+    used.set(m[1], (used.get(m[1]) ?? 0) + 1)
+  const missing = [...used].filter(([k]) => !defined.has(k))
+    .map(([k, n]) => `mats.${k}, asked for ${n} time${n === 1 ? '' : 's'}`)
+  assert.deepEqual(missing, [], missing.join('; '))
+})
+
+// AND EVERY LANDMARK BUILDS, WHICH ONLY BUILDING IT WILL TELL YOU.
+//
+// `check-window-photo-landmarks.mjs` runs this window's landmark block against
+// the real three.js for all ninety-seven kinds the engine will accept, and
+// asks three things of each: does it build, did it make anything, and is every
+// material a material. It is a checker rather than a test because it needs
+// three.js on disk; it is wrapped here because a checker nobody runs is a
+// document, which this project has now learned four times.
+//
+// It is also the only thing that could have found the last two: `wellspring`
+// and `grave` are in LANDMARK_KINDS, the island does not currently grow either
+// of them so no sweep of the world sees them, and both words appear elsewhere
+// in the file as text so the word check called them named. Neither had a
+// drawing at all.
+test('every landmark kind the engine accepts builds in the photo window', () => {
+  const r = spawnSync(process.execPath, [path.join(root, 'check-window-photo-landmarks.mjs')],
+    { cwd: root, encoding: 'utf8' })
+  assert.equal(r.status, 0, '\n' + r.stdout + r.stderr)
 })

@@ -1559,3 +1559,38 @@ test('the click handler draws nothing, and nothing it does is unreachable', () =
   assert.deepEqual(twice, [],
     `two branches open on the same node type, so the second is dead: ${twice.join(', ')}`)
 })
+
+// §7f-ix: EVERY LANDMARK KIND HAS ART OF ITS OWN, AND THE FALLBACK IS A MARKER.
+//
+// This chain used to END in the broken tower, so every landmark kind the
+// window did not know was painted as ruined masonry. The wellspring's own
+// comment in this file records how close that came to mattering: "without
+// these lines the one place on the island that takes a wound off would have
+// been painted as ruined masonry -- a citizen could stand on it and see
+// something else."
+//
+// A fallback that draws a REAL thing cannot be noticed, which is the same
+// fault window-photo had in the other direction (its fallback was a
+// shipwreck, and 1,821 props on the island were beached boats). So: every kind
+// the engine will accept has a branch of its own, and whatever reaches the
+// fallback says the word out loud.
+test('every landmark kind the engine accepts has art of its own', () => {
+  const code = win.replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n').map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n')
+  const arms = new Set([...code.matchAll(/(?:K|n\.kind) === '([a-z0-9-]+)'/g)].map((m) => m[1]))
+  assert.ok(E.LANDMARK_KINDS, 'engine.js no longer exports LANDMARK_KINDS')
+  const bare = [...E.LANDMARK_KINDS].filter((k) => !arms.has(k))
+  assert.deepEqual(bare, [],
+    `these stand on the island and this window has no branch for them: ${bare.join(' ')}`)
+})
+
+test('the landmark fallback names what it could not draw', () => {
+  assert.ok(/function undrawnKind/.test(win),
+    'window-web has no way to report a word it cannot draw')
+  // and the fallback uses it: the arm with no condition on it
+  const at = win.lastIndexOf('undrawnKind(')
+  assert.ok(at > 0, 'nothing calls undrawnKind')
+  const before = win.slice(Math.max(0, at - 400), at)
+  assert.ok(/\} else \{/.test(before),
+    'undrawnKind is not called from the fallback arm of the landmark chain')
+})

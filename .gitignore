@@ -28,3 +28,5 @@ witness-safety/
 .DS_Store
 *.log
 sweep-out/
+sweep-photo-out/
+sweep-photo-page.html

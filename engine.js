@@ -8773,59 +8773,12 @@ function validateImports(imported) {
   return null;
 }
 
-function validateState(state) {
-  if (!state || typeof state !== 'object') return 'not an object';
-  const gerr = validateGenesis(state.genesis);
-  if (gerr) return gerr;
-  const W = state.genesis.worldW, H = state.genesis.worldH;
-  if (!isInt(state.tick, 0, Number.MAX_SAFE_INTEGER)) return 'bad tick';
-  let totalEntities = 0;
-  for (const key of ['players', 'nodes', 'mobs', 'ground', 'names']) {
-    if (!state[key] || typeof state[key] !== 'object' || Array.isArray(state[key])) return `bad ${key} table`;
-    const n = Object.keys(state[key]).length;
-    if (n > MAX_ENTITIES) return `${key} count exceeds bounds`;
-    totalEntities += n;
-  }
-  if (totalEntities > MAX_ENTITIES) return 'aggregate entity count exceeds bounds'; // rev5 §8
-
-  // §7dk: THE RECORD BOARDS, and the reason they are checked as hard as a bank.
-  //
-  // They are hashed state: every node replaying this history must reach the
-  // same three names in the same order, or the board is a fork. So the board
-  // key is a closed vocabulary, the order is asserted rather than assumed, and
-  // the length is capped HERE as well as at the point of writing -- because a
-  // table whose size depends on how many citizens ever played is the fault §5
-  // exists to prevent, and a cap enforced in one place only is a cap that a
-  // future import can walk straight past.
-  if (state.records !== undefined) {
-    const R = state.records;
-    if (typeof R !== 'object' || R === null || Array.isArray(R)
-      || Object.getPrototypeOf(R) !== Object.prototype) return 'records must be a table of boards';
-    if (Object.keys(R).length > SKILLS.length * 2) return 'more record boards than there are boards';
-    for (const [board, row] of Object.entries(R)) {
-      const cut = board.indexOf(':');
-      const kind = board.slice(0, cut), sk = board.slice(cut + 1);
-      if (kind !== 'unaided' && kind !== 'supplied') return 'a record board that is neither unaided nor supplied';
-      if (!SKILLS.includes(sk)) return 'a record board for a skill that does not exist';
-      if (!Array.isArray(row) || row.length === 0 || row.length > RECORD_KEEP) return 'a record board out of bounds';
-      let prev = null;
-      for (const e of row) {
-        if (!e || typeof e !== 'object' || Array.isArray(e)
-          || Object.keys(e).sort().join(',') !== 'by,took') return 'a malformed record';
-        if (typeof e.by !== 'string' || !HEX64.test(e.by)) return 'a record with a malformed hand';
-        if (!isInt(e.took, 0, MAX_TIME)) return 'a record out of bounds';
-        // fastest first, ties by playerId: the same order on every node
-        if (prev && (e.took < prev.took || (e.took === prev.took && e.by <= prev.by)))
-          return 'a record board out of canonical order';
-        prev = e;
-      }
-    }
-  }
-
-  // ---- constitutional tables (final brief §7): the validator accepts
-  // exactly what THIS engine writes, nothing missing, nothing extra ----
-  const SKILL_SET = SKILLS;                 // shared constitutional tables
-  const NODE_TYPE_SET = new Set(NODE_TYPES);
+// §7f-ix: HOISTED OUT OF `validateState`, where it was declared at column
+// zero inside the function body and so was invisible to everything else. It is
+// the authoritative list of what a landmark may BE -- the validator refuses
+// any other word -- which makes it the list of what a window has to draw, and
+// no window could ask for it. window-photo drew fifty-five of the ninety-four
+// as a beached boat, and the only way to find that out was to found a world.
 const LANDMARK_KINDS = new Set([
   // the eight of the first founding
   'elder-tree', 'old-oak', 'standing-stone', 'broken-tower', 'sentinel',
@@ -8992,6 +8945,59 @@ const LANDMARK_KINDS = new Set([
   'rubble-heap',
   'window-arch',
 ]); // (rev4 §11): defined ONCE, above
+function validateState(state) {
+  if (!state || typeof state !== 'object') return 'not an object';
+  const gerr = validateGenesis(state.genesis);
+  if (gerr) return gerr;
+  const W = state.genesis.worldW, H = state.genesis.worldH;
+  if (!isInt(state.tick, 0, Number.MAX_SAFE_INTEGER)) return 'bad tick';
+  let totalEntities = 0;
+  for (const key of ['players', 'nodes', 'mobs', 'ground', 'names']) {
+    if (!state[key] || typeof state[key] !== 'object' || Array.isArray(state[key])) return `bad ${key} table`;
+    const n = Object.keys(state[key]).length;
+    if (n > MAX_ENTITIES) return `${key} count exceeds bounds`;
+    totalEntities += n;
+  }
+  if (totalEntities > MAX_ENTITIES) return 'aggregate entity count exceeds bounds'; // rev5 §8
+
+  // §7dk: THE RECORD BOARDS, and the reason they are checked as hard as a bank.
+  //
+  // They are hashed state: every node replaying this history must reach the
+  // same three names in the same order, or the board is a fork. So the board
+  // key is a closed vocabulary, the order is asserted rather than assumed, and
+  // the length is capped HERE as well as at the point of writing -- because a
+  // table whose size depends on how many citizens ever played is the fault §5
+  // exists to prevent, and a cap enforced in one place only is a cap that a
+  // future import can walk straight past.
+  if (state.records !== undefined) {
+    const R = state.records;
+    if (typeof R !== 'object' || R === null || Array.isArray(R)
+      || Object.getPrototypeOf(R) !== Object.prototype) return 'records must be a table of boards';
+    if (Object.keys(R).length > SKILLS.length * 2) return 'more record boards than there are boards';
+    for (const [board, row] of Object.entries(R)) {
+      const cut = board.indexOf(':');
+      const kind = board.slice(0, cut), sk = board.slice(cut + 1);
+      if (kind !== 'unaided' && kind !== 'supplied') return 'a record board that is neither unaided nor supplied';
+      if (!SKILLS.includes(sk)) return 'a record board for a skill that does not exist';
+      if (!Array.isArray(row) || row.length === 0 || row.length > RECORD_KEEP) return 'a record board out of bounds';
+      let prev = null;
+      for (const e of row) {
+        if (!e || typeof e !== 'object' || Array.isArray(e)
+          || Object.keys(e).sort().join(',') !== 'by,took') return 'a malformed record';
+        if (typeof e.by !== 'string' || !HEX64.test(e.by)) return 'a record with a malformed hand';
+        if (!isInt(e.took, 0, MAX_TIME)) return 'a record out of bounds';
+        // fastest first, ties by playerId: the same order on every node
+        if (prev && (e.took < prev.took || (e.took === prev.took && e.by <= prev.by)))
+          return 'a record board out of canonical order';
+        prev = e;
+      }
+    }
+  }
+
+  // ---- constitutional tables (final brief §7): the validator accepts
+  // exactly what THIS engine writes, nothing missing, nothing extra ----
+  const SKILL_SET = SKILLS;                 // shared constitutional tables
+  const NODE_TYPE_SET = new Set(NODE_TYPES);
   const PLAYER_REQUIRED = ['x', 'y', 'skills', 'health', 'equipment', 'vaults', 'lastInput', 'gold', 'inventory', 'action', 'name', 'trade'];
   const PLAYER_OPTIONAL = new Set(['hooded', 'crops', 'attuned', 'brandedUntil', 'cooksTried', 'deadUntil',
     // §6c-ii: the wound the dead leave, and the tally that never falls
@@ -18689,6 +18695,12 @@ module.exports = {
   // beside them. Read-only to consumers; exporting them adds no behaviour and
   // enters no state. See spec-tables.mjs.
   SMELTED, SMITH_REQS, STACKABLE, ARMOUR, TWO_HANDED,
+  // §7f-ix: THE WORDS A LANDMARK MAY BE. `validateState` refuses any other,
+  // so this is the authoritative list of what a window has to be able to draw,
+  // and it was not exported: a window could only find out by founding a world
+  // and looking at what came back. Ninety-four of them, and window-photo drew
+  // fifty-five as a beached boat because nothing could ask.
+  LANDMARK_KINDS,
   MAX_APPLIED_INPUTS, STRANGER_SHARE,
   canonical, EMPTY_ROOT, SMT_DEPTH,
   CALLING_NAMES, KEEPER_KINDS, skillUnlocks, worthRank,

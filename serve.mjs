@@ -1648,6 +1648,9 @@ const server = http.createServer((req, res) => {
         items: [...(E.ITEMS || [])], equippable: [...(E.EQUIPPABLE || [])],
         stackable: [...(E.STACKABLE || [])], twoHanded: [...(E.TWO_HANDED || [])],
         armour: E.ARMOUR, nodeTypes: E.NODE_TYPES,
+        // §7f-ix: and the words a landmark may be, so a window can be held to
+        // the whole list rather than to whatever the island happened to grow
+        landmarkKinds: [...(E.LANDMARK_KINDS || [])],
         keeperKinds: E.KEEPER_KINDS, stalls: E.STALL_SELLS,
         // §the callings: which trades a skill opens, what they are called, the
         // level they want, and the ceiling. A window may not invent a calling.
