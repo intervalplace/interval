@@ -1416,3 +1416,79 @@ test('a menu opens under the thing that was pressed', () => {
   assert.match(fm.slice(0, 1400), /Math\.min\(at\.x, innerWidth - r\.width/,
     'a menu near the edge hangs off the window again')
 })
+
+// ---- A SHOP IS AT THE SHOP ----
+//
+// Clicking a stall printed its wares into the log and said "Buy from the bar
+// below": a row of buttons above the pack, at the other end of the screen
+// from the stall you had just touched. Clicking your OWN stall called
+// `openMyStall`, which does not exist anywhere in this file and never has, so
+// it threw and the error went into the log.
+test('a stall is bought from at the stall', () => {
+  const code = win.replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n').map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n')
+  assert.equal(/openMyStall/.test(code), false, 'the stall still calls a function that does not exist')
+  // the SECOND occurrence: the first is the stall's drawing, which names the
+  // same type and sells nothing
+  const at = code.lastIndexOf("if (n.type === 'stall') {")
+  assert.ok(at > 0, 'the stall click is gone or renamed')
+  const body = code.slice(at, at + 2400)
+  assert.match(body, /chooseAction\(/, 'the stall no longer opens anything')
+  assert.match(body, /do: 'buy', item: it/, 'the stall menu does not buy')
+  assert.equal(/bar below/.test(body), false, 'the stall points at a bar again')
+  // every ware is offered, and what you cannot afford is dimmed rather than
+  // hidden: the price is the thing a citizen came to find out
+  assert.match(body, /dim: branded \|\| purse < pr/)
+  // and the citizen's own stall is tended where it stands
+  const mk = code.indexOf("if (n.by === myId) {")
+  assert.ok(mk > 0, 'the own-stall branch is gone')
+  const mine = code.slice(mk, mk + 2600)
+  for (const verb of ['stock_market', 'price_market', 'take_market', 'dismantle_market']) {
+    assert.ok(mine.includes(verb), `your own stall cannot ${verb} from the stall`)
+  }
+})
+
+test('every stall the engine stocks, the window stocks the same', () => {
+  const blk = win.match(/const STALL_SELLS = \{([\s\S]*?)\n\}/)
+  assert.ok(blk, 'the window’s stall table is gone')
+  const mine = {}
+  for (const m of blk[1].matchAll(/([a-z]+):\s*\{([^}]*)\}/g)) {
+    // a key is quoted only when it has to be: `seeds: 22` and `'iron-helm': 24`
+    mine[m[1]] = Object.fromEntries(
+      [...m[2].matchAll(/'?([a-z-]+)'?:\s*(\d+)/g)].map((x) => [x[1], Number(x[2])]))
+  }
+  assert.deepEqual(Object.keys(mine).sort(), Object.keys(E.STALL_SELLS).sort(), 'a stall kind differs')
+  for (const [kind, stock] of Object.entries(E.STALL_SELLS)) {
+    assert.deepEqual(mine[kind], stock, `the ${kind} stall sells something different in the window`)
+  }
+})
+
+// ---- WHAT IS FIXED IN HEIGHT MUST SAY SO ----
+//
+// `#panel` is a flex column, so every child defaults to shrinkable, and when
+// the column overflows -- which on a phone it always does -- a child with a
+// fixed height is squeezed to nothing. Measured: the health bar was fourteen
+// pixels in the stylesheet and NOUGHT on the screen, and the number still
+// showed because `#hptext` is positioned absolutely and overflows the box. So
+// the one readout a citizen must take in at a glance mid-fight had been a
+// bare line of text on every phone since the panel started scrolling.
+test('the health bar has a height the panel cannot squeeze', () => {
+  const css = win.slice(0, win.indexOf('</style>'))
+  const bar = css.match(/#hpbar \{([^}]*)\}/)
+  assert.ok(bar, 'the health bar is gone or renamed')
+  assert.match(bar[1], /height: \d+px/, 'the bar has no height of its own')
+  assert.match(bar[1], /flex: none/, 'the bar can be squeezed to nothing again')
+  // the table learned the same lesson first
+  const tr = css.match(/#trade \{([^}]*)\}/)
+  assert.ok(tr && /flex: none/.test(tr[1]), 'the trade table can be squeezed again')
+})
+
+test('the nine fold away, and the pack does not', () => {
+  const code = win.replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n').map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n')
+  assert.match(win, /id="skillsbtn"/, 'the skills bar is gone')
+  assert.match(code, /localStorage\.setItem\('iv\.skills'/, 'the fold is not remembered')
+  assert.match(code, /let open2 = innerWidth > 900/, 'the fold no longer depends on the room there is')
+  // the pack is never folded: it is the thing a citizen touches every few seconds
+  assert.equal(/id="invbtn"/.test(win), false, 'the pack has been given a fold, which it must not have')
+})

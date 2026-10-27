@@ -4150,18 +4150,25 @@ crushes five quick-stone into one `quick-grit` beside it and pays
 earthcraft: the rock is not metal yet, and whoever walked to the high
 country for it should not have to hand it to a smith to make it useful.
 
-**The world places them, and no citizen may raise one.** There are six:
-four in the highlands and two in the mountains, sited where the
-quick-rock is, because a crushing floor anywhere else is a floor nobody
-walks to.
+**The world places them, and no citizen may raise one.** There is ONE, at
+Cragfoot, sited where the quick-rock is, because a crushing floor
+anywhere else is a floor nobody walks to.
+
+~~There are six: four in the highlands and two in the mountains.~~ The
+generator has always laid one and this sentence was never true. One is
+also the right number and the number the rest of this section argues
+for: "everyone who wants quickmetal ends up at the same handful of
+roofs" is a weaker claim than the island actually makes, and the same
+argument the anvil wins (6al) and the market town wins (6l). A second
+floor would halve the queue, which is the queue being the point.
 
 That is the whole of its purpose. This rung exists to put more of the
 world between a citizen and what they want, so a stamp that could be
 raised beside your own door would delete the journey the tier was added
 to create, and a stamp anybody may site is a stamp sited for
 convenience. Placed and unmovable, it is a PLACE. Everyone who wants
-quickmetal ends up at the same handful of roofs in the crags, standing
-about, waiting a turn, complaining bitterly about the extra step.
+quickmetal ends up under the same roof in the crags, standing about,
+waiting a turn, complaining bitterly about the extra step.
 
 That is not a cost of the design. It is most of what the design is for,
 and towns grew round the furnaces for exactly this reason.
@@ -16531,6 +16538,27 @@ social shape from anything else on the island, and the reason to build it.
 Once in the world's life. When it comes up it is a BELL: a thing that
 rings, that everybody hears, that nobody can un-ring, and that carries the
 names of whoever was on the rope.
+
+## 7du-ii. And there is only one of it
+
+> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs` by hand.
+> Amends 7du.
+
+7du took the drowned bell out of the landmarks and made it a `bellwork`,
+because its own drawing had been promising for four versions that the bell
+is still in there and nobody has worked out how to get it out: nobody had,
+because there was nothing to work out. Twelve pulls, three hands on the rope
+in the same interval each time, and the water takes back anything less.
+
+There were TWO. A second bell stood at the centre of Merewick, the drowned
+village in the fens, as a landmark carrying the same name and the line "on
+some mornings, the mud still rings". That is the same false promise 7du was
+written to end, one village over: a citizen who finds it will reasonably put
+their hands on it and there is nothing there to pull.
+
+So the name belongs to the bell that can be raised. Merewick keeps its
+centre, which is now a boat turned over in what was the square: what a
+drowned village leaves, and a thing that promises nothing at all.
 
 ## 7dv. The Tide
 

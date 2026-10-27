@@ -7622,7 +7622,20 @@ export function buildWorld(genesis) {
         L(t+'-w'+i, cx + (h2[0] % 13) - 6, cy + (h2[1] % 9) - 4, 'sunken-wall')
       }
       for (const [dx, dy] of [[-5,3],[4,3],[0,4]]) L(t+'-er'+dx, cx+dx, cy+dy, 'eel-rack')
-      L(t+'-bell', cx, cy, 'drowned-bell')
+      // §7du-ii: MEREWICK'S BELL IS NOT THE DROWNED BELL.
+      //
+      // There were two. The one at the centre of this ruin was scenery
+      // carrying the name and the line "on some mornings, the mud still
+      // rings" -- which is exactly the false promise §7du was written to end,
+      // when it took the OTHER drowned bell out of the landmarks and made it
+      // a `bellwork` you can actually haul out of the water. A citizen who
+      // finds this one will reasonably put their hands on it, and there is
+      // nothing here to pull.
+      //
+      // So the name belongs to the bell that can be raised, and Merewick
+      // keeps its centre: a boat turned over in what was the square, which is
+      // what a drowned village leaves and promises nothing at all.
+      L(t+'-boat', cx, cy, 'upturned-boat')
       N(t+'-sign', cx + 1, cy + 5, 'signpost', { text: 'they called it Merewick, the fen calls it nothing' })
     })
 

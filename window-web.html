@@ -142,7 +142,17 @@
        now, after the rule it overrides. */
   }
   #panel h2 { font-size: 11px; letter-spacing: 1px; color: var(--parch); text-transform: uppercase; }
-  #hpbar { height: 14px; background: var(--hpbg); position: relative; }
+  /* FLEX-NONE, AND IT IS THE SECOND TIME. `#panel` is a flex column, so every
+     child defaults to shrinkable: when the column overflows -- which on a
+     phone it always does -- a child with a fixed height is squeezed. Measured:
+     the health bar was FOURTEEN PIXELS TALL IN THE STYLESHEET AND NOUGHT ON
+     THE SCREEN. The number still showed, because `#hptext` is positioned
+     absolutely and overflows the box, so the one readout a citizen must take
+     in at a glance mid-fight had been a bare line of text on every phone
+     since the panel started scrolling, and nothing looked wrong.
+     The table had the same fault and the same fix; everything in this column
+     with a height of its own now says so. */
+  #hpbar { height: 14px; flex: none; background: var(--hpbg); position: relative; }
   #hpfill { height: 100%; background: var(--hp); width: 100%; transition: width .3s; }
   #hptext { position: absolute; inset: 0; text-align: center; font-size: 10px; color: #fff; line-height: 14px; }
   #skills { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; font-size: 11px; }
@@ -435,7 +445,17 @@
       background:var(--stone-dk);border:1px solid var(--stone-lt)"></div>
   <div id="trade" style="display:none"></div>
   <div id="vault" style="display:none;font-size:12px;padding:6px;background:var(--stone-dk)"></div>
-    <h2>Skills</h2><div id="skills"></div>
+    <!-- §5t-v: THE NINE FOLD AWAY ON A PHONE.
+         Nine rows of skill sat between the health bar and the pack, so on a
+         phone the pack -- the thing a citizen touches every few seconds --
+         started below the fold and the first thing under the world was a
+         table you read twice an hour. It is a bar like SPELLS now, which is
+         the same furniture doing the same job, open on a wide screen and
+         folded on a narrow one, and it remembers which you left it. -->
+    <div id="skillsbtn" style="font-size:11px;padding:4px 6px;
+      background:var(--stone-dk);border:1px solid var(--edge);cursor:pointer;
+      color:var(--gold);letter-spacing:1px">SKILLS</div>
+    <div id="skills"></div>
     <!-- §7dv: your own promise sits above the names, because this column is
          where a promise is READ. The window showed everybody else's stint and
          gave no way to swear one. -->
@@ -7274,7 +7294,23 @@ async function connect (reason) {
     showNode(null)
     // §9b-iii: nothing answers for this world. Before settling into a retry
     // loop for ever, ask whether it ENDED and something continues it.
-    const heir = await findSuccessorWeb()
+    // §9b-iii: ASKED ONLY IF IT IS THERE TO ASK.
+    //
+    // `findSuccessorWeb` is declared in the SECOND script block and called
+    // from the first. A classic script's top-level declaration is global, so
+    // in an ordinary session that is fine: picking a node is a network round
+    // trip and the later block has run long before it answers.
+    //
+    // It is not fine when the answer comes back in the same turn, which is
+    // what happens when every candidate fails instantly -- a browser offline,
+    // a cached failure, or a harness. Then this runs while the page is still
+    // executing block one, the name does not exist yet, and the whole connect
+    // path throws: the window shows "searching" for ever and the reason is a
+    // line in a log nobody has open.
+    //
+    // Caught in a probe, by the window's own error reporting, which is what
+    // that reporting is for.
+    const heir = typeof findSuccessorWeb === 'function' ? await findSuccessorWeb() : null
     if (gen !== wsGen) return
     if (heir) {
       // SAID OUT LOUD, in both places a citizen is looking. Moving somebody
@@ -7484,7 +7520,6 @@ function worthRank(item) {
 }
 const BTN = 'margin:1px;background:#3a3126;color:#e8d9a0;border:1px solid #6e5433;'
   + 'padding:3px 6px;font-family:inherit;font-size:10px;cursor:pointer'
-let askDraft = 0        // the price the owner is dialling in
 const layerArr = []   // reused render layer (perf)
 function flashClick(tx, ty, isAct) {
   effects.push({ kind: 'click', x: tx, y: ty, act: isAct, at: performance.now() })
@@ -7703,10 +7738,23 @@ let _menuAt = null   // set for the length of one right-click, read here only
 // The bar below stays as the fallback for a menu opened by something that is
 // not a press at all -- a keyboard shortcut, or the world itself asking.
 let _pressAt = null
+// `closest` is an ELEMENT method and a pointer event does not always carry
+// one: a synthetic event, or one that lands on the document or the window
+// itself, has a target with no such function and the handler throws. Both
+// listeners here are global and run on every press in the window, so a throw
+// in either kills the press for everything downstream.
+const _inMenu = (t) => !!(t && typeof t.closest === 'function' && t.closest('#ctxmenu'))
 addEventListener('pointerdown', (e) => {
-  if (e.target.closest('#ctxmenu')) return
+  if (_inMenu(e.target)) return
   _pressAt = { x: e.clientX, y: e.clientY }
 }, true)
+// §5s: THE WORLD'S NAMES, WITH SPACES. `old-chain` is a key; "old chain" is
+// what a citizen is holding. Written out here once because it was being done
+// inline with a different regex in about forty places, and half of them used
+// `replace('-', ' ')` -- which replaces the FIRST hyphen only, so
+// `quick-fire-arrows` came out as "quick fire-arrows".
+const say1 = (w) => String(w ?? '').replace(/-/g, ' ')
+const cap1 = (t) => String(t ?? '').charAt(0).toUpperCase() + String(t ?? '').slice(1)
 function chooseAction(opts, at) {
   const where = at ?? _menuAt ?? _pressAt
   if (where) return floatMenu(opts, where)
@@ -7738,10 +7786,22 @@ function floatMenu(opts, at) {
     + 'border:1px solid #6e5433;box-shadow:0 4px 14px rgba(0,0,0,.6);'
     + 'font-family:inherit;font-size:12px;padding:2px'
   for (const o of opts) {
+    // §5t-iv: A MENU SAYS WHAT IT IS ABOUT. A heading is not a choice -- it
+    // names the thing you pressed, so a list of wares is a shop and not a row
+    // of loose words. A DIMMED row is a choice you cannot make right now and
+    // says why when pressed, which is the one case where hiding it would lose
+    // something a citizen needs: the price.
+    if (o.head) {
+      const h = document.createElement('div')
+      h.textContent = o.head
+      h.style.cssText = 'padding:4px 9px 3px;color:#c9a86a;font-size:10px;'
+        + 'letter-spacing:1.4px;text-transform:uppercase;border-bottom:1px solid #4a3f2c;margin-bottom:2px'
+      d.appendChild(h); continue
+    }
     const b = document.createElement('button')
     b.textContent = o.label
     b.style.cssText = 'display:block;width:100%;text-align:left;background:none;'
-      + 'color:#e8d9a0;border:0;padding:5px 9px;font:inherit;cursor:pointer'
+      + 'color:' + (o.dim ? '#897f68' : '#e8d9a0') + ';border:0;padding:5px 9px;font:inherit;cursor:pointer'
     b.onmouseenter = () => { b.style.background = '#3a3126' }
     b.onmouseleave = () => { b.style.background = 'none' }
     b.onclick = (ev) => { ev.stopPropagation(); closeMenu(); o.act() }
@@ -7755,7 +7815,7 @@ function floatMenu(opts, at) {
   d.style.top = Math.min(at.y, innerHeight - r.height - 4) + 'px'
   _menuEl = d
 }
-addEventListener('pointerdown', (e) => { if (!e.target.closest('#ctxmenu')) closeMenu() }, true)
+addEventListener('pointerdown', (e) => { if (!_inMenu(e.target)) closeMenu() }, true)
 addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu() })
 addEventListener('wheel', closeMenu, { passive: true })
 addEventListener('blur', closeMenu)
@@ -9165,12 +9225,12 @@ function _onState(s, worldId, local) {
         if (theirs) {
           askTake(g2, me.aided === true, () => {
             send({ do: 'pickup', groundId: gid, confirm: true })
-            feed('You take the ' + g2.item.replace('-', ' ') + '. They were '
+            feed('You take the ' + g2.item.replace(/-/g, ' ') + '. They were '
               + (dropperName(g2.by) ?? 'not yours') + '\u2019s.')
           })
         } else {
           send({ do: 'pickup', groundId: gid, confirm: false })
-          feed('You pick up the ' + g2.item.replace('-', ' ') + '.')
+          feed('You pick up the ' + g2.item.replace(/-/g, ' ') + '.')
         }
       } else stepToward(s, me, g2, false)
     } else {
@@ -15259,6 +15319,17 @@ function panel(s) {
   drawBook()
   if (!_bookWired) {
     _bookWired = true
+    // §5t-v: open on a wide screen, folded on a phone, and whichever the
+    // citizen last chose wins over both.
+    const sb2 = document.getElementById('skillsbtn'), sp2 = document.getElementById('skills')
+    let open2 = innerWidth > 900
+    try { const kept = localStorage.getItem('iv.skills'); if (kept !== null) open2 = kept === '1' } catch {}
+    const paint2 = () => {
+      sp2.style.display = open2 ? 'grid' : 'none'
+      sb2.textContent = (open2 ? '\u25be ' : '\u25b8 ') + 'SKILLS'
+    }
+    sb2.onclick = () => { open2 = !open2; try { localStorage.setItem('iv.skills', open2 ? '1' : '0') } catch {}; paint2() }
+    paint2()
     document.getElementById('bookbtn').onclick = () => { bookOpen = !bookOpen; drawBook() }
     const sb = document.getElementById('scopeBtn')
     if (sb) { sb.onclick = () => setChatScope(chatScope === 'far' ? 'near' : 'far'); setChatScope(chatScope) }
@@ -15359,7 +15430,7 @@ function panel(s) {
         // verb in the window that acts on everything at once by default.
         ? vaulted.map(([item, q]) => '<span style="white-space:nowrap;display:inline-block;margin:3px 3px 0 0">'
             + '<button data-wd="' + item + '">'
-            + (ICONS[item] ?? '') + ' ' + item.replace('-', ' ') + ' \u00d7' + q + '</button>'
+            + (ICONS[item] ?? '') + ' ' + item.replace(/-/g, ' ') + ' \u00d7' + q + '</button>'
             + (q > 1 ? '<button data-wdall="' + item + '" title="withdraw all ' + q + '"'
                 + ' style="margin-left:-1px;padding:0 5px;color:#a89a7c">all</button>' : '')
             + '</span>').join(''):
@@ -15368,7 +15439,7 @@ function panel(s) {
 
   const wep = me.equipment?.weapon
   let gearLine = wep
-    ? 'Weapon: ' + (ICONS[wep.item] ?? '') + ' ' + wep.item.replace('-', ' ') + ' <span style="color:var(--dim)">(tap to sheathe)</span>':
+    ? 'Weapon: ' + (ICONS[wep.item] ?? '') + ' ' + wep.item.replace(/-/g, ' ') + ' <span style="color:var(--dim)">(tap to sheathe)</span>':
     'Weapon: <span style="color:var(--dim)">bare hands</span>'
   const hd = me.equipment.head, bd = me.equipment.body
   if (hd || bd) gearLine += '<br>' + [hd && ('Head: ' + hd.item.replace(/-/g, ' ')),
@@ -15456,71 +15527,17 @@ function panel(s) {
         '<span style="color:#8a7f68;font-size:10px">Carry it to the last town on the route.</span>')
       + '<button data-release="1" style="' + BTN + ';border-color:#a33">set the container down'
       + ', the route is lost</button>')
-  // §6al: YOUR OWN STALL, tended from the bar. Stock is ONE WAY: there is no
-  // button to take it back because there is no verb to take it back, and a
-  // pane that implied otherwise would be lying about the rules.
-  const mineN = Object.entries(s.nodes).find(([, n]) => n.type === 'market' && n.by === myId
-    && Math.abs(me.x - n.x) + Math.abs(me.y - n.y) <= 1)
-  if (mineN) {
-    const [, mk] = mineN
-    const good = mk.shelf ? Object.keys(mk.shelf)[0] : null
-    const qty = good ? mk.shelf[good] : 0
-    const canPut = (me.inventory ?? []).some(sl => sl && sl.item !== 'dragonbow'
-      && (!good || sl.item === good) && qty < 200)
-    sellBar.innerHTML += '<div style="color:var(--gold);font-size:11px;margin:6px 0 2px">YOUR STALL: '
-      + (good ? qty + ' \u00d7 ' + good.replace(/-/g, ' ') : 'empty')
-      + (mk.ask > 0 ? ' at ' + mk.ask + 'g' : ', UNPRICED, nothing sells')
-      + ', taken ' + (mk.coin ?? 0) + 'g</div>'
-      + (canPut ? '<button data-stallput="1" style="' + BTN + '">put something on it</button>' : '')
-      + '<button data-stallask="-10" style="' + BTN + '">price -10</button>'
-      + '<button data-stallask="-1" style="' + BTN + '">-1</button>'
-      + '<button data-stallask="1" style="' + BTN + '">+1</button>'
-      + '<button data-stallask="10" style="' + BTN + '">+10</button>'
-      + '<button data-stalltake="1" style="' + BTN + '">take ' + (mk.coin ?? 0) + 'g</button>'
-      + '<button data-stalldown="1" style="' + BTN + '">pull it down</button>'
-  }
-  const stallN = Object.values(s.nodes).find(n => n.type === 'stall'
-    && Math.abs(me.x - n.x) + Math.abs(me.y - n.y) === 1)
-  if (stallN) {
-    const stock = STALL_SELLS[stallN.kind] ?? {}
-    const who = STALL_NAME[stallN.kind] ?? 'the trader'
-    sellBar.innerHTML += '<div style="color:var(--gold);font-size:11px;margin:6px 0 2px">'
-      + who.toUpperCase() + ' SELLS:</div>'
-      + Object.entries(stock).map(([it, pr]) => '<button data-buy="' + it + '" style="margin:1px;'
-        + 'background:#3a3126;color:#e8d9a0;border:1px solid #6e5433;padding:3px 6px;font-family:inherit;'
-        + 'font-size:10px;cursor:pointer' + ((me.gold ?? 0) < pr ? ';opacity:.4' : '') + '">'
-        + it.replace(/-/g, ' ') + ' \u2190 ' + pr + 'g</button>').join('')
-  }
+  // §6al/§5t-iv: YOUR OWN STALL AND THE WORLD'S ARE TENDED AT THE STALL.
+  //
+  // Both of them used to appear here, as rows of buttons above the pack that
+  // showed up when you happened to be standing beside one. A citizen clicking
+  // the stall itself was told to "buy from the bar below", and clicking their
+  // OWN stall called a function that does not exist. Both are menus at the
+  // stall now, which is where a shop is, and this pane keeps only the thing
+  // that genuinely has no node to hang on: a consignment you are carrying.
   // §6l: the keeper's shelf pane is repealed with the shelf. What is bought
   // from now is a STALL, above, and a citizen's own stall.
   sellBar.onclick = (e) => {
-    // §6al: the citizen's own stall
-    const mkE = Object.entries(world.nodes).find(([, n]) => n.type === 'market' && n.by === myId
-      && Math.abs(me.x - n.x) + Math.abs(me.y - n.y) <= 1)
-    if (e.target?.dataset?.stallput !== undefined && mkE) {
-      const good0 = mkE[1].shelf ? Object.keys(mkE[1].shelf)[0] : null
-      const slot = (me.inventory ?? []).findIndex(sl => sl && sl.item !== 'dragonbow'
-        && (!good0 || sl.item === good0))
-      if (slot === -1) { feed('Nothing in your pack belongs on that shelf.'); return }
-      send({ do: 'stock_market', slot })
-      feed('You set it on the shelf. It can only leave by being sold.')
-      return
-    }
-    const dAsk = e.target?.dataset?.stallask
-    if (dAsk !== undefined && mkE) {
-      askDraft = Math.max(0, (mkE[1].ask ?? 0) + (+dAsk))
-      send({ do: 'price_market', ask: askDraft })
-      feed('You ask ' + askDraft + ' gold.')
-      return
-    }
-    if (e.target?.dataset?.stalltake !== undefined && mkE) {
-      send({ do: 'take_market' }); feed('You take the takings.'); return
-    }
-    if (e.target?.dataset?.stalldown !== undefined && mkE) {
-      send({ do: 'dismantle_market' })
-      feed('You pull the stall down. What was on it lies in the grass.')
-      return
-    }
     // §11b: the counter
     if (e.target?.dataset?.consign !== undefined) {
       const slots = (me.inventory ?? []).map((sl, k) => sl ? k : -1).filter((k) => k >= 0)
@@ -16434,7 +16451,7 @@ document.getElementById('vault').addEventListener('click', (e) => {
   const item = e.target.dataset.wd
   if (item) {
     send({ do: 'withdraw', item, qty: 1 })
-    feed('You withdraw the ' + item.replace('-', ' ') + '.')
+    feed('You withdraw the ' + item.replace(/-/g, ' ') + '.')
     return
   }
   const allItem = e.target.dataset.wdall
@@ -16443,7 +16460,7 @@ document.getElementById('vault').addEventListener('click', (e) => {
     // the rest stays banked, which is the engine's own rule.
     const have = shelfHere(world, world?.players?.[myId])[allItem] ?? 1
     send({ do: 'withdraw', item: allItem, qty: have })
-    feed('You withdraw what will fit, ' + have + ' ' + allItem.replace('-', ' ') + '.')
+    feed('You withdraw what will fit, ' + have + ' ' + allItem.replace(/-/g, ' ') + '.')
   }
 })
 
@@ -16609,7 +16626,7 @@ function castable(sp, me) {
   const mag = XP_TO_LVL(me.skills?.sorcery ?? 0)
   if (mag < sp.lvl) return 'sorcery ' + sp.lvl
   if (have < sp.sigils) return sp.sigils + ' sigils'
-  if (sp.wand && me.equipment?.weapon?.item !== sp.wand) return 'a ' + sp.wand.replace('-', ' ')
+  if (sp.wand && me.equipment?.weapon?.item !== sp.wand) return 'a ' + sp.wand.replace(/-/g, ' ')
   return null
 }
 function drawBook() {
@@ -16738,8 +16755,8 @@ function invClick(i) {
   // deposit in one click, the banker's old convenience.
   const MENU_ITEMS = new Set(['logs', 'bones', 'sigil', 'quick-stone', 'arrows', 'ale'])
   const hasMenu = MENU_ITEMS.has(it.item) || it.item === 'chart' // v0.80: a merge left CHART_PREFIX undeclared here, and a bare undefined identifier THROWS: every inventory click died on it
-  if (nearVault && !hasMenu) { send({ do: 'deposit', slot: +i }); feed('You deposit the ' + it.item.replace('-', ' ') + '.'); return }
-  const bankOpt = nearVault ? [{ label: 'deposit in bank', act: () => { send({ do: 'deposit', slot: +i }); feed('You deposit the ' + it.item.replace('-', ' ') + '.') } }] : []
+  if (nearVault && !hasMenu) { send({ do: 'deposit', slot: +i }); feed('You deposit the ' + it.item.replace(/-/g, ' ') + '.'); return }
+  const bankOpt = nearVault ? [{ label: 'deposit in bank', act: () => { send({ do: 'deposit', slot: +i }); feed('You deposit the ' + it.item.replace(/-/g, ' ') + '.') } }] : []
   // TRANSMUTE: any priced good, anywhere, from the first log. The question is
   // whether a thing HAS a price, not what that price comes to -- an arrow pays
   // nothing and is still unmade, for the practice.
@@ -16958,7 +16975,7 @@ function invClick(i) {
       pendingWield = { slot: +i, item: it.item }
       return
     }
-    send({ do: 'wield', slot: +i }); feed('You wield the ' + it.item.replace('-', ' ') + '.')
+    send({ do: 'wield', slot: +i }); feed('You wield the ' + it.item.replace(/-/g, ' ') + '.')
   }
   else if (it?.item === 'cooked-fish') {
     const foe = onACreature(meNow.action) ? meNow.action.mobId : null
@@ -16986,7 +17003,7 @@ function invClick(i) {
     chooseAction([
       ...alchOpt, ...bankOpt,
       { label: 'drop', act: () => { send({ do: 'drop', slot: +i })
-        feed('You drop the ' + it.item.replace('-', ' ') + '.') } },
+        feed('You drop the ' + it.item.replace(/-/g, ' ') + '.') } },
     ])
   }
 }
@@ -17430,8 +17447,50 @@ cv.addEventListener('click', (e) => {
         const qty = good ? n.shelf[good] : 0
         const adj = Math.abs(meS.x - n.x) + Math.abs(meS.y - n.y) <= 1
         if (n.by === myId) {
-          if (!adj) { feed('Your stall: ' + (good ? qty + ' ' + good.replace(/-/g, ' ') : 'empty') + '. Walk to it to tend it.'); return }
-          openMyStall(id); return
+          if (!adj) { feed('Your stall: ' + (good ? qty + ' ' + say1(good) : 'empty') + '. Walk to it to tend it.'); return }
+          // §6al/§5t-iv: TENDING YOUR OWN STALL, AT YOUR OWN STALL.
+          //
+          // This called `openMyStall(id)`, which does not exist anywhere in
+          // this file and never has. Clicking your own stall threw, the error
+          // handler swallowed it into the log, and the only way to price or
+          // empty a stall was a row of buttons that appeared above the pack
+          // when you happened to be standing next to it.
+          //
+          // STOCK IS ONE WAY. There is no button to take it back because
+          // there is no verb to take it back, and a menu that implied
+          // otherwise would be lying about the rules.
+          const canPut = (me.inventory ?? []).some((sl) => sl && sl.item !== 'dragonbow'
+            && (!good || sl.item === good) && qty < 200)
+          const ask = n.ask ?? 0, coin = n.coin ?? 0
+          const price = (d) => { const v = Math.max(0, ask + d)
+            send({ do: 'price_market', ask: v }); feed('You ask ' + v + ' gold.') }
+          chooseAction([
+            { head: 'your stall \u00b7 ' + (good ? qty + ' \u00d7 ' + say1(good) : 'empty')
+              + (ask > 0 ? ' at ' + ask + 'g' : ', unpriced') },
+            ...(canPut ? [{ label: 'put something on it', act: () => {
+              const slot = (me.inventory ?? []).findIndex((sl) => sl && sl.item !== 'dragonbow'
+                && (!good || sl.item === good))
+              if (slot === -1) { feed('Nothing in your pack belongs on that shelf.'); return }
+              send({ do: 'stock_market', slot })
+              feed('You set it on the shelf. It can only leave by being sold.') } }]
+              : [{ label: good ? 'the shelf is full' : 'nothing in your pack belongs on it', dim: true,
+                   act: () => feed('A stall holds one kind of good, up to two hundred of it.') }]),
+            ...(ask > 0 ? [] : [{ label: 'UNPRICED: nothing sells', dim: true,
+              act: () => feed('A stall with no price on it hands its stock out for nothing, '
+                + 'so the world refuses to sell from it at all.') }]),
+            { label: 'ask 10 more  (' + (ask + 10) + 'g)', act: () => price(10) },
+            { label: 'ask 1 more  (' + (ask + 1) + 'g)', act: () => price(1) },
+            ...(ask > 0 ? [{ label: 'ask 1 less  (' + Math.max(0, ask - 1) + 'g)', act: () => price(-1) }] : []),
+            ...(ask > 10 ? [{ label: 'ask 10 less  (' + Math.max(0, ask - 10) + 'g)', act: () => price(-10) }] : []),
+            { label: coin ? 'take the ' + coin + 'g it has taken' : 'it has taken nothing yet',
+              dim: !coin,
+              act: () => { if (!coin) { feed('Nobody has bought from it yet.'); return }
+                send({ do: 'take_market' }); feed('You take the takings.') } },
+            { label: 'pull it down', act: () => { send({ do: 'dismantle_market' })
+              feed('You pull the stall down. What was on the shelf comes back with it.') } },
+            { label: 'leave it standing', act: () => {} },
+          ])
+          return
         }
         if (!good) { feed('A stall, and nothing on it.'); return }
         if (!(n.ask > 0)) { feed('A stall of ' + qty + ' ' + good.replace(/-/g,' ') + ', unpriced. Nothing is for sale.'); return }
@@ -17747,18 +17806,41 @@ cv.addEventListener('click', (e) => {
       // stock pane existed but only appeared if you were ALREADY stood beside
       // one, which you could only manage by clicking the dirt next to it.
       if (n.type === 'stall') {
+        // §6l/§5t-iv: THE SHOP IS AT THE SHOP.
+        //
+        // This printed the wares into the log and said "Buy from the bar
+        // below" -- a row of buttons above the pack, at the other end of the
+        // screen from the stall you had just touched. You could buy, and only
+        // if you worked out that the bar was the thing being referred to.
+        //
+        // Seven stalls on the whole island, one of each kind, and they are
+        // world institutions rather than shops (§6l): the arms of Millbrook,
+        // the fishmonger of Eastmere. Standing at one should open it.
         const stock = STALL_SELLS[n.kind] ?? {}
         const who = STALL_NAME[n.kind] ?? 'a trader'
         const wares = Object.entries(stock)
-          .map(([it, pr]) => it.replace(/-/g, ' ') + ' ' + pr + 'g').join(', ')
         flashClick(n.x, n.y, false)
-        if (!wares) { feed(who.charAt(0).toUpperCase() + who.slice(1) + ' has nothing out.'); return }
+        if (!wares.length) { feed(cap1(who) + ' has nothing out.'); return }
         if (!adj(n)) {
           intent = { kind: 'walk', x: n.x, y: n.y + 1 }
-          feed('You make for ' + who + '. ' + wares.charAt(0).toUpperCase() + wares.slice(1) + '.')
-        } else {
-          feed(who.charAt(0).toUpperCase() + who.slice(1) + ' sells: ' + wares + '. Buy from the bar below.')
+          feed('You make for ' + who + '.')
+          return
         }
+        const purse = me.gold ?? 0
+        const branded = (me.brandedUntil ?? 0) > world.tick
+        chooseAction([
+          { head: who + ' \u00b7 you have ' + purse + 'g' },
+          ...wares.map(([it, pr]) => ({
+            label: say1(it) + '  ' + pr + 'g',
+            dim: branded || purse < pr,
+            act: () => {
+              if (branded) { feed('No keeper will take your money while the mark is on you.'); return }
+              if (purse < pr) { feed('The ' + say1(it) + ' is ' + pr + ' gold and you have ' + purse + '.'); return }
+              send({ do: 'buy', item: it })
+              feed('You buy the ' + say1(it) + ' for ' + pr + ' gold.')
+            } })),
+          { label: 'just looking', act: () => {} },
+        ])
         return
       }
       // §6dj: THE HEARTH is the one place a brewpot may be raised beside

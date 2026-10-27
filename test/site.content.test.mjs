@@ -407,3 +407,46 @@ test('every page the router offers loads only assets that are on disk', () => {
   }
   assert.deepEqual(missing, [], missing.join('\n'))
 })
+
+// ---- §5u: ONE CRUSHING FLOOR, AND THE LAW SAYS SO ----
+//
+// The section said "There are six: four in the highlands and two in the
+// mountains". The generator has always laid ONE and that sentence was never
+// true. One is also the right number and the number the rest of §5u argues
+// for: a second floor halves the queue, and the queue is the point.
+test('the law and the island agree how many crushing floors there are', async () => {
+  const spec = fs.readFileSync(path.join(root, 'SPEC.md'), 'utf8')
+  // the sections are not in numeric order in the file; take from this
+  // heading to whatever heading comes next
+  const at = spec.indexOf('## 5u.')
+  const next = spec.indexOf('\n## ', at + 4)
+  const sec = spec.slice(at, next === -1 ? spec.length : next)
+  assert.ok(sec.length > 200, '§5u is gone or renamed')
+  assert.match(sec, /There is ONE, at\s+Cragfoot/, '§5u no longer says how many floors there are')
+  assert.equal(/There are six/.test(sec.replace(/~~[\s\S]*?~~/g, '')),
+    false, 'the repealed count is being stated again as law')
+})
+
+// ---- ONE DROWNED BELL ----
+//
+// There were two: a `bellwork` that twelve pulls and three hands can raise,
+// and a piece of scenery at Merewick carrying the same name and the line "on
+// some mornings, the mud still rings" -- which is the false promise §7du was
+// written to end when it took the OTHER bell out of the landmarks and made it
+// something a town can actually haul out of the water.
+test('only one thing on the island is the drowned bell', async () => {
+  const WG = await import('../worldgen-expanse7.mjs')
+  const quiet = console.log
+  console.log = () => {}
+  const g = WG.makeExpanse7Genesis('one-bell', 'a'.repeat(64), 0, 896, 512)
+  const w = WG.buildWorld(g)
+  console.log = quiet
+  const bells = Object.values(w.nodes).filter((n) =>
+    n.kind === 'drowned-bell' || n.type === 'bellwork' || n.type === 'bell')
+  assert.equal(bells.length, 1, 'the island has more than one drowned bell: '
+    + bells.map((n) => (n.kind ?? n.type) + ' at ' + n.x + ',' + n.y).join(', '))
+  assert.equal(bells[0].type, 'bellwork', 'the one that is left cannot be raised')
+  // and Merewick keeps a centre, which promises nothing
+  assert.ok(Object.values(w.nodes).some((n) => n.kind === 'upturned-boat'),
+    'the drowned village lost its centre rather than its claim')
+})

@@ -1,7 +1,7 @@
 # Interval. Testing & Freeze Evidence
 
 Release 1.0.5, protocol spec v1.05, consensus spec v1.10, rules hash
-`1260b6053cd598f7…`.
+`f77471b775cf70ce…`.
 
 This document states exactly what is tested, with what inputs, for how
 long. Coverage is **finite and enumerated**, the claims below are about
@@ -10,7 +10,7 @@ possible executions.
 
 ## Unit + property suite (`npm test`)
 
-`node --test test/*.test.mjs`, 611 tests across:
+`node --test test/*.test.mjs`, 617 tests across:
 
 - `leak.test.mjs`, §21c: no write reaches the caller's state. Exercises the
   paths where one citizen touches another (striking, being hunted, trading,
@@ -189,6 +189,19 @@ possible executions.
 - `windows.exist.test.mjs`, that every window the router offers is on disk,
   and that every one of them PARSES: four were blank pages when that check
   was written, for a ternary whose colon had ended up inside a comment
+- in `window.test.mjs`, that a stall is bought from AT the stall. Clicking
+  one printed its wares into the log and said "buy from the bar below",
+  and clicking your OWN stall called `openMyStall`, which does not exist
+  anywhere in the file and never has.
+- in `window.test.mjs`, that the health bar has a height the panel cannot
+  squeeze. `#panel` is a flex column, so a child with a fixed height is
+  shrunk when the column overflows: measured at FOURTEEN pixels in the
+  stylesheet and NOUGHT on the screen, with the number still showing
+  because it is positioned absolutely and overflows the box. The one
+  readout you must take in at a glance mid-fight, on every phone.
+- in `site.content.test.mjs`, that the law and the island agree there is
+  one crushing floor, and that only one thing on the island is the drowned
+  bell
 - in `window.test.mjs`, that the flat window can build every input a CITIZEN
   may send. Eight could not be built by any window the router offers: the
   two bridge verbs, the bellwork rope, the barrow hoard, the boat, the
