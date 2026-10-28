@@ -10,7 +10,7 @@ possible executions.
 
 ## Unit + property suite (`npm test`)
 
-`node --test test/*.test.mjs`, 640 tests across:
+`node --test test/*.test.mjs`, 642 tests across:
 
 - `leak.test.mjs`, §21c: no write reaches the caller's state. Exercises the
   paths where one citizen touches another (striking, being hunted, trading,
@@ -275,6 +275,20 @@ possible executions.
   not a better copy but no copy: `/api/ground` serves every tile the world
   names, 13KB gzipped for the island, and the window is told, exactly as it is
   already told the town seats and the road network
+- in `window.test.mjs`, that the bank and the counter OPEN A LIST, the way the
+  stall does. Both answered with a single sentence and no way to act on it:
+  the bank said "tap items to deposit, tap the vault to withdraw" and tapping
+  the vault printed that same sentence again, so the one thing a bank is FOR,
+  knowing what you have in it, could not be done at the bank. The counter said
+  "discharge what you carried, or set the container down" and offered neither,
+  at the only place in the world where a consignment may be taken up or set
+  down. The test searches inside the CLICK HANDLER, because both types have a
+  branch in `drawScene` under the identical condition and the drawing comes
+  first: a plain indexOf tests the art and reports that the bank is fine
+- in `window.test.mjs`, that a floor does not fray into the street. Fraying is
+  for ground that wears into its neighbour, grass creeping over a yard or a
+  beach eating a bank; a floor ends at a wall, which is a built edge and a
+  straight one, and boards crumbling into the road look like a ruin
 - `tables.test.mjs`, every constitutional table a window COPIES, against the
   engine's own export, on every run. Neither window can import `engine.js`:
   both are one file served to a browser with no build step, so the tables are

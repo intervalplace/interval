@@ -1630,3 +1630,61 @@ test('the pillar serves the ground it founded', () => {
   assert.ok(/api\('\/api\/ground'\)/.test(win), 'window-web no longer fetches the ground')
   assert.ok(/function groundToldAt/.test(win), 'window-web has nowhere to put it')
 })
+
+// §7ee: THE BANK AND THE COUNTER SHOW WHAT THEY HOLD.
+//
+// Both answered with a single sentence and no way to act on it. The bank said
+// "tap items to deposit, tap the vault to withdraw" and tapping the vault
+// printed that same sentence again, so the one thing a bank is FOR -- knowing
+// what you have in it -- could not be done at the bank. The counter said
+// "discharge what you carried, or set the container down" and offered neither,
+// at the only place in the world where a consignment can be taken up or set
+// down.
+//
+// The stall had already been given the right shape: a heading, the goods, and
+// the acts that are actually available. These are the same kind of moment.
+test('the bank and the counter open a list, like the stall does', () => {
+  const code = win.replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n').map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n')
+  // SEARCH INSIDE THE CLICK HANDLER, not from the top of the file. Both of
+  // these types have a branch in `drawScene` under the identical condition,
+  // and the drawing comes first, so a plain indexOf tests the art and reports
+  // that the bank answers with a sentence. The same shape as the fault that
+  // made the stall menu unreachable: two branches, one condition.
+  const clicks = code.indexOf("cv.addEventListener('click'")
+  assert.ok(clicks > 0, 'window-web has no canvas click handler')
+  const branch = (type) => {
+    const at = code.indexOf(`if (n.type === '${type}') {`, clicks)
+    assert.ok(at > 0, `no click branch for ${type}`)
+    // to the end of that branch, by counting braces
+    let d = 0
+    for (let i = code.indexOf('{', at); i < code.length; i++) {
+      if (code[i] === '{') d++
+      else if (code[i] === '}') { d--; if (!d) return code.slice(at, i + 1) }
+    }
+    return ''
+  }
+  const vault = branch('vault')
+  assert.ok(/chooseAction\(/.test(vault), 'the bank still answers with a sentence')
+  assert.ok(/do: 'withdraw'/.test(vault), 'nothing in the bank branch withdraws')
+  assert.ok(/do: 'deposit_all'/.test(vault), 'the bank cannot take the pack')
+  assert.ok(/vaults\?\.\[id\]|vaults\[id\]/.test(vault), 'the bank does not read what is in it')
+
+  const store = branch('store')
+  assert.ok(/chooseAction\(/.test(store), 'the counter still answers with a sentence')
+  assert.ok(/do: 'consign'/.test(store), 'nothing at the counter seals a consignment')
+  assert.ok(/do: 'deliver'/.test(store), 'nothing at the counter discharges one')
+})
+
+// §7ec: A FLOOR DOES NOT FRAY.
+//
+// Fraying is for ground that WEARS into its neighbour: grass creeping over a
+// yard, a beach eating a bank. A floor ends at a wall, which is a built edge
+// and a straight one, and boards crumbling into the street look like a ruin
+// rather than a room.
+test('a floor does not fray into the street', () => {
+  const at = win.indexOf('const seamAt = (qx, qy, side)')
+  assert.ok(at > 0, 'window-web no longer frays its seams')
+  const fn = win.slice(at, at + 1200)
+  assert.ok(/=== 'floor'/.test(fn), 'the fray does not exempt a floor')
+})

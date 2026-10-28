@@ -5129,7 +5129,7 @@ let MASTERY_T = 100, APPR_SLOTS = 3, APPR_LAPSE = 43200, APPR_MILES = [100, 105,
     swap(FORGE, t.recipes); swap(FORGE_REQ, t.smithReqs)
     swap(PRICES, t.prices); swap(STALL_SELLS, t.stalls)
     swapSet(SMELTED, t.smelted); swapSet(EQUIPPABLE, t.equippable)
-    swapSet(TWO_HANDED, t.twoHanded)
+    swapSet(TWO_HANDED, t.twoHanded); swapSet(STACKABLE, t.stackable)
     // the beasts come over under this window's older name for the one field
     // it renames, which is the only difference between the two copies
     if (t.mobs && Object.keys(t.mobs).length) {
@@ -5744,6 +5744,16 @@ const FEED_RATE = (it) => it === 'cooked-deep-fish' ? 3
 // the three a fire turns into food (engine isRawFood). The eel and the deep
 // fish were not here either, so neither could be cooked from the pack.
 const isRawFoodW = (it) => it === 'raw-fish' || it === 'deep-fish' || it === 'eel'
+// §7ee: WHAT STACKS, so the bank can say "take the twenty arrows" and mean
+// it. The engine hands over as many as asked, as many as banked and as many as
+// fit, whichever is least, so a window that offers twenty of something that
+// does not stack is promising nineteen it will not get. Held to the engine by
+// test/tables.test.mjs and replaced by /api/tables at boot.
+const STACKABLE = new Set([
+  'salt-fish', 'salt-deep-fish', 'iron-javelin', 'steel-javelin', 'quick-javelin',
+  'shot', 'arrows', 'fire-arrows', 'grain', 'seeds', 'ale', 'broth', 'deep-broth',
+  'flour', 'saltpetre', 'gunpowder',
+])
 const TWO_HANDED = new Set([
   'iron-spear', 'steel-spear', 'quick-spear', 'bone-spear', 'iron-mell', 'steel-mell',
   'quick-mell', 'great-sword', 'great-crossbow', 'quick-flail', 'old-chain', 'wooden-bow',
@@ -10343,7 +10353,14 @@ function paintGroundTile(g, x, y) {
       // far in it reaches, which is what fraying is.
       const seamAt = (qx, qy, side) => {
         const other = terrainOf(qx, qy)
-        if (other === terrainOf(x, y)) return
+        const mine7 = terrainOf(x, y)
+        if (other === mine7) return
+        // §7ec: A FLOOR DOES NOT FRAY. Fraying is for ground that WEARS into
+        // its neighbour: grass creeping over a yard, a beach eating a bank.
+        // A floor ends at a wall, which is a built edge and a straight one,
+        // and boards that crumble into the street look like a ruin rather
+        // than a room. Neither side of that join frays.
+        if (mine7 === 'floor' || other === 'floor') return
         g.fillStyle = tileShade(qx, qy)
         const n5 = 2 + tileHash(x, y, 90) % 3
         for (let f = 0; f < n5; f++) {
@@ -18172,8 +18189,41 @@ cv.addEventListener('click', (e) => {
         flashClick(n.x, n.y, false); return
       }
       if (n.type === 'vault') {
-        if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }; feed('You head to the bank.') }
-        else feed('The bank stands ready: tap items to deposit, tap the vault to withdraw.')
+        // §7ee: THE BANK SHOWS WHAT IS IN IT.
+        //
+        // It used to answer with one sentence -- "tap items to deposit, tap
+        // the vault to withdraw" -- and tapping the vault printed that same
+        // sentence again. So the one thing a bank is FOR, knowing what you
+        // have in it, could not be done at the bank. A citizen had to
+        // remember. The stall two streets away opens a list of its wares with
+        // prices and reasons; the bank is the same kind of place and gets the
+        // same kind of list.
+        if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }; feed('You head to the bank.'); return }
+        const held = Object.entries(world.players[myId]?.vaults?.[id] ?? {})
+          .filter(([, q]) => q > 0)
+          .sort((a, b) => worthRank(b[0]) - worthRank(a[0]) || (a[0] < b[0] ? -1 : 1))
+        const roomP = me.inventory.some((sl) => !sl)
+        const packed = me.inventory.filter((sl) => sl).length
+        chooseAction([
+          { head: held.length
+            ? 'your vault \u00b7 ' + held.length + ' kind' + (held.length === 1 ? '' : 's')
+            : 'your vault \u00b7 empty' },
+          ...held.slice(0, 10).map(([item, qty]) => ({
+            label: 'take ' + (STACKABLE.has(item) && qty > 1 ? 'the ' + qty + ' ' : 'a ') + say1(item),
+            dim: !roomP,
+            act: () => {
+              if (!roomP) { feed('Your pack is full. The vault keeps it.'); return }
+              send({ do: 'withdraw', item, qty })
+              feed('You draw out the ' + say1(item) + '.')
+            } })),
+          ...(held.length > 10 ? [{ label: 'and ' + (held.length - 10) + ' more kinds', dim: true,
+            act: () => feed('The ledger runs on. Take something off the top first.') }] : []),
+          ...(packed ? [{ label: 'put the whole pack in (' + packed + ')',
+            act: () => { send({ do: 'deposit_all' }); feed('You hand the lot across the counter.') } }]
+            : [{ label: 'your pack is empty', dim: true,
+                 act: () => feed('Nothing on you to bank.') }]),
+          { label: 'that is all', act: () => {} },
+        ])
         return
       }
       // §6dj: A TRADE STALL, WHICH COULD NOT BE CLICKED AT ALL.
@@ -18240,11 +18290,51 @@ cv.addEventListener('click', (e) => {
       // §11b: THE COUNTER. A store answered nothing either, and it is the only
       // place in the world a consignment can be taken up or set down.
       if (n.type === 'store') {
+        // §7ee: AND THE COUNTER SHOWS THE CONSIGNMENT.
+        //
+        // This answered with one sentence and no way to act on it: "Discharge
+        // what you carried, or set the container down." A citizen standing at
+        // the only counter in the world where a consignment can be taken up
+        // or set down could not see what was in theirs, where it was going,
+        // or how far along they were, and could not seal or discharge one.
+        //
+        // The stall's shape, because it is the same kind of moment: a heading
+        // that says what this is, the goods, and the acts that are actually
+        // available, with the ones that are not dimmed and saying why.
         flashClick(n.x, n.y, false)
         if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }; feed('You make for the counter.'); return }
-        feed(me.consignment
-          ? 'The counter. Discharge what you carried, or set the container down.':
-          'The counter. Seal a consignment here and the road is committed.')
+        const con = me.consignment
+        if (con) {
+          const carried = (con.items ?? []).map((sl, i) => ({ sl, i })).filter((e) => e.sl)
+          const legs = (con.route ?? []).length
+          const where = legs ? ' \u00b7 leg ' + ((con.leg ?? 0) + 1) + ' of ' + legs : ''
+          chooseAction([
+            { head: 'your consignment \u00b7 ' + carried.length + ' of ' + INV_SLOTS + where },
+            ...carried.slice(0, 10).map(({ sl, i }) => ({
+              label: 'discharge the ' + say1(sl.item) + ((sl.qty ?? 1) > 1 ? ' (' + sl.qty + ')' : ''),
+              act: () => { send({ do: 'deliver', slot: i })
+                feed('You set the ' + say1(sl.item) + ' on the counter. It is discharged, not sold.') } })),
+            ...(carried.length > 10 ? [{ label: 'and ' + (carried.length - 10) + ' more', dim: true,
+              act: () => feed('One at a time across a counter.') }] : []),
+            { label: 'leave it sealed', act: () =>
+              feed('The container stays shut and the road stays committed.') },
+          ])
+          return
+        }
+        const slots = me.inventory.map((sl, i) => ({ sl, i })).filter((e) => e.sl)
+        chooseAction([
+          { head: 'the counter \u00b7 nothing consigned' },
+          ...(slots.length ? [{ label: 'seal what you are carrying (' + slots.length + ')',
+            act: () => { send({ do: 'consign', slots: slots.map((e) => e.i) })
+              feed('Sealed. The route is drawn once and never redrawn: walk it.') } }]
+            : [{ label: 'your pack is empty', dim: true,
+                 act: () => feed('A consignment is goods. Bring some.') }]),
+          { label: 'what is this counter for?', act: () =>
+            feed('The one place a consignment is taken up or set down. Seal goods here, '
+              + 'walk them to the store the route names, and discharge them there. '
+              + 'The cargo is discharged, not sold.') },
+          { label: 'just looking', act: () => {} },
+        ])
         return
       }
       if (n.type === 'watchfire') {
