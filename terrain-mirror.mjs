@@ -14,6 +14,41 @@
 // served beside it and resolves. `window-diablo.html`'s inlined copy needs the
 // tables pasted in, and its copy is already not byte-for-byte.
 import { WATERS, BECKS, BECK_FORDS, SHAPE_K } from './worldgen-water-v7.mjs'
+// §7g: AND THE BUILDINGS, for the same reason and on the same precedent.
+//
+// There was not ONE floor tile drawn anywhere on this island. The world lays
+// `floor` inside every room of every town and village -- 2,190 tiles of it --
+// and this file's v7 path had no branch for it at all, so every house in
+// every town has been drawn standing on the grass, and `isIndoor` has been
+// answering no everywhere.
+//
+// These are the generator's own tables, imported rather than copied, exactly
+// as the waters above are: a hand copy of a room list is how the floors went
+// missing in the first place, and the modules are plan drawings with no
+// dependency on the engine. `isIndoor` is five lines and is written out here
+// rather than imported, because importing worldgen-shire-v6 for it would
+// drag in the layer and the validator, which a window has no use for.
+import { PLANS5_V6, PLAN_ROOMS as PLAN_ROOMS_TOWNS } from './worldgen-shire-v6.mjs'
+import { VILLAGE_PLANS, VILLAGE_ROOMS } from './worldgen-villages-v7.mjs'
+const ALL_PLANS7 = { ...PLANS5_V6, ...VILLAGE_PLANS }
+const ALL_ROOMS7 = { ...PLAN_ROOMS_TOWNS, ...VILLAGE_ROOMS }
+// the same five lines worldgen-shire's isIndoor is, so the two cannot differ
+const isIndoor7 = (tag, rx, ry) => {
+  const rs = ALL_ROOMS7[tag]
+  if (!rs) return false
+  for (const [x, y, w, h] of rs)
+    if (rx >= x && ry >= y && rx < x + w && ry < y + h) return true
+  return false
+}
+// a tile's place within its settlement's drawing, or null if it is outside it
+const inPlan7 = (st, x, y) => {
+  const rows = ALL_PLANS7[st.tag]
+  if (!rows) return null
+  const pw = rows[0].length, ph = rows.length
+  const rx = x - (st.x - (pw >> 1)), ry = y - (st.y - (ph >> 1))
+  if (rx < 0 || ry < 0 || rx >= pw || ry >= ph) return null
+  return { rows, rx, ry }
+}
 
 // terrain-mirror.js: the window's copy of the world's own geography.
 //
@@ -51,6 +86,30 @@ let GEN = 'interval-classic-v1', GSEED = ''
 // guessing. The tables below remain for the moments before the world has
 // announced itself.
 let GIVEN_SS = null
+// §7g: AND THE GROUND ITSELF, told rather than derived. Same argument as the
+// settlements above, applied to every surface: this file's copy was wrong on
+// fifteen thousand tiles, and a copy that is corrected is a copy that will
+// drift again. `/api/ground` is 13KB gzipped for the whole island.
+let GIVEN_GROUND = null, GIVEN_KINDS = null
+export function tellGround(gd) {
+  if (!gd || !Array.isArray(gd.rows) || !gd.rows.length || gd.w !== W || gd.h !== H) {
+    GIVEN_GROUND = null; GIVEN_KINDS = null; return false
+  }
+  const kinds = ['']
+  const idx = new Map()
+  const flat = new Uint8Array(W * H)
+  for (const [y, runs] of gd.rows) {
+    if (y < 0 || y >= H) continue
+    for (const [x0, len, kind] of runs) {
+      let k = idx.get(kind)
+      if (k === undefined) { k = kinds.length; kinds.push(kind); idx.set(kind, k) }
+      const end = Math.min(W, x0 + len)
+      for (let x = Math.max(0, x0); x < end; x++) flat[y * W + x] = k
+    }
+  }
+  GIVEN_GROUND = flat; GIVEN_KINDS = kinds
+  return true
+}
 
 export function configure(opts = {}) {
   W = opts.worldW ?? opts.W ?? W
@@ -61,6 +120,7 @@ export function configure(opts = {}) {
     ? opts.settlements.map((s) => ({ ...s, name: s.name ?? (s.tag[0].toUpperCase() + s.tag.slice(1)) }))
     : null
   // a new world means every memo is about the old one
+  GIVEN_GROUND = null; GIVEN_KINDS = null
   _wet4 = null; _wetFor = null; _sea4 = null; _riv4 = null; _seaFor = null
   _roadBmp = null; _roadBmpFor = null
   _seedNumC = null
@@ -2027,8 +2087,52 @@ function terrainOfE6(x, y) {
     }
     return 'river'
   }
-  for (const t2 of ssE()) if (Math.abs(x - t2.x) <= (t2.w >> 1) && Math.abs(y - t2.y) <= (t2.h >> 1)) return 'cobble'
-  if (onRoadE(x, y)) return 'trail'
+  for (const t2 of ssE()) {
+    if (Math.abs(x - t2.x) > (t2.w >> 1) || Math.abs(y - t2.y) > (t2.h >> 1)) continue
+    // INDOORS? The drawing knows, and it is asked before the street is.
+    const pl = inPlan7(t2, x, y)
+    if (pl && isIndoor7(t2.tag, pl.rx, pl.ry)) return 'floor'
+    return 'cobble'
+  }
+  // §7g: THE ROAD TAKES ITS COUNTRY'S COLOUR, AND THE SHORE IS A SHORE.
+  //
+  // This path answered `trail` for every road on the island and gave the
+  // shores nothing at all, while the world lays chalk through the Downs, peat
+  // across the Moor, a causey over the fen, gravel in the Crags, sand on the
+  // sea beaches and shingle along the river banks. Measured against the
+  // generator: 15,397 tiles where the window drew different ground from the
+  // one a citizen walks on, and the roads and the beaches were most of it.
+  //
+  // Nothing was holding the two together. `check-mirrors-seeds.mjs` was meant
+  // to and reads terrain blocks out of the window HTML files, which have not
+  // held one since this module was factored out; it tests expanse4, three
+  // foundings ago; and it throws before it compares anything.
+  // `check-mirror-ground.mjs` walks the island and asks both.
+  //
+  // Safe to correct at any time, and the truth says so in its own margin:
+  // "groundKindAt is NOT in the geography hash (only blockedAt and biomeAt
+  // are), so surfaces can be retuned after the founding without forking the
+  // world." The one thing that must not move is `sand`, which seats the Wreck.
+  if (onRoadE(x, y)) {
+    switch (biomeAt6(x, y)) {
+      case 'crags': return 'gravel'
+      case 'downs': return 'chalk'    // white ruts cut through thin turf
+      case 'moor': return 'peat'      // dark, wet, and always a little sunken
+      case 'fens': return 'causey'    // a raised way of stone and timber
+      default: return 'trail'
+    }
+  }
+  // a bank that touches the open sea is a beach; one that only ever touches a
+  // river or a beck is shingle. The test is asymmetric on purpose, because
+  // `sand` is what seats the Wreck.
+  {
+    const wet = (qx, qy) => isWater6(qx, qy) || inSea6(qx, qy) || inPoolE(qx, qy)
+      || Math.abs(qx - riverXE(qy)) <= 1
+    if (wet(x + 1, y) || wet(x - 1, y) || wet(x, y + 1) || wet(x, y - 1)) {
+      if (inSea6(x + 1, y) || inSea6(x - 1, y) || inSea6(x, y + 1) || inSea6(x, y - 1)) return 'sand'
+      return 'shingle'
+    }
+  }
   return biomeAt6(x, y)
 }
 
@@ -2113,6 +2217,11 @@ const inWildsC = (x, y) => x >= 1 && x <= 34 && y >= 1 && y <= 22
 function riverXC(y) { const cx2 = Math.floor(W / 2)
   return cx2 + 22 + Math.round(Math.sin(y / 9) * 7) + (tileHash(0, y, 11) % 3) - 1 }
 function terrainOf(x, y) {
+  // TOLD BEATS DERIVED, for the ground as for the towns.
+  if (GIVEN_GROUND && x >= 0 && y >= 0 && x < W && y < H) {
+    const v = GIVEN_GROUND[y * W + x]
+    if (v) return GIVEN_KINDS[v]
+  }
   // EVERY expanse founding goes to the expanse, not just the first one.
   // This read `GEN === 'interval-expanse-v1'`, so a v2, v3, v4 or v5 world --
   // which is every world founded since -- fell through to the classic

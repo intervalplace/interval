@@ -91,6 +91,21 @@ export const generatorIds = () => Object.keys(GENERATORS)
 //
 // Returned: { tiles: ["x,y", ...] all road tiles; bridges: ["x,y", ...] the
 // subset that crosses water; bends: [{x,y}] where a road turns (for waymarks) }.
+// §7g: THE GROUND ACCESSOR, so the pillar can tell a window what the world
+// says the surface is rather than leaving every window to re-derive it. Every
+// window that re-derived it got it wrong: fifteen thousand tiles in the flat
+// one, and not one floor tile drawn anywhere on the island.
+//
+// Returns a function, not a table: the caller walks the island once and the
+// generator keeps its own memos, which is how groundKindAt is written to be
+// used. A generator with no opinion about surfaces answers null everywhere,
+// and a window told nothing falls back to its own derivation, as it does now.
+export function groundKindOf(genesis) {
+  const gen = generatorFor(genesis)
+  if (typeof gen.groundKindAt !== 'function') return () => null
+  return (x, y) => gen.groundKindAt(genesis, x, y)
+}
+
 export function roadDataOf(genesis) {
   const gen = generatorFor(genesis)
   if (typeof gen.roadTilesOf !== 'function') return { tiles: [], bridges: [], bends: [] }

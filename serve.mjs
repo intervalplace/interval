@@ -236,7 +236,7 @@ function carriedThroughRenames(list) {
 import { IntervalNode } from './node.mjs'
 import { DEFAULT_STARTUP_VERIFY_RECENT_N } from './errors.mjs'
 import { IntervalClient } from './sdk.mjs'
-import { buildWorld, foundGenesis, roadDataOf, seatsImports } from './worldgen-any.mjs'
+import { buildWorld, foundGenesis, roadDataOf, groundKindOf, seatsImports } from './worldgen-any.mjs'
 import { readFounding, writeFounding } from './worldcache.mjs'
 import { carry, provenance } from './crossing.mjs'
 import { IncomingTree } from './incoming.mjs'
@@ -389,6 +389,7 @@ let AUDIO_WARNED = false
 const announced = new Map() // peerId -> { addr, at }: the mesh directory
 let GENESIS, migrated = 0
 let _roadsCache = null   // /api/roads: the founded world's road tiles, computed once
+let _groundCache = null  // /api/ground: every tile whose ground the world names
 let _settleCache = null  // /api/settlements: the towns as the founder seated them
 const saved = fs.existsSync(WORLD_FILE) ? JSON.parse(fs.readFileSync(WORLD_FILE)) : null
 let savedCp = null
@@ -1245,6 +1246,46 @@ const server = http.createServer((req, res) => {
         catch (e) { _settleCache = { settlements: [], error: e.message } }
       }
       return json(_settleCache)
+    }
+    // §7g: THE GROUND, TOLD RATHER THAN GUESSED.
+    //
+    // Every window carries its own copy of the island's surfaces, and every
+    // copy had drifted: measured tile by tile against the generator, the flat
+    // window drew different ground from the one a citizen walks on in FIFTEEN
+    // THOUSAND places. Not one floor tile was drawn anywhere on the island;
+    // the chalk ways of the Downs, the peat ways of the Moor, the causey over
+    // the fen and the beaches were all the bare country.
+    //
+    // The copies cannot be kept right by hand. `/api/settlements` and
+    // `/api/roads` already exist because exactly this happened to the town
+    // seats and the road network, and the answer was to be told. This is the
+    // same answer applied to the whole surface, which ends the class.
+    //
+    // Run-length encoded by row, because ground comes in runs: 15,759 named
+    // tiles, 94KB of JSON, 13KB gzipped, fetched once per world. A tile this
+    // does not name has no named ground and the window may draw its biome.
+    if (path === '/api/ground') {
+      if (!_groundCache) {
+        try {
+          const gg = node.genesis
+          const kindAt = groundKindOf(gg)
+          const rows = []
+          for (let y = 0; y < gg.worldH; y++) {
+            const runs = []
+            let cur = null, start = 0
+            for (let x = 0; x <= gg.worldW; x++) {
+              const k = x < gg.worldW ? kindAt(x, y) : null
+              if (k !== cur) {
+                if (cur !== null) runs.push([start, x - start, cur])
+                cur = k; start = x
+              }
+            }
+            if (runs.length) rows.push([y, runs])
+          }
+          _groundCache = { w: gg.worldW, h: gg.worldH, rows }
+        } catch (e) { _groundCache = { w: 0, h: 0, rows: [], error: e.message } }
+      }
+      return json(_groundCache)
     }
     if (path === '/api/roads') {
       if (!_roadsCache) { try { _roadsCache = roadDataOf(node.genesis) } catch (e) { _roadsCache = { tiles: [], bridges: [], bends: [], error: e.message } } }

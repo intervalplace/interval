@@ -4,6 +4,7 @@
 // threshold that drifted from the engine's.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -1593,4 +1594,39 @@ test('the landmark fallback names what it could not draw', () => {
   const before = win.slice(Math.max(0, at - 400), at)
   assert.ok(/\} else \{/.test(before),
     'undrawnKind is not called from the fallback arm of the landmark chain')
+})
+
+// §7g: THE WINDOW'S GROUND IS THE WORLD'S GROUND.
+//
+// Every window carries a copy of the island's surfaces, because a browser
+// cannot import a nine-thousand-line generator that imports the engine. The
+// copies had never been compared to the thing they copy, and they had come
+// apart badly: measured tile by tile, the flat window drew different ground
+// from the one a citizen walks on in FIFTEEN THOUSAND places. Not one floor
+// tile was drawn anywhere on the island, so every house in every town stood on
+// grass; the chalk ways of the Downs, the peat ways of the Moor, the causey
+// over the fen and every beach were drawn as the bare country.
+//
+// `check-mirrors-seeds.mjs` was supposed to hold them together. It reads
+// terrain blocks out of the window HTML files, which have not held one since
+// the mirror was factored out; it tests expanse4, three foundings ago; and it
+// throws before it compares anything.
+//
+// The cure is not a better copy, it is not copying: `/api/ground` serves every
+// tile the world names (13KB gzipped for the island) and the window is told,
+// exactly as it is already told the town seats and the road network.
+test('the window draws the ground the world lays (check-mirror-ground.mjs)', () => {
+  const r = spawnSync(process.execPath, [path.join(root, 'check-mirror-ground.mjs')],
+    { cwd: root, encoding: 'utf8' })
+  assert.equal(r.status, 0, '\n' + r.stdout + r.stderr)
+})
+
+// AND THE PILLAR CAN STILL ANSWER.
+test('the pillar serves the ground it founded', () => {
+  const serve = fs.readFileSync(path.join(root, 'serve.mjs'), 'utf8')
+  assert.ok(serve.includes("path === '/api/ground'"), 'serve.mjs no longer serves the ground')
+  assert.ok(/groundKindOf/.test(serve), 'serve.mjs does not ask the generator for it')
+  const win = fs.readFileSync(path.join(root, 'window-web.html'), 'utf8')
+  assert.ok(/api\('\/api\/ground'\)/.test(win), 'window-web no longer fetches the ground')
+  assert.ok(/function groundToldAt/.test(win), 'window-web has nowhere to put it')
 })

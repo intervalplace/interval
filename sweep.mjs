@@ -97,7 +97,7 @@ if (process.argv.includes('--list')) {
 // window-web.html, unaltered, with a script before it that gives it a socket
 // and a script after it that walks the citizen.
 const WIN = readFileSync(HERE + 'window-web.html', 'utf8')
-const BEFORE = `<script>
+const BEFORE_TPL = `<script>
   // THE SOCKET THE WINDOW EXPECTS. It is handed the same frames the pillar
   // sends and in the same order, so nothing downstream can tell the
   // difference. A sweep has no pillar and wants none: the point is to
@@ -106,9 +106,26 @@ const BEFORE = `<script>
   window.WebSocket = class { constructor () { this.readyState = 1; this.binaryType = ''
     window.__socks.push(this); setTimeout(() => this.onopen && this.onopen(), 0) }
     send () {} close () {} addEventListener () {} }
-  // Every one of these is optional to the window and all of them are somebody
-  // else's machine. A sweep asks the world and nothing else.
-  window.fetch = () => Promise.resolve({ ok: false, json: async () => null, arrayBuffer: async () => new ArrayBuffer(0) })
+  // §7g: THE SWEEP IS THE PILLAR, for the three things a window is TOLD.
+  //
+  // Refusing every fetch meant the sweep photographed the window's fallback:
+  // derived town seats (which drift, and did, by four tiles at Millbrook),
+  // the straight-line placeholder roads, and the window's own guess at every
+  // surface on the island. So the pictures showed houses standing on grass
+  // and no road network, and both were artefacts of the sweep rather than
+  // faults in the world.
+  //
+  // A sweep has no pillar, but it HAS the world: it built it. So it answers
+  // the three endpoints out of the same generator the pillar would use, and
+  // the pictures are what a citizen actually sees.
+  const SERVED = __SERVED__
+  window.fetch = (u) => {
+    const k = String(u)
+    for (const name of ['settlements', 'roads', 'ground'])
+      if (k.includes('/api/' + name))
+        return Promise.resolve({ ok: true, json: async () => SERVED[name] })
+    return Promise.resolve({ ok: false, json: async () => null, arrayBuffer: async () => new ArrayBuffer(0) })
+  }
   window.AudioContext = undefined; window.webkitAudioContext = undefined
 </script>`
 const AFTER = (plan, state, myId) => `<script>
@@ -176,6 +193,25 @@ world.players[myId] = { x: towns[0].x, y: towns[0].y, hp: 10, maxHp: 10, gold: 0
 
 mkdirSync(OUT, { recursive: true })
 const pagePath = OUT + '/sweep-page.html'
+// what the pillar would serve, out of the same generator it would use
+const served = (() => {
+  const rows = []
+  for (let y = 0; y < g.worldH; y++) {
+    const runs = []
+    let cur = null, start = 0
+    for (let x = 0; x <= g.worldW; x++) {
+      const k = x < g.worldW ? WG.groundKindAt(g, x, y) : null
+      if (k !== cur) { if (cur !== null) runs.push([start, x - start, cur]); cur = k; start = x }
+    }
+    if (runs.length) rows.push([y, runs])
+  }
+  return {
+    settlements: { settlements: WG.settlementsOf(g).map((t) => ({ tag: t.tag, name: t.name, x: t.x, y: t.y, w: t.w, h: t.h })) },
+    roads: { tiles: [...WG.roadTilesOf(g)], bridges: [], bends: [] },
+    ground: { w: g.worldW, h: g.worldH, rows },
+  }
+})()
+const BEFORE = BEFORE_TPL.replace('__SERVED__', JSON.stringify(served))
 const page = WIN.replace('<head>', '<head>' + BEFORE).replace('</body>', AFTER(plan, world, myId) + '</body>')
 if (!page.includes('__socks')) { console.log('could not inject the socket: window-web.html has no <head>'); process.exit(1) }
 if (!page.includes('SWEEPDONE')) { console.log('could not inject the driver: window-web.html has no </body>'); process.exit(1) }

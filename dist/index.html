@@ -746,6 +746,44 @@ function settlementsE() {
   ]
 }
 const ssE = () => (_ssE ??= settlementsE())
+// §7g: THE GROUND THE WORLD NAMES, TOLD RATHER THAN DERIVED.
+//
+// This window carried its own idea of every surface on the island and it was
+// wrong in fifteen thousand places: no floor anywhere, no chalk on the Downs,
+// no peat on the Moor, no causey over the fen, no beaches. Measured against
+// the generator, tile by tile, by check-mirror-ground.mjs.
+//
+// The town seats and the road network already learned this lesson and are
+// fetched. This is the same fetch for the whole surface, which ends the class
+// rather than correcting one more copy: 13KB gzipped, once per world.
+//
+// A flat array rather than a Map: 458,752 lookups a frame go through here, and
+// the ground cache re-bakes whenever the camera crosses a tile.
+let _groundTold = null, _groundKinds = null
+function groundToldAt(x, y) {
+  if (!_groundTold) return null
+  if (x < 0 || y < 0 || x >= W || y >= H) return null
+  const v = _groundTold[y * W + x]
+  return v ? _groundKinds[v] : null
+}
+function takeGroundTold(gd) {
+  if (!gd || !Array.isArray(gd.rows) || !gd.rows.length) return false
+  if (gd.w !== W || gd.h !== H) return false
+  const kinds = ['']
+  const idx = new Map()
+  const flat = new Uint8Array(W * H)
+  for (const [y, runs] of gd.rows) {
+    if (y < 0 || y >= H) continue
+    for (const [x0, len, kind] of runs) {
+      let k = idx.get(kind)
+      if (k === undefined) { k = kinds.length; kinds.push(kind); idx.set(kind, k) }
+      const end = Math.min(W, x0 + len)
+      for (let x = Math.max(0, x0); x < end; x++) flat[y * W + x] = k
+    }
+  }
+  _groundTold = flat; _groundKinds = kinds
+  return true
+}
 let _roadSet = null
 function roadTilesE() {
   if (_roadSet) return _roadSet
@@ -1600,7 +1638,13 @@ const PLAN_ROOMS6_W = {"anchor":[[19,3,14,6],[4,4,5,3],[12,4,4,3],[37,4,5,4],[4,
 // fountain; v7 added the villages. Older foundings keep the frozen tables and
 // are bit-for-bit unmoved -- the same courtesy layPlan gives its legend.
 const IS_V67 = () => GEN === 'interval-expanse-v6' || GEN === 'interval-expanse-v7'
-const planFor = (tag) => (IS_V67() ? PLANS6_W[tag] : undefined) ?? planFor(tag)
+// §7g: AND IT FELL BACK TO ITSELF. `planFor` ended `?? planFor(tag)`, so any
+// world before v6, and any tag the v6 table does not carry, recursed until the
+// stack gave out. It has never fired because every live world is v6 or v7 and
+// every caller passes a tag the table has; it is one unlucky founding from a
+// window that dies on its first frame with a stack overflow. The fallback it
+// means is the one `roomsFor` on the next line uses.
+const planFor = (tag) => (IS_V67() ? PLANS6_W[tag] : undefined) ?? PLANS4[tag]
 const roomsFor = (tag) => (IS_V67() ? PLAN_ROOMS6_W[tag] : undefined) ?? PLAN_ROOMS4[tag]
 
 const OPEN4 = new Set(['.','@',','])
@@ -2712,8 +2756,62 @@ function terrainOfE6(x, y) {
     }
     return 'river'
   }
-  for (const t2 of ssE()) if (Math.abs(x - t2.x) <= (t2.w >> 1) && Math.abs(y - t2.y) <= (t2.h >> 1)) return 'cobble'
-  if (onRoadE(x, y)) return 'trail'
+  // §7g: THE GROUND THE WORLD ACTUALLY LAYS.
+  //
+  // Measured against the generator, tile by tile over all 458,752 of them:
+  // this window drew different ground from the one a citizen walks on in
+  // FIFTEEN THOUSAND places. Being told where the towns are did not help,
+  // because the fault was not the seats: this path knew three answers --
+  // cobble in a town, trail on a road, and the biome everywhere else -- and
+  // the world lays eleven.
+  //
+  //   floor    inside every room of every town and village. Not one tile of
+  //            it was drawn anywhere on the island. Every house in every
+  //            town has been standing on the grass, and the plan tables and
+  //            the room rects have been sitting in this file the whole time,
+  //            read by the shop signs and by nothing else.
+  //   chalk    the white ruts through the Downs
+  //   peat     the Moor's sunken ways
+  //   causey   the raised stone-and-timber road over the fen
+  //   gravel   the Crags
+  //   sand     a beach, where the open sea touches
+  //   shingle  a river or beck bank, which is not a beach
+  //
+  // Free to correct at any time, and the truth says so in its own margin:
+  // "groundKindAt is NOT in the geography hash (only blockedAt and biomeAt
+  // are), so surfaces can be retuned after the founding without forking the
+  // world." The one thing that must not move is `sand`, which seats the Wreck.
+  for (const t2 of ssE()) {
+    if (Math.abs(x - t2.x) > (t2.w >> 1) || Math.abs(y - t2.y) > (t2.h >> 1)) continue
+    // INDOORS? The drawing knows, and it is asked before the street is.
+    const rows7 = planFor(t2.tag)
+    const rooms7 = roomsFor(t2.tag)
+    if (rows7 && rooms7) {
+      const pw7 = rows7[0].length, ph7 = rows7.length
+      const rx7 = x - (t2.x - (pw7 >> 1)), ry7 = y - (t2.y - (ph7 >> 1))
+      for (const [rxx, ryy, rww, rhh] of rooms7)
+        if (rx7 >= rxx && ry7 >= ryy && rx7 < rxx + rww && ry7 < ryy + rhh) return 'floor'
+    }
+    return 'cobble'
+  }
+  if (onRoadE(x, y)) {
+    switch (biomeAt6(x, y)) {
+      case 'crags': return 'gravel'
+      case 'downs': return 'chalk'    // white ruts cut through thin turf
+      case 'moor': return 'peat'      // dark, wet, and always a little sunken
+      case 'fens': return 'causey'    // a raised way of stone and timber
+      default: return 'trail'
+    }
+  }
+  // a bank that touches the open sea is a beach; one that only ever touches a
+  // river or a beck is shingle. Asymmetric on purpose: `sand` seats the Wreck.
+  {
+    const wet7 = (qx, qy) => isWater6(qx, qy) || inSea6(qx, qy)
+    if (wet7(x + 1, y) || wet7(x - 1, y) || wet7(x, y + 1) || wet7(x, y - 1)) {
+      if (inSea6(x + 1, y) || inSea6(x - 1, y) || inSea6(x, y + 1) || inSea6(x, y - 1)) return 'sand'
+      return 'shingle'
+    }
+  }
   return biomeAt6(x, y)
 }
 
@@ -2822,6 +2920,11 @@ const mayStrikeC = (a, b) => {
 function riverXC(y) { const cx2 = Math.floor(W / 2)
   return cx2 + 22 + Math.round(Math.sin(y / 9) * 7) + (tileHash(0, y, 11) % 3) - 1 }
 function terrainOf(x, y) {
+  // TOLD BEATS DERIVED, for the ground exactly as for the towns and the roads.
+  // A kind the world named wins; anything it did not name falls through to the
+  // derivation below, which is also what a window with no pillar gets.
+  const told = groundToldAt(x, y)
+  if (told) return told
   // EVERY expanse founding goes to the expanse, not just the first one.
   // This read `GEN === 'interval-expanse-v1'`, so a v2, v3, v4 or v5 world --
   // which is every world founded since -- fell through to the classic
@@ -9035,7 +9138,7 @@ function _onState(s, worldId, local) {
         tag: t.tag, name: t.name ?? (t.tag ? t.tag[0].toUpperCase() + t.tag.slice(1) : ''),
         x: t.x, y: t.y, w: t.w, h: t.h }))
     }
-    _seedNumC = null; _ssE = null; _roadSet = null; _w7 = null
+    _seedNumC = null; _ssE = null; _roadSet = null; _w7 = null; _groundTold = null
     miniReady = false   // the minimap must redraw for the new world, not keep the old one
     buildGround()
     // THE ROADS COME FROM THE WORLD, NOT A GUESS. Fetch the tiles the founding
@@ -9058,6 +9161,12 @@ function _onState(s, worldId, local) {
         miniReady = false
       }
     }).catch(() => { /* offline: the derived seats stand, and may be wrong */ })
+    fetch(api('/api/ground'), { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(gd => {
+      if (takeGroundTold(gd)) {
+        buildGround()      // repaint: the surfaces are the world's now, not a guess
+        miniReady = false
+      }
+    }).catch(() => { /* offline: the derived surfaces stand, and may be wrong */ })
     fetch(api('/api/roads'), { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(rd => {
       if (rd && Array.isArray(rd.tiles) && rd.tiles.length) {
         _roadSet = new Set(rd.tiles)
@@ -9974,12 +10083,68 @@ function terrainOfClassic(x, y) {
   if (hazardClosenessC(x, y) > 0.55) return 'scree' // the ground turns before the mob does (spec 2j)
   return 'meadow'
 }
+// §7g: THE GROUND WAS A CHESSBOARD, AND THAT IS WHY IT LOOKED GENERATED.
+//
+// Every tile picked its shade from a hash of its OWN coordinates. A hash of
+// one tile tells you nothing about the tile beside it, so each square landed
+// on a colour independent of all four of its neighbours: the most uncorrelated
+// a surface can be. At forty pixels a tile that is a visible lattice of
+// squares, and no amount of good art standing on it will stop a citizen
+// reading the ground as a grid somebody generated.
+//
+// Real ground varies SLOWLY. A meadow is paler where it drains and darker in
+// the hollow, over yards, not over inches. So the shade comes from a smooth
+// field: four lattice values around the tile, bilinearly mixed, which means
+// neighbouring tiles land on the same shade far more often than not and the
+// country comes out in patches a few tiles across.
+//
+// A quarter of the old per-tile hash is kept. Perfectly smooth ground reads
+// as a gradient and looks sprayed; the grain is what keeps it earth.
+const _latVal = (ix, iy) => (tileHash(ix * 131 + 7, iy * 197 + 13, 11) % 1024) / 1024
+function smoothField(x, y, s) {
+  const fx = x / s, fy = y / s
+  const ix = Math.floor(fx), iy = Math.floor(fy)
+  const tx = fx - ix, ty = fy - iy
+  const sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty)
+  const a = _latVal(ix, iy), b = _latVal(ix + 1, iy)
+  const c = _latVal(ix, iy + 1), d = _latVal(ix + 1, iy + 1)
+  const top = a + (b - a) * sx, bot = c + (d - c) * sx
+  return top + (bot - top) * sy
+}
+// PATCH_TILES: how far it is across a patch of one shade. Five is about the
+// width of the view, so a screen holds two or three of them: enough that the
+// ground is doing something, not so much that it stripes.
+const PATCH_TILES = 5
+// AND IT BLENDS BETWEEN THEM, rather than snapping to one.
+//
+// Picking the nearest palette entry put the lattice back in a different
+// costume: the patches were the right size and the right shape, and every one
+// of them was a RECTANGLE of flat colour with a visible step at its border,
+// because five greens a few per cent apart still step. Mixing the two
+// neighbouring entries by the fraction makes the variation continuous, so a
+// field drifts instead of tiling, and the steps that remain are a few units
+// of brightness rather than a whole shade.
+const _mixHex = (a, b, t) => {
+  const ca = parseInt(a.slice(1), 16), cb = parseInt(b.slice(1), 16)
+  const r = Math.round(((ca >> 16) & 255) + (((cb >> 16) & 255) - ((ca >> 16) & 255)) * t)
+  const g2 = Math.round(((ca >> 8) & 255) + (((cb >> 8) & 255) - ((ca >> 8) & 255)) * t)
+  const b2 = Math.round((ca & 255) + ((cb & 255) - (ca & 255)) * t)
+  return '#' + [r, g2, b2].map((v) => v.toString(16).padStart(2, '0')).join('')
+}
+function pickShade(arr, x, y) {
+  if (arr.length === 1) return arr[0]
+  const v = smoothField(x, y, PATCH_TILES) * 0.82
+    + ((tileHash(x, y, 0) % 1024) / 1024) * 0.18
+  const f = Math.min(0.9999, Math.max(0, v)) * (arr.length - 1)
+  const i = Math.floor(f)
+  return _mixHex(arr[i], arr[i + 1], f - i)
+}
 function tileShade(x, y) {
   const t = terrainOf(x, y)
-  if (t === 'river') return ['#2f6a86', '#356f8d', '#2b6280'][tileHash(x, y, 0) % 3]
-  if (t === 'greenwood') return ['#26401b', '#2b4a1f', '#223a18', '#294518'][tileHash(x, y, 0) % 4]
-  if (t === 'crags') return ['#6a6358', '#726b5f', '#625b50'][tileHash(x, y, 0) % 3]
-  if (t === 'fens') return ['#43512f', '#4a5836', '#3c4a2a', '#465330'][tileHash(x, y, 0) % 4]
+  if (t === 'river') return pickShade(['#2f6a86', '#356f8d', '#2b6280'], x, y)
+  if (t === 'greenwood') return pickShade(['#26401b', '#2b4a1f', '#223a18', '#294518'], x, y)
+  if (t === 'crags') return pickShade(['#6a6358', '#726b5f', '#625b50'], x, y)
+  if (t === 'fens') return pickShade(['#43512f', '#4a5836', '#3c4a2a', '#465330'], x, y)
   // the fourth founding's two new countries. The Downs are chalk under
   // thin turf -- pale, dry, and the brightest ground on the island, so the
   // eye reads them as open the moment they come over the horizon. The Moor
@@ -9987,16 +10152,16 @@ function tileShade(x, y) {
   // and deliberately close in value to the Wilds it runs up against,
   // because the whole point of the Moor is that you are not quite sure
   // when you left the safe country.
-  if (t === 'downs') return ['#8d9058', '#96995f', '#858851', '#9ba063'][tileHash(x, y, 0) % 4]
-  if (t === 'moor') return ['#4e4352', '#564a5a', '#463c4a', '#5a4e5e'][tileHash(x, y, 0) % 4]
-  if (t === 'sea') return ['#2a5f7d', '#2f6889', '#265a76'][tileHash(x, y, 0) % 3]
-  if (t === 'mountain') return ['#6e6a60', '#787468', '#666258'][tileHash(x, y, 0) % 3]
-  if (t === 'bridge') return ['#8a6a3a', '#93733f', '#816236'][tileHash(x, y, 0) % 3]
-  if (t === 'wilds') return ['#4a3d2e', '#52453a', '#443826'][tileHash(x, y, 0) % 3]
-  if (t === 'cave') return ['#2e2c33', '#34323a', '#2a282f'][tileHash(x, y, 0) % 3]
-  if (t === 'scree') return ['#5d5a52', '#65625a', '#57544c'][tileHash(x, y, 0) % 3]
-  if (t === 'cobble') return ['#7a756b', '#827d73', '#726d63'][tileHash(x, y, 0) % 3]
-  if (t === 'trail') return ['#8a7449', '#937d50', '#816c42'][tileHash(x, y, 0) % 3]
+  if (t === 'downs') return pickShade(['#8d9058', '#96995f', '#858851', '#9ba063'], x, y)
+  if (t === 'moor') return pickShade(['#4e4352', '#564a5a', '#463c4a', '#5a4e5e'], x, y)
+  if (t === 'sea') return pickShade(['#2a5f7d', '#2f6889', '#265a76'], x, y)
+  if (t === 'mountain') return pickShade(['#6e6a60', '#787468', '#666258'], x, y)
+  if (t === 'bridge') return pickShade(['#8a6a3a', '#93733f', '#816236'], x, y)
+  if (t === 'wilds') return pickShade(['#4a3d2e', '#52453a', '#443826'], x, y)
+  if (t === 'cave') return pickShade(['#2e2c33', '#34323a', '#2a282f'], x, y)
+  if (t === 'scree') return pickShade(['#5d5a52', '#65625a', '#57544c'], x, y)
+  if (t === 'cobble') return pickShade(['#7a756b', '#827d73', '#726d63'], x, y)
+  if (t === 'trail') return pickShade(['#8a7449', '#937d50', '#816c42'], x, y)
   // INDOORS. Warm boards, and a plank seam every other row so a room reads as
   // a floor rather than as differently-coloured ground. This is the single
   // thing Dragon Quest does that we were not: you can see at a glance that
@@ -10006,23 +10171,23 @@ function tileShade(x, y) {
   // reads as the Downs from a screen away; peat is barely lighter than the
   // heather it cuts through, because a moor road is a rut, not a highway;
   // a causey is stone and timber laid over the fen, grey against the green.
-  if (t === 'chalk')  return ['#c4bd98', '#cec7a2', '#b9b28e', '#c9c29d'][tileHash(x, y, 0) % 4]
-  if (t === 'peat')   return ['#4a3f3a', '#524740', '#423834', '#564a44'][tileHash(x, y, 0) % 4]
+  if (t === 'chalk')  return pickShade(['#c4bd98', '#cec7a2', '#b9b28e', '#c9c29d'], x, y)
+  if (t === 'peat')   return pickShade(['#4a3f3a', '#524740', '#423834', '#564a44'], x, y)
   // §7cu: the two isles' own ground. Shingle is a salt shore -- pale, wet-dark,
   // and crusted; trodden is bare beaten earth with nothing growing on it,
   // because nothing on the Lists is allowed to grow.
-  if (t === 'shingle') return ['#9a9483', '#8e8878', '#a49e8c'][tileHash(x, y, 0) % 3]
-  if (t === 'trodden') return ['#6e6353', '#786d5c', '#665c4d'][tileHash(x, y, 0) % 3]
-  if (t === 'causey') return ['#7d7a63', '#85826b', '#75725c'][tileHash(x, y, 0) % 3]
-  if (t === 'plaza') return ['#6e5f3e', '#75663f', '#665837'][tileHash(x, y, 0) % 3]
+  if (t === 'shingle') return pickShade(['#9a9483', '#8e8878', '#a49e8c'], x, y)
+  if (t === 'trodden') return pickShade(['#6e6353', '#786d5c', '#665c4d'], x, y)
+  if (t === 'causey') return pickShade(['#7d7a63', '#85826b', '#75725c'], x, y)
+  if (t === 'plaza') return pickShade(['#6e5f3e', '#75663f', '#665837'], x, y)
   // the surface canon (v0.79) reached the palettes and the minimap but
   // never reached THIS, the painter the viewport actually uses: flagstone
   // yards, gravel passes and shorelines all fell through to meadow, and
   // Anchor has been standing on grass ever since
-  if (t === 'flag') return ['#847b66', '#8c836d', '#7c745f'][tileHash(x, y, 0) % 3]
-  if (t === 'gravel') return ['#8d8578', '#958d80', '#857d71'][tileHash(x, y, 0) % 3]
-  if (t === 'sand') return ['#c9b98a', '#d2c293', '#c0b082'][tileHash(x, y, 0) % 3]
-  const meadow = ['#3d5a23', '#436327', '#365020', '#40592a', '#3a5726'][tileHash(x, y, 0) % 5]
+  if (t === 'flag') return pickShade(['#847b66', '#8c836d', '#7c745f'], x, y)
+  if (t === 'gravel') return pickShade(['#8d8578', '#958d80', '#857d71'], x, y)
+  if (t === 'sand') return pickShade(['#c9b98a', '#d2c293', '#c0b082'], x, y)
+  const meadow = pickShade(['#3d5a23', '#436327', '#365020', '#40592a', '#3a5726'], x, y)
   const hz = hazardClosenessC(x, y)
   if (hz <= 0.15) return meadow // the danger gradient (spec 2j): green fades toward stone as hazard nears
   const mc = parseInt(meadow.slice(1), 16), mr = (mc >> 16) & 255, mg = (mc >> 8) & 255, mb = mc & 255
@@ -10042,12 +10207,24 @@ function paintGroundTile(g, x, y) {
   const h2 = (x, y, k) => (tileHash(x, y, k) % 1024) / 1024
   const isEdge = (x, y) => x === 0 || y === 0 || x === W - 1 || y === H - 1
     g.fillStyle = tileShade(x, y); g.fillRect(px(x), py(y), TILE, TILE)
-    // soft depth instead of hard grid: a whisper of shade at two edges
-    g.fillStyle = 'rgba(0,0,0,.055)'
-    g.fillRect(px(x), py(y) + TILE - 2, TILE, 2)
-    g.fillRect(px(x) + TILE - 2, py(y), 2, TILE)
-    g.fillStyle = 'rgba(255,255,255,.03)'
-    g.fillRect(px(x), py(y), TILE, 1.5)
+    // §7g: THE EDGE IS DRAWN WHERE THE GROUND CHANGES, AND NOWHERE ELSE.
+    //
+    // This drew a shade down two sides of EVERY tile and called it "soft depth
+    // instead of a hard grid". It is a hard grid: forty pixels apart, over the
+    // whole island, in every direction. Nothing in a meadow has an edge every
+    // forty pixels, and the one thing a drawn line like that can say -- "the
+    // ground is different on this side" -- it was saying everywhere, so it
+    // said nothing.
+    //
+    // Now a tile is only outlined where it actually meets something else. A
+    // field is a field; a kerb is a kerb.
+    const _me = terrainOf(x, y)
+    const _step = (qx, qy) => terrainOf(qx, qy) !== _me
+    g.fillStyle = 'rgba(0,0,0,.10)'
+    if (_step(x, y + 1)) g.fillRect(px(x), py(y) + TILE - 2, TILE, 2)
+    if (_step(x + 1, y)) g.fillRect(px(x) + TILE - 2, py(y), 2, TILE)
+    g.fillStyle = 'rgba(255,255,255,.055)'
+    if (_step(x, y - 1)) g.fillRect(px(x), py(y), TILE, 1.5)
     // pebbles on the trodden road
     if (terrainOf(x, y) === 'trail' && h2(x, y, 70) < 0.5) {
       for (let pb = 0; pb < 2; pb++) {
@@ -10080,18 +10257,66 @@ function paintGroundTile(g, x, y) {
           g.beginPath(); g.moveTo(bx3, by3 + 3); g.lineTo(bx3 + 1, by3); g.stroke()
         }
       } else if (t3 === 'cobble' || t3 === 'plaza') {
+        // §7g: NOT ONE PER TILE. Every paved tile on the island carried
+        // exactly one crescent. The position was hashed, so no two were in
+        // the same place, and it made no difference whatever: one mark per
+        // forty pixels, everywhere, is a lattice, and a square in Oxenford
+        // came out as a hundred identical commas ruled across the ground.
+        //
+        // A count that varies is the whole fix. Some stones are worn and some
+        // are not; a few tiles have three and more than half have none, which
+        // is what a paved yard looks like from above.
+        const nMark = [0, 0, 0, 1, 1, 2, 3][tileHash(x, y, 20) % 7]
         g.strokeStyle = 'rgba(0,0,0,.12)'; g.lineWidth = 1
-        const cx3 = px(x) + 8 + tileHash(x, y, 21) % 20, cy3 = py(y) + 8 + tileHash(x, y, 22) % 20
-        g.beginPath(); g.arc(cx3, cy3, 3.5 + tileHash(x, y, 23) % 3, 0.5, 3.6); g.stroke()
+        for (let m3 = 0; m3 < nMark; m3++) {
+          const cx3 = px(x) + 5 + tileHash(x, y, 21 + m3 * 3) % 28
+          const cy3 = py(y) + 5 + tileHash(x, y, 22 + m3 * 3) % 28
+          const a3 = (tileHash(x, y, 24 + m3) % 60) / 10
+          g.beginPath(); g.arc(cx3, cy3, 2.5 + tileHash(x, y, 23 + m3) % 4, a3, a3 + 3.1); g.stroke()
+        }
       } else if (t3 === 'trail' || t3 === 'bridge') {
+        const nSt = [0, 0, 1, 1, 2][tileHash(x, y, 24) % 5]
         g.fillStyle = 'rgba(0,0,0,.10)'
-        g.fillRect(px(x) + 6 + tileHash(x, y, 25) % 26, py(y) + 6 + tileHash(x, y, 26) % 26, 2.4, 1.8)
+        for (let m4 = 0; m4 < nSt; m4++)
+          g.fillRect(px(x) + 6 + tileHash(x, y, 25 + m4 * 2) % 26,
+            py(y) + 6 + tileHash(x, y, 26 + m4 * 2) % 26, 2.4, 1.8)
       }
     }
-    // the bevel: a whisper of light on each tile's crown, shade at its foot.
-    // The flat checkerboard becomes ground you could stub a toe on.
-    g.fillStyle = 'rgba(255,255,255,.045)'; g.fillRect(px(x), py(y), TILE, 2.4)
-    g.fillStyle = 'rgba(0,0,0,.05)'; g.fillRect(px(x), py(y) + TILE - 2.4, TILE, 2.4)
+    // §7g: and the SECOND bevel, which drew the same grid again a few lines
+    // further down. Between them every tile on the island was boxed top and
+    // bottom twice over. It goes where a step is, like the other one.
+    // §7g: A YARD DOES NOT END ON A RULED LINE.
+    //
+    // Terrain is per tile and nothing crossed the join, so where Oxenford's
+    // paving met the grass the boundary ran dead straight across the whole
+    // frame, pixel for pixel: the single loudest thing in the picture, and the
+    // thing that says "a rule drew this" louder than any prop.
+    //
+    // A seam now FRAYS. Where a tile meets different ground, a few blobs of
+    // the neighbour's colour come across the join at hashed places along it,
+    // so the edge wanders a few pixels either way and reads as worn rather
+    // than as cut. The tiles underneath are untouched: this is paint, and the
+    // rules still think in squares, which is right, because a citizen walks
+    // in squares.
+    {
+      const seamAt = (qx, qy, ex, ey, horiz) => {
+        const other = terrainOf(qx, qy)
+        if (other === terrainOf(x, y) || other === 'sea') return
+        g.fillStyle = tileShade(qx, qy)
+        const n5 = 2 + tileHash(x, y, 90) % 3
+        for (let f = 0; f < n5; f++) {
+          const along = (tileHash(x, y, 91 + f * 2) % 32)
+          const deep = 2 + tileHash(x, y, 92 + f * 2) % 6
+          const wide = 5 + tileHash(x, y, 93 + f) % 9
+          if (horiz) g.fillRect(px(x) + along, ey, wide, deep)
+          else g.fillRect(ex, py(y) + along, deep, wide)
+        }
+      }
+      seamAt(x, y - 1, 0, py(y), true)
+      seamAt(x, y + 1, 0, py(y) + TILE - 6, true)
+      seamAt(x - 1, y, px(x), 0, false)
+      seamAt(x + 1, y, px(x) + TILE - 6, 0, false)
+    }
     // shorelines: land wears a sand rim wherever water touches it.
     //
     // ALL FOUR SIDES ASK THE SAME QUESTION. Two of them tested inland water

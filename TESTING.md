@@ -10,7 +10,7 @@ possible executions.
 
 ## Unit + property suite (`npm test`)
 
-`node --test test/*.test.mjs`, 638 tests across:
+`node --test test/*.test.mjs`, 640 tests across:
 
 - `leak.test.mjs`, §21c: no write reaches the caller's state. Exercises the
   paths where one citizen touches another (striking, being hunted, trading,
@@ -260,6 +260,21 @@ possible executions.
   the furnace offered four of the engine's five smelts, missing the alloy the
   whole great line is made of. The window now takes the ledgers from
   /api/tables as well as carrying a generated fallback
+- in `window.test.mjs`, that the window draws the ground the WORLD lays
+  (`check-mirror-ground.mjs`). Every window carries a copy of the island's
+  surfaces, because a browser cannot import a nine-thousand-line generator
+  that imports the engine, and the copies had never been compared to the thing
+  they copy. Measured tile by tile: the flat window drew different ground from
+  the one a citizen walks on in FIFTEEN THOUSAND places. Not one floor tile was
+  drawn anywhere on the island, so every house in every town stood on grass;
+  the chalk ways of the Downs, the peat ways of the Moor, the causey over the
+  fen and every beach were the bare country. `check-mirrors-seeds.mjs` was
+  supposed to catch this: it reads terrain blocks out of the window HTML files,
+  which have not held one since the mirror was factored out; it tests expanse4,
+  three foundings ago; and it throws before it compares anything. The cure is
+  not a better copy but no copy: `/api/ground` serves every tile the world
+  names, 13KB gzipped for the island, and the window is told, exactly as it is
+  already told the town seats and the road network
 - `tables.test.mjs`, every constitutional table a window COPIES, against the
   engine's own export, on every run. Neither window can import `engine.js`:
   both are one file served to a browser with no build step, so the tables are
