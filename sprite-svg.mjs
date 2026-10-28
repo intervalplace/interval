@@ -508,6 +508,14 @@ const beastReady = () => {
       const s = { tick: 0, players: {}, mobs: {}, nodes: {}, _pinnedBy: {} }
       const shadow = () => {}
       const rootBind = () => {}
+      // §7ef: the window stopped drawing a health bar unless the creature is
+      // pointed at, fighting or wounded, and this harness is the window's own
+      // creature code lifted out and run with no window round it. True here,
+      // because the plate below already strips anything that changes with hp
+      // by drawing the beast twice and dropping what differs -- so the bar
+      // goes the way it always went, and a plate still shows the creature
+      // rather than the state somebody left it in.
+      const _showHp = true
       const draw = () => {
         ${chain}
       }

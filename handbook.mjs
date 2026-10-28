@@ -2177,6 +2177,30 @@ if (process.argv.includes('--check')) {
   console.log('pages that do not fit: ' + (m ? m[1] : 'could not measure'))
 }
 
+// ---- the cover picture the SITE shows
+//
+// `site/handbook-cover.png` is on two pages of the site and was a hand-taken
+// screenshot from September. It had gone stale in the one way a cover of this
+// book cannot afford: the world line under the title is part of the cover,
+// and it read a world hash that no longer belongs to anything. The island
+// silhouette on it was an older coast as well.
+//
+// So it is generated from the book's own first page, like everything else
+// here, and whoever rebuilds the handbook rebuilds the picture of it.
+if (process.argv.includes('--cover')) {
+  const chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+  const png = HERE + 'site/handbook-cover.png'
+  // A5 at 96dpi, which is what the old picture was and what the site's CSS
+  // sizes it for. The shop build is one page per sheet, so the first viewport
+  // IS the cover with nothing else in it.
+  const one = HERE + 'site/handbook-shop.html'
+  if (!existsSync(one)) throw new Error('run with --shop first: the cover is its first page')
+  execFileSync(chrome, ['--headless', '--disable-gpu', '--hide-scrollbars',
+    '--window-size=561,794', '--virtual-time-budget=4000',
+    `--screenshot=${png}`, pathToFileURL(one).href], { stdio: 'inherit' })
+  console.log('took ' + png + ' from the book\'s own first page')
+}
+
 if (process.argv.includes('--pdf')) {
   const chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
   const pdf = HERE + 'site/handbook.pdf'

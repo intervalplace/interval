@@ -7828,6 +7828,10 @@ function buildMini() {
 }
 let miniRect = null            // where the minimap last landed, for hit-testing
 let travelMark = null          // { x, y } the far place the citizen is walking to
+// §7ef: the tile under the cursor, or null. Declared HERE rather than beside
+// the listener that fills it, because `drawScene` reads it three thousand
+// lines earlier and a `let` is in the dead zone until its line has run.
+let hoverT = null
 // The journey needs to be legible from inside the world too, not only on
 // the chart in the corner. If the mark is on screen it gets a ring; if it
 // is not, an arrow rides the edge of the view pointing the way, with the
@@ -11331,12 +11335,18 @@ function drawCitizen(X, Y, o) {
     cx.globalAlpha = 1
   }
   // name + hp (your own name reads white so you can find yourself in a crowd)
+  //
+  // AND BOTH OF THEM OFF THE HEAD. The bar sat at Y+3, which is one pixel
+  // clear of the hat: it read as part of the citizen rather than as something
+  // about them, and with the name gone from everyday view (§7ef) there is
+  // nothing left to push it away. Six pixels of air, and the name above that
+  // when it is asked for.
   cx.fillStyle = o.branded ? '#e8452e' : o.mine ? '#ffffff' : '#e2b63e'
   cx.font = 'bold 10px Verdana'; cx.textAlign = 'center'
-  cx.fillText(o.name, X + 20, Y + 2)
+  cx.fillText(o.name, X + 20, Y - 7)
   if (o.hp < o.maxHp || o.anim === 'fight') {
-    cx.fillStyle = '#4a1008'; cx.fillRect(X + 12, Y + 3, 16, 2.4)
-    cx.fillStyle = '#c0392b'; cx.fillRect(X + 12, Y + 3, 16 * (o.hp / o.maxHp), 2.4)
+    cx.fillStyle = '#4a1008'; cx.fillRect(X + 12, Y - 3, 16, 2.4)
+    cx.fillStyle = '#c0392b'; cx.fillRect(X + 12, Y - 3, 16 * (o.hp / o.maxHp), 2.4)
   }
 }
 
@@ -13650,13 +13660,24 @@ function drawScene(now) {
         poly([[X+7,Y+9],[X+33,Y+9],[X+20,Y+2]], '#6e5433', '#2c2216')
         cx.fillStyle = '#3a3a3e'; cx.fillRect(X + 19, Y + 10, 1.6, 8)
       }
-      if (n.type === 'house') {
-        // A HEARTH, not a cottage. Under v5 the building is the ROOM you walk
-        // into; what stands inside a dwelling is its fire. This also makes the
-        // brewpot rule read properly for the first time -- "you may brew
-        // beside a house" has always meant "brew at home", and now it looks
-        // like it: a hearth against the back wall, banked embers by day, a
-        // real flame at night, and the chimney breath still rising.
+      // THE FIRE IN SOMEBODY'S COTTAGE. This was written for a node type
+      // called `house` and the world has not stood up a single one since v7.
+      // Zero on the founded island, against a hundred and fifty-six hearths,
+      // eighty-nine of them on a town's floor -- which is this, under another
+      // name, in every cottage in every town, drawn as nothing.
+      //
+      // Dead art and an invisible thing are the same fault seen from two
+      // ends, and neither end shows: there was no wrong picture to notice
+      // and no error to read. What found it was standing in the world and
+      // looking at a place that should have had a fire in it.
+      //
+      // A HEARTH, not a cottage. Under v5 the building is the ROOM you walk
+      // into; what stands inside a dwelling is its fire. This also makes the
+      // brewpot rule read properly for the first time -- "you may brew
+      // beside a house" has always meant "brew at home", and now it looks
+      // like it: a hearth against the back wall, banked embers by day, a
+      // real flame at night, and the chimney breath still rising.
+      if (n.type === 'hearth' && terrainOf(n.x, n.y) === 'floor') {
         const v = tileHash(n.x, n.y, 5) % 2
         shadow(X, Y, 11)
         // the stone surround
@@ -13688,6 +13709,235 @@ function drawScene(now) {
           cx.beginPath(); cx.arc(X + 20 + Math.sin(st * 5 + pf) * 3, Y + 9 - st * 14, 2 + st * 3, 0, 7); cx.fill()
         }
       }
+      // THE HEARTH, WHICH WAS DRAWN AS NOTHING.
+      //
+      // A hundred and fifty-six of them on the island and `drawScene` had no
+      // branch for the word. They answer a click -- "A town hearth. Bones
+      // burn hotter here, and a brewpot may be raised beside it." -- so a
+      // citizen could walk up to a patch of bare ground, click it, and be
+      // told there was a fire there. It is the oldest shape of window fault
+      // in this project: a thing that is in the world and invisible in it.
+      //
+      // It was found by LOOKING. The High Delving's drawing carries a hearth
+      // and a campfire two tiles apart; the picture came back with the
+      // campfire and bare chalk where the hearth is. Grepping found the word
+      // in the file four times over and every one of them was the click
+      // handler or an exclusion.
+      //
+      // NOT THE `house` ART, which is a fireplace with a mantel and a chimney
+      // breathing: that is somebody's dwelling, drawn against a back wall. A
+      // hearth is the open kind -- a ring of set stones, ash banked in it,
+      // and a trivet over the fire to stand a pot on. Common, outdoors, and
+      // the thing you raise a brewpot beside.
+      // AND THE OPEN KIND, for the sixty-seven that stand in camps, ruins and
+      // workings out in the country rather than on a town's floor.
+      if (n.type === 'hearth' && terrainOf(n.x, n.y) !== 'floor') {
+        const v = tileHash(n.x, n.y, 7) % 2
+        shadow(X, Y, 12)
+        const cxp = X + 20, cyp = Y + 24
+        // the ash bed, then the ring of stones set round it
+        cx.fillStyle = '#4a443c'
+        cx.beginPath(); cx.ellipse(cxp, cyp, 13, 7.5, 0, 0, 7); cx.fill()
+        cx.fillStyle = '#39342d'
+        cx.beginPath(); cx.ellipse(cxp, cyp, 9, 5, 0, 0, 7); cx.fill()
+        for (let i = 0; i < 9; i++) {
+          const a = (i / 9) * Math.PI * 2 + (v ? 0.35 : 0)
+          const sx = cxp + Math.cos(a) * 12, sy = cyp + Math.sin(a) * 7
+          const r = 2.4 + ((tileHash(n.x + i, n.y, 3) % 3) * 0.5)
+          cx.fillStyle = i % 2 ? '#6d665c' : '#5f594f'
+          cx.beginPath(); cx.ellipse(sx, sy, r, r * 0.78, 0, 0, 7); cx.fill()
+          cx.fillStyle = 'rgba(255,255,255,.06)'
+          cx.beginPath(); cx.ellipse(sx, sy - r * 0.35, r * 0.7, r * 0.3, 0, 0, 7); cx.fill()
+        }
+        // banked by day, a low flame at night, the same cycle the dwelling
+        // fire reads so the two agree across a town at dusk
+        const cycH = dayCyc((((s.tick + t) % 2400) / 2400))
+        const nightH = (Math.sin(cycH * Math.PI * 2) + 1) / 2 < 0.42
+        const fl = 0.6 + 0.4 * Math.sin(now / 210 + n.x * 1.7)
+        cx.fillStyle = '#3d3024'
+        cx.fillRect(cxp - 6, cyp - 1, 12, 2.2)
+        cx.fillRect(cxp - 2, cyp - 4, 9, 2)
+        cx.fillStyle = nightH ? 'rgba(244,180,60,' + (0.7 + 0.25 * fl) + ')' : 'rgba(198,92,36,.55)'
+        cx.beginPath()
+        cx.moveTo(cxp - 5, cyp); cx.lineTo(cxp + 5, cyp)
+        cx.lineTo(cxp + fl, cyp - (nightH ? 11 : 5) * fl); cx.closePath(); cx.fill()
+        cx.fillStyle = nightH ? 'rgba(255,232,150,.8)' : 'rgba(230,150,60,.45)'
+        cx.beginPath(); cx.ellipse(cxp, cyp, 4.5, 2.2, 0, 0, 7); cx.fill()
+        // the trivet: three legs and an iron ring, which is what makes it a
+        // hearth somebody COOKS at rather than a fire somebody lit
+        cx.strokeStyle = '#2a2722'; cx.lineWidth = 1.5
+        for (const dx of [-7, 0, 7]) {
+          cx.beginPath(); cx.moveTo(cxp + dx, cyp - 2); cx.lineTo(cxp + dx * 0.7, cyp - 9); cx.stroke()
+        }
+        cx.beginPath(); cx.ellipse(cxp, cyp - 9, 7, 2.6, 0, 0, 7); cx.stroke()
+        if (nightH) {
+          cx.fillStyle = 'rgba(244,190,90,.1)'
+          cx.beginPath(); cx.arc(cxp, cyp - 3, 17, 0, 7); cx.fill()
+        }
+        // and the smoke, thinner than a chimney's
+        for (let pf = 0; pf < 2; pf++) {
+          const st = ((now / (2800 + pf * 900)) + pf * 0.5 + n.x * 0.1) % 1
+          cx.fillStyle = 'rgba(200,200,195,' + (0.16 * (1 - st)) + ')'
+          cx.beginPath(); cx.arc(cxp + Math.sin(st * 5 + pf) * 3, cyp - 10 - st * 14, 1.6 + st * 3, 0, 7); cx.fill()
+        }
+      }
+      // §7eg: AND THE FIVE OTHER THINGS THAT ANSWERED A CLICK AND DREW
+      // NOTHING. Each of these has a branch in the click handler saying what
+      // it is -- "The bloomery. Ore and coal go in; iron comes out." -- and
+      // had no branch here, so a citizen walked to bare ground and was told
+      // there was a bloomery on it. Four of the five are the ONLY one of
+      // themselves in the world, which is the whole design (§6am): the one
+      // anvil, the one furnace, the one altar. A unique institution drawn as
+      // nothing is the most expensive version of this fault there is.
+
+      // THE ROCKFALL that fills the throat of the South Pass, forty-one tiles
+      // of it. Boulders shoulder-high, and picked over where somebody has
+      // been working: a spent tile is smaller stone and more chip.
+      if (n.type === 'rockfall') {
+        shadow(X, Y, 13)
+        const hh = tileHash(n.x, n.y, 11)
+        const big = dep ? 0.62 : 1
+        for (let i = 0; i < 4; i++) {
+          const a = (hh >> (i * 2)) % 7
+          const bx = X + 8 + ((hh >> (i * 3)) % 20), by = Y + 14 + (i % 2) * 7
+          const w2 = (7 + a) * big, h2 = (6 + (a % 4)) * big
+          poly([[bx, by + h2], [bx + w2 * 0.2, by], [bx + w2 * 0.8, by - 1],
+                [bx + w2, by + h2 * 0.7], [bx + w2 * 0.6, by + h2]],
+               i % 2 ? '#746d63' : '#67615a', '#2e2b27')
+          cx.fillStyle = 'rgba(255,255,255,.08)'
+          poly([[bx + w2 * 0.2, by], [bx + w2 * 0.8, by - 1], [bx + w2 * 0.55, by + 3]], 'rgba(255,255,255,.09)')
+        }
+        // chips and dust at the foot, more of them where it has been worked
+        cx.fillStyle = '#5a554e'
+        for (let i = 0; i < (dep ? 7 : 4); i++) {
+          const cxx = X + 6 + ((hh >> (i * 2)) % 28), cyy = Y + 28 + ((hh >> i) % 5)
+          cx.fillRect(cxx, cyy, 2 + (i % 2), 1.6)
+        }
+      }
+
+      // THE BAR ON THE MILLBROOK BRIDGE. Down across the deck, and up for the
+      // citizen who has paid: the toll is on the PLAYER (`paidUntil`), not on
+      // the gate, so what this draws is your own way being open and not
+      // everybody's.
+      if (n.type === 'tollgate') {
+        const meG = s.players?.[myId]
+        const up = (meG?.paidUntil ?? 0) > s.tick
+        shadow(X, Y, 10)
+        // the two posts
+        for (const pxp of [X + 5, X + 31]) {
+          cx.fillStyle = '#5a452a'; cx.fillRect(pxp, Y + 6, 4, 26)
+          cx.fillStyle = 'rgba(255,255,255,.07)'; cx.fillRect(pxp, Y + 6, 1.4, 26)
+        }
+        // the bar, pivoted on the near post: across the way, or lifted
+        cx.save()
+        cx.translate(X + 7, Y + 18)
+        cx.rotate(up ? -1.08 : 0)
+        cx.fillStyle = '#7a6038'; cx.fillRect(0, -2.2, 28, 4.4)
+        cx.fillStyle = '#d8cdb4'
+        for (let b = 0; b < 4; b++) cx.fillRect(2 + b * 7, -2.2, 3.2, 4.4)
+        cx.strokeStyle = '#2e2419'; cx.lineWidth = 1; cx.strokeRect(0, -2.2, 28, 4.4)
+        cx.restore()
+        cx.fillStyle = '#3b2f1e'
+        cx.beginPath(); cx.arc(X + 7, Y + 18, 2.4, 0, 7); cx.fill()
+      }
+
+      // THE BLOOMERY, and there is one on the island. A stone stack with a
+      // mouth at the foot, a tuyere, and the charge in the top. Cold grey
+      // when it is out and breathing when it is lit, because whether it is
+      // burning is the thing a citizen walks over to find out.
+      if (n.type === 'furnace') {
+        const litF = (n.fuelUntil ?? 0) > s.tick
+        shadow(X, Y, 12)
+        // the stack, battered: wider at the foot
+        poly([[X + 9, Y + 33], [X + 31, Y + 33], [X + 28, Y + 7], [X + 12, Y + 7]], '#6b6159', '#241f1a')
+        // courses of stone
+        cx.fillStyle = 'rgba(0,0,0,.16)'
+        for (const ry of [12, 18, 24, 30]) cx.fillRect(X + 10, Y + ry, 20, 1.2)
+        // the mouth
+        poly([[X + 16, Y + 33], [X + 24, Y + 33], [X + 24, Y + 23], [X + 20, Y + 20], [X + 16, Y + 23]], '#15100b')
+        // the tuyere: a clay pipe into the side, which is what makes it a
+        // bloomery and not an oven
+        cx.fillStyle = '#8a6a44'; cx.fillRect(X + 4, Y + 26, 8, 3.4)
+        if (litF) {
+          const fl = 0.6 + 0.4 * Math.sin(now / 150 + n.x)
+          cx.fillStyle = 'rgba(255,170,50,' + (0.7 + 0.25 * fl) + ')'
+          poly([[X + 17, Y + 33], [X + 23, Y + 33], [X + 20, Y + 24 - 3 * fl]], 'rgba(255,170,50,.9)')
+          cx.fillStyle = 'rgba(255,225,140,.85)'; cx.fillRect(X + 18, Y + 30, 4, 3)
+          cx.fillStyle = 'rgba(255,150,60,.12)'
+          cx.beginPath(); cx.arc(X + 20, Y + 28, 16, 0, 7); cx.fill()
+          // and it breathes out of the top
+          for (let pf = 0; pf < 2; pf++) {
+            const st2 = ((now / (1900 + pf * 700)) + pf * 0.5 + n.x * 0.1) % 1
+            cx.fillStyle = 'rgba(190,185,178,' + (0.3 * (1 - st2)) + ')'
+            cx.beginPath(); cx.arc(X + 20 + Math.sin(st2 * 5 + pf) * 3, Y + 5 - st2 * 16, 2 + st2 * 4, 0, 7); cx.fill()
+          }
+        } else {
+          cx.fillStyle = 'rgba(30,26,22,.5)'; cx.fillRect(X + 17, Y + 30, 6, 3)
+        }
+      }
+
+      // THE ALTAR, worn smooth. A low slab on two blocks with a shallow dish
+      // cut in it, and the sigil's own light in the dish, faint -- it is the
+      // one place in the world a sigil is made (SPEC 6ax) and it should read
+      // as older than everything round it rather than as a magic item.
+      if (n.type === 'altar') {
+        shadow(X, Y, 13)
+        cx.fillStyle = '#6d675d'
+        cx.fillRect(X + 9, Y + 24, 5, 9); cx.fillRect(X + 26, Y + 24, 5, 9)
+        poly([[X + 5, Y + 24], [X + 35, Y + 24], [X + 33, Y + 18], [X + 7, Y + 18]], '#847d71', '#2b2721')
+        cx.fillStyle = 'rgba(255,255,255,.1)'
+        poly([[X + 7, Y + 18], [X + 33, Y + 18], [X + 31, Y + 16], [X + 9, Y + 16]], 'rgba(255,255,255,.12)')
+        // the dish, worn into it
+        cx.fillStyle = '#4e4941'
+        cx.beginPath(); cx.ellipse(X + 20, Y + 20, 7, 2.6, 0, 0, 7); cx.fill()
+        const gl = 0.4 + 0.3 * Math.sin(now / 900 + n.x)
+        cx.fillStyle = 'rgba(120,200,255,' + (0.12 * gl) + ')'
+        cx.beginPath(); cx.ellipse(X + 20, Y + 20, 5.4, 1.9, 0, 0, 7); cx.fill()
+      }
+
+      // THE SAWPIT: a trench with a trestle over it and a log on the trestle,
+      // which is the whole of what a sawpit is. One man above and one below,
+      // and neither is drawn because neither is in the world.
+      if (n.type === 'sawpit') {
+        shadow(X, Y, 13)
+        // the pit
+        poly([[X + 6, Y + 30], [X + 34, Y + 30], [X + 32, Y + 16], [X + 8, Y + 16]], '#3b3228', '#211c15')
+        cx.fillStyle = '#2a241c'
+        poly([[X + 9, Y + 28], [X + 31, Y + 28], [X + 29.5, Y + 18], [X + 10.5, Y + 18]], '#2a241c')
+        // the trestle across it
+        cx.fillStyle = '#6b5331'
+        cx.fillRect(X + 4, Y + 19, 32, 3)
+        cx.fillRect(X + 4, Y + 25, 32, 3)
+        // the log being cut, and the kerf already run into it
+        cx.fillStyle = '#8a6b3e'
+        cx.fillRect(X + 8, Y + 13, 24, 7)
+        cx.fillStyle = '#6d5330'
+        cx.beginPath(); cx.ellipse(X + 8, Y + 16.5, 2.2, 3.5, 0, 0, 7); cx.fill()
+        cx.fillStyle = '#3a2d1a'; cx.fillRect(X + 18, Y + 13, 1.4, 7)
+        // sawdust, banked where it falls
+        cx.fillStyle = 'rgba(214,186,132,.5)'
+        cx.beginPath(); cx.ellipse(X + 20, Y + 31, 11, 3, 0, 0, 7); cx.fill()
+      }
+
+      // THE LOOKING-GLASS. A standing mirror in a frame: the one place a
+      // citizen may change how they look.
+      if (n.type === 'looking-glass') {
+        shadow(X, Y, 9)
+        cx.fillStyle = '#4a3a22'
+        cx.fillRect(X + 14, Y + 28, 12, 4)
+        poly([[X + 18, Y + 28], [X + 22, Y + 28], [X + 22, Y + 24], [X + 18, Y + 24]], '#4a3a22')
+        // the frame and the glass
+        cx.fillStyle = '#6b5331'
+        cx.beginPath(); cx.ellipse(X + 20, Y + 14, 11, 13, 0, 0, 7); cx.fill()
+        cx.fillStyle = '#8fa6b4'
+        cx.beginPath(); cx.ellipse(X + 20, Y + 14, 8.4, 10.6, 0, 0, 7); cx.fill()
+        // what a mirror actually looks like at this size: a sky in it
+        cx.fillStyle = 'rgba(255,255,255,.3)'
+        cx.beginPath(); cx.ellipse(X + 17, Y + 10, 3.4, 5, -0.5, 0, 7); cx.fill()
+        cx.fillStyle = 'rgba(60,70,80,.25)'
+        cx.beginPath(); cx.ellipse(X + 23, Y + 18, 3, 4, -0.4, 0, 7); cx.fill()
+      }
+
       if (n.type === 'vault' || n.type === 'store') {
         // THE BOARD OVER THE DOOR, drawn here rather than in a pass of its
         // own: inside the node loop the transform is whatever the world is
@@ -14003,12 +14253,51 @@ function drawScene(now) {
         cx.fillStyle = '#1a0f08'
         cx.beginPath(); cx.ellipse(X + 20, ey, 1.5, 2.6, 0, 0, 7); cx.fill()
       }
-      cx.font = 'bold 7px Verdana'; cx.textAlign = 'center'
+      // §7ef: A SHEEP STANDING IN A FIELD IS NOT OFFERING YOU A NUMBER.
+      //
+      // Every creature carried "sheep 40/40 hp hits 1" over its head at all
+      // times. Nine sheep at the Sheepfolds put up a wall of text that
+      // overlapped itself into "sheep 40/40 hp hitsheep 40/40 hp hits 1" and
+      // covered more of the field than the sheep did; three goblins at the
+      // High Delving took more screen in labels than in goblins. It is the
+      // single thing that made the window read as a debug view of a world
+      // rather than as the world.
+      //
+      // It is also the same rule the menus already follow (§7y: a menu lists
+      // only what is possible at that moment). The model this window took its
+      // interaction from has no floating nameplates either: you hover, and
+      // the corner tells you what it is; a health bar appears over a creature
+      // once it is in a fight.
+      //
+      // So: POINTED AT, FIGHTING, or WOUNDED. Wounded is in the list because
+      // a beast that has been hit and walked away is carrying information the
+      // player earned, and taking it back when the cursor moves would be the
+      // window hiding something rather than keeping quiet.
       const st = MOB_STATS[m.type]
-      const plate = st ? (m.type + '  ' + m.hp + '/' + st.maxHp + ' hp  hits ' + st.maxHit):
-                       m.type
-      cx.fillStyle = 'rgba(0,0,0,.45)'; cx.fillText(plate, X + 20.7, Y - 2.3)
-      cx.fillStyle = '#ffe08a'; cx.fillText(plate, X + 20, Y - 3)
+      const _hov = hoverT && hoverT.x === m.x && hoverT.y === m.y
+      // `m.maxHp` as well as the table, because the stranger carries his own
+      // and a creature the table has never heard of must still be able to
+      // look hurt. A missing MOB_STATS row used to draw a FULL bar forever
+      // (mobMaxHp falls back to 1); now it simply draws none until you point
+      // at it, which is quieter and no less wrong, and test/tables.test.mjs
+      // is what keeps the table whole.
+      const _mx = st?.maxHp ?? m.maxHp ?? 0
+      const _hurt = _mx > 0 && m.hp < _mx
+      // §7ef: AND THE HEALTH BAR ON THE SAME TERMS AS THE NAME. A sheep at
+      // full health standing in a field is not in a fight and has nothing to
+      // report. Drawn in twelve places, one per creature, so the decision is
+      // made once here and every one of them reads it.
+      const _showHp = _hov || engaged || _hurt
+      if (_hov || engaged || _hurt) {
+        cx.font = 'bold 7px Verdana'; cx.textAlign = 'center'
+        // and only the hovered one says the whole sentence. A wounded beast
+        // in a fight wants its health, not a lecture about its maximum hit.
+        const plate = !st ? m.type
+          : _hov ? (m.type + '  ' + m.hp + '/' + st.maxHp + ' hp  hits ' + st.maxHit)
+          : (m.type + '  ' + m.hp + '/' + st.maxHp)
+        cx.fillStyle = 'rgba(0,0,0,.45)'; cx.fillText(plate, X + 20.7, Y - 2.3)
+        cx.fillStyle = '#ffe08a'; cx.fillText(plate, X + 20, Y - 3)
+      }
       const hop = engaged ? Math.abs(Math.sin(now / 160)) * 2 : Math.sin(now / 700 + m.x) * 0.7
       shadow(X, Y, 9)
       if ((m.rootedUntil ?? 0) > s.tick) rootBind(X, Y)
@@ -14171,14 +14460,23 @@ function drawScene(now) {
           }
         }
 
-        cx.fillStyle = '#4a1008'; cx.fillRect(X + 2, Y - 34, 36, 4.4)
-        cx.fillStyle = '#c0392b'; cx.fillRect(X + 2, Y - 34, 36 * Math.max(0, m.hp / 420), 4.4)
+        if (_showHp) {
+          cx.save(); cx.translate(0, -5)   // §7ef: air between a creature and its bar
+            cx.fillStyle = '#4a1008'; cx.fillRect(X + 2, Y - 34, 36, 4.4)
+            cx.fillStyle = '#c0392b'; cx.fillRect(X + 2, Y - 34, 36 * Math.max(0, m.hp / 420), 4.4)
+          cx.restore()
+        }
         cx.fillStyle = 'rgba(226,182,62,.9)'
         cx.font = '600 8px ui-monospace,monospace'; cx.textAlign = 'center'
         cx.fillText('THE DRAGON', X + 20, Y - 37); cx.textAlign = 'left'
         return
       }
       if (m.type === 'siren') {
+        // §7eh: and it faces the way it is going. The word it may print
+        // ("taken", "spent") is outside the flip, or it would come out
+        // back to front.
+        cx.save()
+        if (MF < 0) { cx.translate(X + 20, 0); cx.scale(-1, 1); cx.translate(-(X + 20), 0) }
         // SHE WEARS THE FACE OF WHOEVER TOOK HER.
         //
         // Every other creature here looks like itself. She looks like a
@@ -14237,17 +14535,26 @@ function drawScene(now) {
           }
           cx.restore(); cx.globalAlpha = 1
         }
+        cx.restore()
         if (taken) {                       // somebody else's fight
           cx.fillStyle = 'rgba(150,200,220,.75)'
           cx.font = '600 7px ui-monospace,monospace'; cx.textAlign = 'center'
           cx.fillText('taken', X + 20, Y - 4); cx.textAlign = 'left'
         }
-        cx.fillStyle = '#1c3038'; cx.fillRect(X + 6, Y - 1, 28, 3.4)
-        cx.fillStyle = mine2 ? '#7fd4e8' : '#4a8a9c'
-        cx.fillRect(X + 6, Y - 1, 28 * Math.max(0, m.hp / 60), 3.4)
+        if (_showHp) {
+          cx.save(); cx.translate(0, -5)   // §7ef: air between a creature and its bar
+            cx.fillStyle = '#1c3038'; cx.fillRect(X + 6, Y - 1, 28, 3.4)
+            cx.fillStyle = mine2 ? '#7fd4e8' : '#4a8a9c'
+            cx.fillRect(X + 6, Y - 1, 28 * Math.max(0, m.hp / 60), 3.4)
+          cx.restore()
+        }
         return
       }
       if (m.type === 'great-spider') {
+        // §7eh: and it faces the way it is going. `mobFacing` is worked out
+        // for every creature on every frame and this drawing threw it away.
+        cx.save()
+        if (MF < 0) { cx.translate(X + 20, 0); cx.scale(-1, 1); cx.translate(-(X + 20), 0) }
         // wide, low, and eight-legged. It should read as a thing that has been
         // sitting here a long time.
         const twitch = Math.sin(now / 380 + m.x) * 1.6
@@ -14300,14 +14607,23 @@ function drawScene(now) {
         // and the strand it hangs from, going up out of the tile
         cx.strokeStyle = 'rgba(226,232,240,.22)'; cx.lineWidth = 1
         cx.beginPath(); cx.moveTo(X + 20, Y + 7); cx.lineTo(X + 20, Y - 20); cx.stroke()
-        cx.fillStyle = '#2b1a20'; cx.fillRect(X + 2, Y - 8, 36, 4.4)
-        cx.fillStyle = '#a8446a'; cx.fillRect(X + 2, Y - 8, 36 * Math.max(0, m.hp / 300), 4.4)
+        cx.restore()
+        if (_showHp) {
+          cx.save(); cx.translate(0, -5)   // §7ef: air between a creature and its bar
+            cx.fillStyle = '#2b1a20'; cx.fillRect(X + 2, Y - 8, 36, 4.4)
+            cx.fillStyle = '#a8446a'; cx.fillRect(X + 2, Y - 8, 36 * Math.max(0, m.hp / 300), 4.4)
+          cx.restore()
+        }
         cx.fillStyle = 'rgba(226,182,62,.9)'
         cx.font = '600 8px ui-monospace,monospace'; cx.textAlign = 'center'
         cx.fillText('THE SPIDER', X + 20, Y - 11); cx.textAlign = 'left'
         return
       }
       if (m.type === 'boar') {
+        // §7eh: and it faces the way it is going. `mobFacing` is worked out
+        // for every creature on every frame and this drawing threw it away.
+        cx.save()
+        if (MF < 0) { cx.translate(X + 20, 0); cx.scale(-1, 1); cx.translate(-(X + 20), 0) }
         cx.fillStyle = '#4a3a2c'; cx.beginPath(); cx.ellipse(X + 20, Y + 25, 13, 8, 0, 0, 7); cx.fill()
         cx.fillStyle = '#3a2c20'; cx.beginPath(); cx.ellipse(X + 30, Y + 22, 7, 6, 0, 0, 7); cx.fill()
         cx.fillStyle = '#ddd6c4'                                        // tusks
@@ -14315,18 +14631,28 @@ function drawScene(now) {
         cx.fillStyle = '#2a1f16'
         for (const bx of [13, 18, 24, 28]) cx.fillRect(X + bx, Y + 31, 3, 6)
         cx.fillStyle = '#c46a2a'; cx.beginPath(); cx.arc(X + 32, Y + 20, 1.6, 0, 7); cx.fill()
+        cx.restore()
         return
       }
       if (m.type === 'mountain-goat') {
+        // §7eh: and it faces the way it is going. `mobFacing` is worked out
+        // for every creature on every frame and this drawing threw it away.
+        cx.save()
+        if (MF < 0) { cx.translate(X + 20, 0); cx.scale(-1, 1); cx.translate(-(X + 20), 0) }
         cx.fillStyle = '#cdc3b0'; cx.beginPath(); cx.ellipse(X + 19, Y + 24, 11, 7, 0, 0, 7); cx.fill()
         cx.fillStyle = '#e4dcc9'; cx.beginPath(); cx.arc(X + 29, Y + 20, 6, 0, 7); cx.fill()
         cx.strokeStyle = '#6b5a44'; cx.lineWidth = 2                    // swept horns
         cx.beginPath(); cx.moveTo(X + 29, Y + 15); cx.quadraticCurveTo(X + 35, Y + 11, X + 32, Y + 8); cx.stroke()
         cx.fillStyle = '#8a7f6c'
         for (const bx of [13, 18, 23]) cx.fillRect(X + bx, Y + 30, 2, 7)
+        cx.restore()
         return
       }
       if (m.type === 'carrion-crow') {
+        // §7eh: and it faces the way it is going. `mobFacing` is worked out
+        // for every creature on every frame and this drawing threw it away.
+        cx.save()
+        if (MF < 0) { cx.translate(X + 20, 0); cx.scale(-1, 1); cx.translate(-(X + 20), 0) }
         const flap = Math.sin(((world?.tick ?? 0) + m.x * 5) * 0.4) * 2
         cx.fillStyle = '#1c1c22'; cx.beginPath(); cx.ellipse(X + 20, Y + 24, 8, 6, 0, 0, 7); cx.fill()
         cx.beginPath(); cx.moveTo(X + 13, Y + 22 - flap); cx.lineTo(X + 20, Y + 20)
@@ -14334,6 +14660,7 @@ function drawScene(now) {
         cx.fillStyle = '#2a2a32'; cx.beginPath(); cx.arc(X + 26, Y + 18, 4, 0, 7); cx.fill()
         cx.fillStyle = '#c9a03a'
         cx.beginPath(); cx.moveTo(X + 29, Y + 18); cx.lineTo(X + 34, Y + 19); cx.lineTo(X + 29, Y + 20); cx.fill()
+        cx.restore()
         return
       }
       // §7cn: THE MERE-LAMPREY. A mouth on a rope, half out of the reed-water.
@@ -14348,6 +14675,11 @@ function drawScene(now) {
       // who walks out here finds the PLACE rather than nothing. §7a's rule --
       // the road still arrives at the rock -- said this first.
       if (m.type === 'mere-lamprey') {
+        // §7eh: and it faces the way it is going. The word it may print
+        // ("taken", "spent") is outside the flip, or it would come out
+        // back to front.
+        cx.save()
+        if (MF < 0) { cx.translate(X + 20, 0); cx.scale(-1, 1); cx.translate(-(X + 20), 0) }
         const spent = (m.spent ?? 0) === 1
         const t9 = (world?.tick ?? 0)
         const rise = spent ? 0 : Math.sin(now / 900 + m.x) * 2.4
@@ -14396,6 +14728,7 @@ function drawScene(now) {
             }
           }
         }
+        cx.restore()
         if (spent) {
           cx.fillStyle = 'rgba(150,150,138,.7)'
           cx.font = '600 7px ui-monospace,monospace'; cx.textAlign = 'center'
@@ -14406,9 +14739,13 @@ function drawScene(now) {
         // has left of the sixty-four it was born with. It is the only number
         // in this world that only ever goes down.
         const left = 64 - (m.slain ?? 0)
-        cx.fillStyle = '#22301e'; cx.fillRect(X + 6, Y - 1, 28, 3.4)
-        cx.fillStyle = '#8fbf6a'
-        cx.fillRect(X + 6, Y - 1, 28 * Math.max(0, m.hp / 44), 3.4)
+        if (_showHp) {
+          cx.save(); cx.translate(0, -5)   // §7ef: air between a creature and its bar
+            cx.fillStyle = '#22301e'; cx.fillRect(X + 6, Y - 1, 28, 3.4)
+            cx.fillStyle = '#8fbf6a'
+            cx.fillRect(X + 6, Y - 1, 28 * Math.max(0, m.hp / 44), 3.4)
+          cx.restore()
+        }
         cx.fillStyle = '#4a5a3a'; cx.fillRect(X + 6, Y + 3, 28, 2)
         cx.fillStyle = left <= 8 ? '#d8a03a' : '#7a9a5a'
         cx.fillRect(X + 6, Y + 3, 28 * Math.max(0, left / 64), 2)
@@ -14418,6 +14755,10 @@ function drawScene(now) {
         return
       }
       if (m.type === 'fen-adder') {
+        // §7eh: and it faces the way it is going. `mobFacing` is worked out
+        // for every creature on every frame and this drawing threw it away.
+        cx.save()
+        if (MF < 0) { cx.translate(X + 20, 0); cx.scale(-1, 1); cx.translate(-(X + 20), 0) }
         cx.strokeStyle = '#5a6b34'; cx.lineWidth = 4; cx.lineCap = 'round'
         cx.beginPath(); cx.moveTo(X + 9, Y + 30)
         cx.quadraticCurveTo(X + 20, Y + 20, X + 31, Y + 27); cx.stroke()
@@ -14425,6 +14766,7 @@ function drawScene(now) {
         cx.beginPath(); cx.moveTo(X + 12, Y + 28); cx.quadraticCurveTo(X + 20, Y + 22, X + 29, Y + 26); cx.stroke()
         cx.fillStyle = '#6d8140'; cx.beginPath(); cx.arc(X + 32, Y + 27, 3.4, 0, 7); cx.fill()
         cx.fillStyle = '#d8b83c'; cx.beginPath(); cx.arc(X + 33, Y + 26, 1.2, 0, 7); cx.fill()
+        cx.restore()
         return
       }
       // §7cr: THE GIBBET-DEAD, which was drawing NOTHING. The same fault the
@@ -14436,6 +14778,10 @@ function drawScene(now) {
       // beat of `every: 4`, so what you see is the arm coming back before the
       // stone lands, which is the only warning a citizen gets at four tiles.
       if (m.type === 'gibbet-dead') {
+        // §7eh: and it faces the way it is going. `mobFacing` is worked out
+        // for every creature on every frame and this drawing threw it away.
+        cx.save()
+        if (MF < 0) { cx.translate(X + 20, 0); cx.scale(-1, 1); cx.translate(-(X + 20), 0) }
         const t7 = (world?.tick ?? 0)
         const phase = ((t7 % 4) + 4) % 4              // matches MOB_STATS.every
         const wind = phase === 3 ? 1 : phase === 0 ? -0.6 : 0
@@ -14459,9 +14805,14 @@ function drawScene(now) {
         cx.beginPath(); cx.arc(X + 18 + sway, Y + 13, 1.7, 0, 7); cx.fill()
         cx.beginPath(); cx.arc(X + 22.4 + sway, Y + 13, 1.7, 0, 7); cx.fill()
         cx.fillRect(X + 18.5 + sway, Y + 17, 3, 3)
+        cx.restore()
         return
       }
       if (m.type === 'barrow-wight') {
+        // §7eh: and it faces the way it is going. `mobFacing` is worked out
+        // for every creature on every frame and this drawing threw it away.
+        cx.save()
+        if (MF < 0) { cx.translate(X + 20, 0); cx.scale(-1, 1); cx.translate(-(X + 20), 0) }
         const drift = Math.sin(((world?.tick ?? 0) + m.y * 3) * 0.12) * 1.4
         cx.fillStyle = 'rgba(120,150,140,.22)'
         cx.beginPath(); cx.ellipse(X + 20, Y + 26 + drift, 11, 13, 0, 0, 7); cx.fill()
@@ -14472,9 +14823,14 @@ function drawScene(now) {
         cx.fillStyle = '#1a2420'
         cx.beginPath(); cx.arc(X + 18, Y + 13 + drift, 1.5, 0, 7); cx.fill()
         cx.beginPath(); cx.arc(X + 22, Y + 13 + drift, 1.5, 0, 7); cx.fill()
+        cx.restore()
         return
       }
       if (m.type === 'scree-imp') {
+        // §7eh: and it faces the way it is going. `mobFacing` is worked out
+        // for every creature on every frame and this drawing threw it away.
+        cx.save()
+        if (MF < 0) { cx.translate(X + 20, 0); cx.scale(-1, 1); cx.translate(-(X + 20), 0) }
         // §12: the four things living in the South Pass rockfall. Small, grey,
         // and made of the same stone the diggers are breaking -- they were
         // drawing NOTHING, so a citizen a week into the dig would have been
@@ -14490,6 +14846,7 @@ function drawScene(now) {
         cx.fillStyle = '#d8963c'
         cx.beginPath(); cx.arc(X + 17, Y + 23 + bob, 1.7, 0, 7); cx.fill()
         cx.beginPath(); cx.arc(X + 24, Y + 23 + bob, 1.7, 0, 7); cx.fill()
+        cx.restore()
         return
       }
       if (m.type === 'dummy' || m.type === 'butt') {
@@ -14498,6 +14855,10 @@ function drawScene(now) {
         // bow all work on them unchanged, but nothing about them should read
         // as alive: no eyes, no idle sway, and they never move.
         if (m.type === 'dummy') {
+          // §7eh: and it faces the way it is going. `mobFacing` is worked out
+          // for every creature on every frame and this drawing threw it away.
+          cx.save()
+          if (MF < 0) { cx.translate(X + 20, 0); cx.scale(-1, 1); cx.translate(-(X + 20), 0) }
           cx.fillStyle = '#6b5334'; cx.fillRect(X + 18, Y + 24, 5, 15)
           cx.fillStyle = '#a8863a'; cx.fillRect(X + 8, Y + 17, 25, 5)     // the crossbar
           cx.fillStyle = '#c9a94e'
@@ -14512,10 +14873,15 @@ function drawScene(now) {
           const rings = [[13, '#d8c07a'], [10, '#b8983f'], [6.5, '#8a6f2a'], [3, '#c4561a']]
           for (const [r, col] of rings) { cx.fillStyle = col
             cx.beginPath(); cx.arc(X + 20, Y + 18, r, 0, 7); cx.fill() }
+          cx.restore()
         }
         return
       }
       if (m.type === 'sheep') {
+        // §7eh: and it faces the way it is going. `mobFacing` is worked out
+        // for every creature on every frame and this drawing threw it away.
+        cx.save()
+        if (MF < 0) { cx.translate(X + 20, 0); cx.scale(-1, 1); cx.translate(-(X + 20), 0) }
         // a low woolly bundle with a dark face: it should read at a glance as
         // the one thing out here that is not going to do anything to you
         const graze = Math.sin(now / 1300 + m.x * 0.7) * 1.6      // the head dips
@@ -14541,9 +14907,14 @@ function drawScene(now) {
         }
         cx.fillStyle = '#f0ece0'                                  // one eye
         cx.beginPath(); cx.arc(X + 32 + drift, Y + 19 + graze, 0.9, 0, 7); cx.fill()
+        cx.restore()
         return
       }
       if (m.type === 'shore-crab') {
+        // §7eh: and it faces the way it is going. `mobFacing` is worked out
+        // for every creature on every frame and this drawing threw it away.
+        cx.save()
+        if (MF < 0) { cx.translate(X + 20, 0); cx.scale(-1, 1); cx.translate(-(X + 20), 0) }
         // wide, low and armoured: it should read as a thing you have to open
         // rather than a thing you have to survive
         const sway = Math.sin(now / 700 + m.x) * 1.4
@@ -14586,8 +14957,13 @@ function drawScene(now) {
           cx.strokeStyle = '#7a3b2a'; cx.lineWidth = 2
           cx.beginPath(); cx.moveTo(X + 20 + side * 9, Y + 18); cx.lineTo(cxp, cyp + 1); cx.stroke()
         }
-        cx.fillStyle = '#4a1008'; cx.fillRect(X + 8, Y + 2, 24, 3)
-        cx.fillStyle = '#c0392b'; cx.fillRect(X + 8, Y + 2, 24 * Math.max(0, m.hp / 45), 3)
+        cx.restore()
+        if (_showHp) {
+          cx.save(); cx.translate(0, -5)   // §7ef: air between a creature and its bar
+            cx.fillStyle = '#4a1008'; cx.fillRect(X + 8, Y + 2, 24, 3)
+            cx.fillStyle = '#c0392b'; cx.fillRect(X + 8, Y + 2, 24 * Math.max(0, m.hp / 45), 3)
+          cx.restore()
+        }
         return
       }
       if (m.type === 'troll') {
@@ -14602,8 +14978,12 @@ function drawScene(now) {
         cx.fillStyle = '#4a3a26'; cx.fillRect(-2, -14, 4, 16)
         cx.fillStyle = '#5c4a32'; cx.beginPath(); cx.arc(0, -14, 4.4, 0, 7); cx.fill()
         cx.restore()
-        cx.fillStyle = '#4a1008'; cx.fillRect(X + 10, Y + 1, 20, 3.4)
-        cx.fillStyle = '#c0392b'; cx.fillRect(X + 10, Y + 1, 20 * (m.hp / 20), 3.4)
+        if (_showHp) {
+          cx.save(); cx.translate(0, -5)   // §7ef: air between a creature and its bar
+            cx.fillStyle = '#4a1008'; cx.fillRect(X + 10, Y + 1, 20, 3.4)
+            cx.fillStyle = '#c0392b'; cx.fillRect(X + 10, Y + 1, 20 * (m.hp / 20), 3.4)
+          cx.restore()
+        }
         return
       }
       if (m.type === 'bear') {
@@ -14613,8 +14993,12 @@ function drawScene(now) {
         const hx2 = MF > 0 ? 29 : 11
         cx.fillStyle = '#6b4a2e'; cx.beginPath(); cx.arc(X + hx2 - MF * 3, Y + 11 + lum, 3, 0, 7); cx.arc(X + hx2 + MF * 3, Y + 11 + lum, 3, 0, 7); cx.fill()
         cx.fillStyle = '#c9302c'; cx.fillRect(X + hx2 + MF * 2, Y + 17 + lum, 2.2, 2.2)
-        cx.fillStyle = '#4a1008'; cx.fillRect(X + 11, Y + 4, 18, 3)
-        cx.fillStyle = '#c0392b'; cx.fillRect(X + 11, Y + 4, 18 * (m.hp / 14), 3)
+        if (_showHp) {
+          cx.save(); cx.translate(0, -5)   // §7ef: air between a creature and its bar
+            cx.fillStyle = '#4a1008'; cx.fillRect(X + 11, Y + 4, 18, 3)
+            cx.fillStyle = '#c0392b'; cx.fillRect(X + 11, Y + 4, 18 * (m.hp / 14), 3)
+          cx.restore()
+        }
         return
       }
       if (m.type === 'wolf') {
@@ -14627,8 +15011,12 @@ function drawScene(now) {
         cx.fillStyle = '#c9302c'; cx.fillRect(X + hx2 + MF * 4, Y + 23 + lope, 1.8, 1.8)
         const tx2 = MF > 0 ? 6 : 34
         poly([[X+tx2,Y+26+lope],[X+tx2-MF*5,Y+22+lope+Math.sin(now/250)*1.5],[X+tx2-MF*2,Y+28]], '#5a5a5e')
-        cx.fillStyle = '#4a1008'; cx.fillRect(X + 13, Y + 14, 14, 3)
-        cx.fillStyle = '#c0392b'; cx.fillRect(X + 13, Y + 14, 14 * (m.hp / 8), 3)
+        if (_showHp) {
+          cx.save(); cx.translate(0, -5)   // §7ef: air between a creature and its bar
+            cx.fillStyle = '#4a1008'; cx.fillRect(X + 13, Y + 14, 14, 3)
+            cx.fillStyle = '#c0392b'; cx.fillRect(X + 13, Y + 14, 14 * (m.hp / 8), 3)
+          cx.restore()
+        }
         return
       }
       if (m.type === 'skeleton-knight') {
@@ -14665,8 +15053,12 @@ function drawScene(now) {
         poly([[-1.6,-1],[1.6,-1],[1.6,-16],[0,-19],[-1.6,-16]], '#cfd2cc', '#7a7d78') // blade
         cx.restore()
         // hp bar
-        cx.fillStyle = '#4a1008'; cx.fillRect(X + 11, Y, 18, 3)
-        cx.fillStyle = '#c0392b'; cx.fillRect(X + 11, Y, 18 * (m.hp / 18), 3)
+        if (_showHp) {
+          cx.save(); cx.translate(0, -5)   // §7ef: air between a creature and its bar
+            cx.fillStyle = '#4a1008'; cx.fillRect(X + 11, Y, 18, 3)
+            cx.fillStyle = '#c0392b'; cx.fillRect(X + 11, Y, 18 * (m.hp / 18), 3)
+          cx.restore()
+        }
         return
       }
       // §6cz: THE INCURSION. One silhouette -- a tall, hunched, hooded thing
@@ -14734,8 +15126,12 @@ function drawScene(now) {
         }
         // hp bar (scaled body: bar tracks hp against m.maxHp)
         const mh = m.maxHp || 120
-        cx.fillStyle = '#4a1008'; cx.fillRect(X + 10, Y - 1, 20, 3)
-        cx.fillStyle = '#b83a86'; cx.fillRect(X + 10, Y - 1, 20 * Math.max(0, m.hp / mh), 3)
+        if (_showHp) {
+          cx.save(); cx.translate(0, -5)   // §7ef: air between a creature and its bar
+            cx.fillStyle = '#4a1008'; cx.fillRect(X + 10, Y - 1, 20, 3)
+            cx.fillStyle = '#b83a86'; cx.fillRect(X + 10, Y - 1, 20 * Math.max(0, m.hp / mh), 3)
+          cx.restore()
+        }
         return
       }
       // §6cz: THE RISEN. What the Gibbet King calls up -- shambling moor-dead,
@@ -14756,8 +15152,12 @@ function drawScene(now) {
         cx.fillStyle = '#7a7a68'; cx.beginPath(); cx.arc(X + 20, Y + 9 - lurch, 4.6, 0, 7); cx.fill()
         cx.fillStyle = '#20221c'; cx.fillRect(X + 17.6, Y + 8 - lurch, 1.9, 2); cx.fillRect(X + 20.5, Y + 8 - lurch, 1.9, 2)
         cx.fillStyle = '#b060c0'; cx.fillRect(X + 18 + MF * 0.4, Y + 8.3 - lurch, 0.9, 0.9); cx.fillRect(X + 20.9 + MF * 0.4, Y + 8.3 - lurch, 0.9, 0.9)
-        cx.fillStyle = '#3a1010'; cx.fillRect(X + 13, Y + 2, 14, 2.4)
-        cx.fillStyle = '#8a4a9a'; cx.fillRect(X + 13, Y + 2, 14 * Math.max(0, m.hp / 12), 2.4)
+        if (_showHp) {
+          cx.save(); cx.translate(0, -5)   // §7ef: air between a creature and its bar
+            cx.fillStyle = '#3a1010'; cx.fillRect(X + 13, Y + 2, 14, 2.4)
+            cx.fillStyle = '#8a4a9a'; cx.fillRect(X + 13, Y + 2, 14 * Math.max(0, m.hp / 12), 2.4)
+          cx.restore()
+        }
         return
       }
       // §6cz: THE GIBBET KING. One of him, like the dragon -- a crowned dead
@@ -14765,6 +15165,10 @@ function drawScene(now) {
       // his threat is the dead he raises. Tall, robed, skeletal, crowned, with a
       // gallows-frame behind and a violet will burning where his eyes were.
       if (m.type === 'gibbet-king') {
+        // §7eh: and it faces the way it is going. `mobFacing` is worked out
+        // for every creature on every frame and this drawing threw it away.
+        cx.save()
+        if (MF < 0) { cx.translate(X + 20, 0); cx.scale(-1, 1); cx.translate(-(X + 20), 0) }
         const breathe = Math.sin(now / 900) * 0.8
         // the gibbet: a gallows frame he stands beneath
         cx.strokeStyle = '#2a2018'; cx.lineWidth = 3
@@ -14800,8 +15204,13 @@ function drawScene(now) {
         poly([[X+17.4, Y+3+breathe], [X+19, Y-3.4+breathe], [X+20.6, Y+3+breathe]], '#f0d45a')
         poly([[X+21, Y+3+breathe], [X+22.5, Y-2+breathe], [X+24, Y+3+breathe]], '#e8c84a')
         // hp bar (his 200)
-        cx.fillStyle = '#2a0820'; cx.fillRect(X + 6, Y - 10, 28, 3.4)
-        cx.fillStyle = '#a040c0'; cx.fillRect(X + 6, Y - 10, 28 * Math.max(0, m.hp / (m.maxHp || 200)), 3.4)
+        cx.restore()
+        if (_showHp) {
+          cx.save(); cx.translate(0, -5)   // §7ef: air between a creature and its bar
+            cx.fillStyle = '#2a0820'; cx.fillRect(X + 6, Y - 10, 28, 3.4)
+            cx.fillStyle = '#a040c0'; cx.fillRect(X + 6, Y - 10, 28 * Math.max(0, m.hp / (m.maxHp || 200)), 3.4)
+          cx.restore()
+        }
         return
       }
       if (m.type === 'quencher') {
@@ -14836,9 +15245,13 @@ function drawScene(now) {
         cx.beginPath(); cx.arc(cxm - 3.6 + MF * 1.2, cym - h * 0.1, 1.6, 0, 7); cx.fill()
         cx.beginPath(); cx.arc(cxm + 3.6 + MF * 1.2, cym - h * 0.1, 1.6, 0, 7); cx.fill()
         cx.restore()
-        cx.fillStyle = '#4a1008'; cx.fillRect(X + 13, Y + 14, 14, 3)
-        cx.fillStyle = '#c0392b'
-        cx.fillRect(X + 13, Y + 14, 14 * Math.max(0, m.hp / (MOB_STATS.quencher?.maxHp ?? 12)), 3)
+        if (_showHp) {
+          cx.save(); cx.translate(0, -5)   // §7ef: air between a creature and its bar
+            cx.fillStyle = '#4a1008'; cx.fillRect(X + 13, Y + 14, 14, 3)
+            cx.fillStyle = '#c0392b'
+            cx.fillRect(X + 13, Y + 14, 14 * Math.max(0, m.hp / (MOB_STATS.quencher?.maxHp ?? 12)), 3)
+          cx.restore()
+        }
         return
       }
       // THE GOBLIN IS ALSO THE FALLBACK. Anything that reaches here has no
@@ -14856,8 +15269,12 @@ function drawScene(now) {
       cx.fillStyle = '#5c4023'; cx.fillRect(-1.2, -8, 2.4, 10)
       cx.fillStyle = '#6e5433'; cx.beginPath(); cx.arc(0, -9, 3, 0, 7); cx.fill()
       cx.restore()
-      cx.fillStyle = '#4a1008'; cx.fillRect(X + 13, Y + 4, 14, 3)
-      cx.fillStyle = '#c0392b'; cx.fillRect(X + 13, Y + 4, 14 * (m.hp / 5), 3)
+      if (_showHp) {
+        cx.save(); cx.translate(0, -5)   // §7ef: air between a creature and its bar
+          cx.fillStyle = '#4a1008'; cx.fillRect(X + 13, Y + 4, 14, 3)
+          cx.fillStyle = '#c0392b'; cx.fillRect(X + 13, Y + 4, 14 * (m.hp / 5), 3)
+        cx.restore()
+      }
     }})
   }
 
@@ -15031,7 +15448,29 @@ function drawScene(now) {
         // A COMMA, NOT AN INTERPUNCT. "Rosamund, banker (412)" is a person
         // with a job; "Rosamund . banker (412)" is two fields in a table. The
         // lantern window has always used the comma; this one had not.
-        name: (p.name ?? pid.slice(0, 6)) + ', ' + callingOf(p) + ' (' + standingOf(p) + ')',
+        //
+        // §7ef: AND ONLY WHEN ASKED, which took being corrected to get right.
+        //
+        // The argument for keeping a name permanently over every head was
+        // that a crowd of unnamed figures is a crowd you cannot speak to, and
+        // that the game this window takes its interaction from does it that
+        // way. The second half was simply false. It does not: what floats
+        // over a player's head there is their CHAT, and the name is hover
+        // text, the right-click menu and the line in the chat box.
+        //
+        // And this window already has that. `bubbles` has drawn gold text
+        // over heads for four seconds since long before any of this, so the
+        // mechanism that puts a name in the world is already the right one:
+        // somebody says something, their words appear over them and their
+        // name appears in the chat box beside the words. A person announces
+        // themselves by speaking, which is what chat being the centre (§1)
+        // actually means -- not a label that says somebody is standing there.
+        //
+        // So nothing in the picture labels itself now. Hover for who they
+        // are; speak to be known.
+        name: (hoverT && hoverT.x === Math.round(ix) && hoverT.y === Math.round(iy))
+          ? ((p.name ?? pid.slice(0, 6)) + ', ' + callingOf(p) + ' (' + standingOf(p) + ')')
+          : '',
       hp: p.hp, maxHp: maxHpOf(p),   // §5j
         hitAt: hitFlash[pid], branded: (p.brandedUntil ?? 0) > s.tick,
       })
@@ -17507,6 +17946,32 @@ document.getElementById('worn').addEventListener('click', (e) => {
 })
 // which slot was last asked about, so the second tap is the one that acts
 let _wornTapped = null
+
+// §7ef: WHAT IS UNDER THE CURSOR, so the world can stop labelling itself.
+//
+// Nothing tracked the pointer at all: the only thing the window knew about
+// the mouse was where it was CLICKED. That is why every creature carried its
+// name, its health and its hit in a plate over its head at all times -- there
+// was no other moment to say it in.
+//
+// A tile, not a node: the plates are drawn per creature in the scene pass and
+// all that pass needs to ask is "is this the one being pointed at".
+const _hoverFrom = (e) => {
+  if (!world) return null
+  const r = cv.getBoundingClientRect()
+  const px = (e.clientX - r.left) * (cv.width / r.width)
+  const py = (e.clientY - r.top) * (cv.height / r.height)
+  // the chart is not the world, the same way the click handler has it
+  if (miniRect) {
+    const { mx, my, MW, MH } = miniRect
+    if (px >= mx - 2 && px <= mx + MW + 2 && py >= my - 2 && py <= my + MH + 2) return null
+  }
+  const x = Math.floor((px / ZR) / TILE + cam.x), y = Math.floor((py / ZR) / TILE + cam.y)
+  if (x < 0 || x >= W || y < 0 || y >= H) return null
+  return { x, y }
+}
+cv.addEventListener('pointermove', (e) => { hoverT = _hoverFrom(e) })
+cv.addEventListener('pointerleave', () => { hoverT = null })
 
 cv.addEventListener('click', (e) => {
   if (!world) return

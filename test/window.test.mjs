@@ -1688,3 +1688,139 @@ test('a floor does not fray into the street', () => {
   const fn = win.slice(at, at + 1200)
   assert.ok(/=== 'floor'/.test(fn), 'the fray does not exempt a floor')
 })
+
+// §7ef: A SHEEP STANDING IN A FIELD IS NOT OFFERING YOU A NUMBER.
+//
+// Every creature carried "sheep 40/40 hp hits 1" over its head at all times.
+// Nine sheep at the Sheepfolds overlapped into "sheep 40/40 hp hitsheep 40/40
+// hp hits 1" and covered more of the field than the sheep did. It is the one
+// thing that made the window read as a debug view of a world rather than as
+// the world, and it is the same rule the menus already follow: say what is
+// wanted at the moment it is wanted.
+//
+// The plate is drawn only when the creature is POINTED AT, FIGHTING, or
+// WOUNDED. This holds the gate rather than the art, because a gate is what a
+// later edit removes without noticing.
+test('a creature only says what it is when asked, or when it is in a fight', () => {
+  const at = win.indexOf("const _hov = hoverT")
+  assert.ok(at > 0, 'the creature plate no longer asks whether it is hovered')
+  const seg = win.slice(at, at + 3200)   // the comments between the two grew
+  // the gate itself
+  assert.match(seg, /if \(_hov \|\| engaged \|\| _hurt\) \{/,
+    'the plate must be gated on pointed-at, fighting or wounded')
+  // and the text may only be painted INSIDE it: find the gate's braces and
+  // check every fillText between here and the end of the creature falls in
+  const gate = seg.indexOf('if (_hov || engaged || _hurt) {')
+  let depth = 0, end = gate
+  for (let i = seg.indexOf('{', gate); i < seg.length; i++) {
+    if (seg[i] === '{') depth++
+    else if (seg[i] === '}') { depth--; if (!depth) { end = i; break } }
+  }
+  const before = seg.slice(0, gate)
+  assert.ok(!/fillText\(plate/.test(before),
+    'the plate is painted before the gate, so the gate does nothing')
+  assert.match(seg.slice(gate, end), /fillText\(plate/,
+    'the gate should be what the plate is painted inside')
+})
+
+// AND THE WINDOW HAS TO KNOW WHERE THE CURSOR IS. Nothing tracked the pointer
+// at all before this: the only thing the window knew about the mouse was
+// where it was CLICKED, which is why everything labelled itself.
+test('the window tracks what is under the cursor', () => {
+  assert.match(win, /cv\.addEventListener\('pointermove'/,
+    'no pointermove listener, so nothing can ever be hovered')
+  assert.match(win, /cv\.addEventListener\('pointerleave'/,
+    'nothing clears the hover when the cursor leaves the canvas')
+  // and the global is declared before drawScene reads it: a `let` beside its
+  // listener sits in the dead zone for the three thousand lines above it
+  const decl = win.indexOf('\nlet hoverT = null')
+  const use = win.indexOf('const _hov = hoverT')
+  assert.ok(decl > 0 && decl < use,
+    'hoverT must be declared above the draw that reads it')
+})
+
+// §7eg: EVERY WORD THE WORLD STANDS UP, THE WINDOW DRAWS.
+//
+// This is the flat window's version of the Unreal window's
+// `bReportUndrawnKinds`, and it exists because of what it found on the day it
+// was written. The founded island stood up a hundred and fifty-six HEARTHS --
+// eighty-nine of them the fire in a town cottage -- and `drawScene` had no
+// branch for the word. Every one of them answered a click and drew nothing:
+// a citizen could walk up to bare ground, click it, and be told there was a
+// fire there.
+//
+// Worse, the art for it already existed, written for a node type called
+// `house`, of which the world has stood up ZERO since v7. Dead art and an
+// invisible thing are the same fault seen from two ends and neither end
+// shows: there is no wrong picture to notice and no error to read.
+//
+// Four more went the same way, each of them the ONLY one of itself in the
+// world: the furnace, the altar, the sawpit, the looking-glass. Plus the toll
+// gate. All five answered a click and drew nothing.
+//
+// Reading the draw code is how that was missed for a year. Asking the WORLD
+// what it stands up, and the window whether it has a branch for each word, is
+// one page and finds it in a second.
+test('every node type the island stands up, drawScene has a branch for', async () => {
+  const WG = await import('../worldgen-any.mjs')
+  const g = WG.foundGenesis('interval-expanse-v7', 'undrawn-check',
+    '6cde7f4e2631a1af4ff405cb51d1bf78f66ba3ec83531d18adee6599d8ca1cdd',
+    1789813895202, 896, 512)
+  const _quiet = console.warn; console.warn = () => {}
+  const world = WG.buildWorld(g)
+  console.warn = _quiet
+  // the family map: a type drawn by its family counts as drawn
+  const fam = {}
+  {
+    const m = win.match(/const NODE_FAMILY = \{[\s\S]*?\n\}/)
+    assert.ok(m, 'window-web no longer declares NODE_FAMILY')
+    for (const [, k, v] of m[0].matchAll(/'([a-z-]+)':\s*'([a-z-]+)'/g)) fam[k] = v
+  }
+  // drawScene, by its own braces
+  const at = win.indexOf('function drawScene(')
+  assert.ok(at > 0, 'window-web no longer has drawScene')
+  let depth = 0, end = at
+  for (let i = win.indexOf('{', at); i < win.length; i++) {
+    if (win[i] === '{') depth++
+    else if (win[i] === '}') { depth--; if (!depth) { end = i; break } }
+  }
+  const draw = win.slice(at, end)
+  const drawn = new Set()
+  for (const [, t] of draw.matchAll(/n\.type === '([a-z-]+)'/g)) drawn.add(t)
+  for (const [, t] of draw.matchAll(/famOf\(n\.type\) === '([a-z-]+)'/g)) drawn.add(t)
+  for (const [, t] of draw.matchAll(/KIND_FOR\[[^\]]+\] === '([a-z-]+)'/g)) drawn.add(t)
+
+  const types = new Set(Object.values(world.nodes ?? {}).map((n) => n.type))
+  const missing = [...types].filter((t) => !drawn.has(t) && !drawn.has(fam[t] ?? t)).sort()
+  assert.deepEqual(missing, [],
+    'the world stands these up and drawScene has no branch for them, so a '
+    + 'citizen walks to bare ground and is told something is there:\n  '
+    + missing.map((t) => t + ' ('
+        + Object.values(world.nodes).filter((n) => n.type === t).length + ' on the island)')
+      .join('\n  '))
+})
+
+// §7ef: AND THE HEALTH BARS ON THE SAME TERMS.
+//
+// A sheep at full health standing in a field is not in a fight and has
+// nothing to report. The bar is drawn in fourteen places, one per creature,
+// so the decision is made once (`_showHp`) and every one of them reads it --
+// and this holds that, because the next creature somebody draws will copy a
+// neighbour and the neighbour has to be right.
+test('no creature draws a health bar outside the one gate', () => {
+  const at = win.indexOf('const _showHp = _hov || engaged || _hurt')
+  assert.ok(at > 0, 'the creature health bars no longer share one decision')
+  // every bar: a fillRect scaled by m.hp. Each must sit inside an if (_showHp)
+  const lines = win.split('\n')
+  const bad = []
+  for (let i = 0; i < lines.length; i++) {
+    if (!/m\.hp \/|m\.hp \//.test(lines[i])) continue
+    if (!/fillRect\(/.test(lines[i])) continue
+    // walk back a few lines for the gate
+    let ok = false
+    for (let k = i; k >= 0 && k > i - 5; k--) if (lines[k].includes('if (_showHp) {')) { ok = true; break }
+    if (!ok) bad.push((i + 1) + ': ' + lines[i].trim().slice(0, 80))
+  }
+  assert.deepEqual(bad, [],
+    'these health bars are drawn whatever is happening:\n  ' + bad.join('\n  '))
+})

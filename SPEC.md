@@ -17112,6 +17112,80 @@ one takes the next byname instead.
 opposite sides of the island is a world with two people of one name in it. Two
 in one street is a table being read with an index.
 
+## 7ef. The world does not label itself
+
+**A creature says what it is when it is pointed at, when it is fighting, and
+when it is wounded. Not otherwise.** Every creature carried its name, its
+health and its maximum hit in a plate over its head at all times. Nine sheep
+at the Sheepfolds put up a wall of text that overlapped itself into "sheep
+40/40 hp hitsheep 40/40 hp hits 1" and covered more of the field than the
+sheep did; three goblins at the High Delving took more screen in labels than
+in goblins.
+
+This is the same rule the menus already follow (§7y: a menu lists only what
+is possible at that moment), applied to the picture. The interaction model
+this window took from has no floating nameplates either: you hover and the
+window tells you, and a health bar appears over a creature once it is in a
+fight.
+
+**Wounded is on the list deliberately.** A beast that has been hit and walked
+off is carrying something the player earned. Taking it back when the cursor
+moves would be the window hiding a fact rather than keeping quiet.
+
+**Nothing tracked the pointer at all.** The only thing the window knew about
+the mouse was where it had been CLICKED, which is why everything labelled
+itself: there was no other moment to say it in. A hovered tile is a
+three-line addition and it is what lets the rest of the picture be the world.
+
+**The health bar follows the name.** A sheep at full health standing in a
+field is not in a fight and has nothing to report. Pointed at, fighting or
+wounded, same as the words. The citizens' bar already worked this way; the
+creatures' did not, in fourteen separate places, one per creature. It is one
+decision now and all fourteen read it.
+
+**And people are not an exception.** The first attempt at this kept a name
+permanently over every citizen's head, on the argument that a crowd of
+unnamed figures is a crowd you cannot speak to, and that the game this
+window takes its interaction from does it that way.
+
+The second half was false. It does not: what floats over a player's head
+there is their CHAT, and the name is hover text, the right-click menu and the
+line in the chat box. This window has had speech bubbles over heads, four
+seconds, since long before any of this -- so the mechanism that puts a name
+into the world was already present and already the right one. Somebody says
+something; their words appear over them and their name appears in the chat
+box beside the words.
+
+**A person announces themselves by speaking.** That is what chat being the
+centre (§1) actually means, and it is a better thing than a label saying
+somebody is standing there. Hover for who they are; speak to be known. The
+camera follows your own citizen, so you do not need a label to find yourself.
+
+## 7eh. A creature faces the way it is going
+
+**Fourteen of the window's twenty-two creature drawings never read their own
+facing.** The window works one out for every creature on every frame --
+`mobFacing`, from the direction it moved, or from whoever it is angry at --
+and fourteen of them threw it away and drew a fixed side-on sprite.
+
+The sheep's face was written at `X + 31`. So every sheep on the island faced
+right, permanently, whichever way it was walking; and so did every boar,
+goat, crow and adder, the shore crab, the great spider, the siren, the
+lamprey, the barrow-wight, the scree imp and both gibbet creatures. They
+wander. They simply never turned while doing it.
+
+**This is what "the world looks generated" is actually made of.** Not the
+scatter and not the shapes: a field of nine sheep standing in identical
+poses pointing the same way is a thing nobody would ever draw and a thing a
+table produces by default.
+
+**One mirror, not fourteen fixes.** A horizontal flip about the tile's centre
+when the facing is left, wrapped round the art, so a drawing does not have to
+know it is being turned and the next creature somebody writes gets it for
+free. The flip ends before anything that prints a WORD -- the siren's "taken",
+the lamprey's "spent" -- or the word comes out back to front, and before the
+health bar, or it would empty from the wrong end.
+
 ## 7h. Who Lives Here
 
 > **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:4470` by `spec-stubs.mjs`.
