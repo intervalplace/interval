@@ -10285,38 +10285,13 @@ function paintGroundTile(g, x, y) {
     // §7ec: and the SECOND bevel, which drew the same grid again a few lines
     // further down. Between them every tile on the island was boxed top and
     // bottom twice over. It goes where a step is, like the other one.
-    // §7ec: A YARD DOES NOT END ON A RULED LINE.
+    // §7ec: THE RIM IS LAID BEFORE THE SEAM IS FRAYED.
     //
-    // Terrain is per tile and nothing crossed the join, so where Oxenford's
-    // paving met the grass the boundary ran dead straight across the whole
-    // frame, pixel for pixel: the single loudest thing in the picture, and the
-    // thing that says "a rule drew this" louder than any prop.
-    //
-    // A seam now FRAYS. Where a tile meets different ground, a few blobs of
-    // the neighbour's colour come across the join at hashed places along it,
-    // so the edge wanders a few pixels either way and reads as worn rather
-    // than as cut. The tiles underneath are untouched: this is paint, and the
-    // rules still think in squares, which is right, because a citizen walks
-    // in squares.
-    {
-      const seamAt = (qx, qy, ex, ey, horiz) => {
-        const other = terrainOf(qx, qy)
-        if (other === terrainOf(x, y) || other === 'sea') return
-        g.fillStyle = tileShade(qx, qy)
-        const n5 = 2 + tileHash(x, y, 90) % 3
-        for (let f = 0; f < n5; f++) {
-          const along = (tileHash(x, y, 91 + f * 2) % 32)
-          const deep = 2 + tileHash(x, y, 92 + f * 2) % 6
-          const wide = 5 + tileHash(x, y, 93 + f) % 9
-          if (horiz) g.fillRect(px(x) + along, ey, wide, deep)
-          else g.fillRect(ex, py(y) + along, deep, wide)
-        }
-      }
-      seamAt(x, y - 1, 0, py(y), true)
-      seamAt(x, y + 1, 0, py(y) + TILE - 6, true)
-      seamAt(x - 1, y, px(x), 0, false)
-      seamAt(x + 1, y, px(x) + TILE - 6, 0, false)
-    }
+    // It used to come after, so it painted a solid four-pixel band of beach
+    // along the whole wet side of the tile and buried the fray underneath it.
+    // What showed through were the few blobs deeper than the band, at one
+    // depth, all along the shore: a dashed blue line ruled beside the water,
+    // which is the motif the fraying exists to prevent.
     // shorelines: land wears a sand rim wherever water touches it.
     //
     // ALL FOUR SIDES ASK THE SAME QUESTION. Two of them tested inland water
@@ -10332,6 +10307,74 @@ function paintGroundTile(g, x, y) {
       if (wet(x, y - 1)) g.fillRect(px(x), py(y), TILE, 4)
       if (wet(x + 1, y)) g.fillRect(px(x) + TILE - 4, py(y), 4, TILE)
       if (wet(x - 1, y)) g.fillRect(px(x), py(y), 4, TILE)
+    }
+    // §7ec: A YARD DOES NOT END ON A RULED LINE.
+    //
+    // Terrain is per tile and nothing crossed the join, so where Oxenford's
+    // paving met the grass the boundary ran dead straight across the whole
+    // frame, pixel for pixel: the single loudest thing in the picture, and the
+    // thing that says "a rule drew this" louder than any prop.
+    //
+    // A seam now FRAYS. Where a tile meets different ground, a few blobs of
+    // the neighbour's colour come across the join at hashed places along it,
+    // so the edge wanders a few pixels either way and reads as worn rather
+    // than as cut. The tiles underneath are untouched: this is paint, and the
+    // rules still think in squares, which is right, because a citizen walks
+    // in squares.
+    {
+      // §7ec: AND THE SHORE FRAYS TOO, which it was explicitly stopped from
+      // doing. Excluding the sea here was a worry about the sand rim drawn
+      // further down, and the cost was the loudest straight line left on the
+      // island: every coast that runs diagonally came out as a staircase of
+      // whole square sand tiles, two tiles to a step, which is the tile grid
+      // seen end-on. Inland seams had been frayed since the same hour and the
+      // one boundary a citizen looks at most had not.
+      // A BLOB MUST TOUCH THE EDGE IT IS FRAYING.
+      //
+      // The first cut passed a fixed offset for the far two sides -- six
+      // pixels in from the bottom and the right -- and then drew a blob two
+      // to seven deep at it. A blob shallower than six floats: it leaves a
+      // gap of its own tile between itself and the join. Along a run of
+      // tiles, all at the same offset, that reads as a DASHED LINE ruled
+      // beside the boundary, which is a repeating motif and worse than the
+      // clean edge it was meant to break up. Visible all along the fen shore.
+      //
+      // So the side decides where the blob starts and the depth decides how
+      // far in it reaches, which is what fraying is.
+      const seamAt = (qx, qy, side) => {
+        const other = terrainOf(qx, qy)
+        if (other === terrainOf(x, y)) return
+        g.fillStyle = tileShade(qx, qy)
+        const n5 = 2 + tileHash(x, y, 90) % 3
+        for (let f = 0; f < n5; f++) {
+          const along = (tileHash(x, y, 91 + f * 2) % 32)
+          const deep = 2 + tileHash(x, y, 92 + f * 2) % 6
+          const wide = 5 + tileHash(x, y, 93 + f) % 9
+          if (side === 'up') g.fillRect(px(x) + along, py(y), wide, deep)
+          else if (side === 'down') g.fillRect(px(x) + along, py(y) + TILE - deep, wide, deep)
+          else if (side === 'left') g.fillRect(px(x), py(y) + along, deep, wide)
+          else g.fillRect(px(x) + TILE - deep, py(y) + along, deep, wide)
+        }
+      }
+      seamAt(x, y - 1, 'up')
+      seamAt(x, y + 1, 'down')
+      seamAt(x - 1, y, 'left')
+      seamAt(x + 1, y, 'right')
+      // §7ec: ROUNDING THE CORNERS OFF WAS TRIED HERE AND IS NOT WORTH IT.
+      //
+      // Where a tile has water on two adjacent sides it is the outside corner
+      // of a step, and taking a bite out of it with a quarter disc of sea
+      // ought to turn the staircase into a curve. It does not. A bite small
+      // enough to leave the ground a citizen stands on is invisible at forty
+      // pixels; one large enough to see eats most of the tile and leaves a
+      // thin sand frame around it, and since every corner gets the same shape
+      // the coast comes out as a row of identical scallops. That is a
+      // repeating motif, which is MORE of a machine's work than the staircase
+      // it replaced, not less.
+      //
+      // The fray above is what the shore gets. The step is the tile grid, the
+      // tile grid is what a citizen walks on, and a drawing that pretends
+      // otherwise is lying about where the water is.
     }
     // bridge planks: the road crossing the water on timber
     if (terrainOf(x, y) === 'bridge') {
