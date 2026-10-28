@@ -5857,6 +5857,25 @@ export function buildWorld(genesis) {
   // Spacing is measured along the ROAD now, not along the straight line
   // between its ends, so a route that swings twenty tiles wide to get round
   // the Barrow earns milestones for the walking it actually costs.
+  // §7ed-ii: AND NO TWO STONES WITHIN A LEAGUE SAY THE SAME THING.
+  //
+  // `saidLast` below stops a stone repeating the one before it ON THE SAME
+  // ROAD, and that is all it stops. Roads converge, and every road that
+  // arrives near a town lays its own stones out of its own walk, so the
+  // country around a junction fills with stones agreeing with each other:
+  // measured, 37 pairs of identical stones standing within a league, and
+  // "Anchor 1, Millbrook 1" cut five times in one small stretch between the
+  // two towns it names.
+  //
+  // A stone that says what another stone within sight already said is not a
+  // milestone, it is a repeated asset, and that is exactly what makes a
+  // countryside read as generated. A league is the unit the stones are cut
+  // in, so a league is the distance: the same words may be true again further
+  // off, and this is a world where somebody walked out and cut them.
+  const milesSaid = []
+  const MILE_APART = LEAGUE
+  const alreadySaidNear = (txt, x, y) => milesSaid.some((m) =>
+    m.txt === txt && Math.hypot(m.x - x, m.y - y) <= MILE_APART)
   for (const { tag, path } of routedPathsOf(g)) {
     const PL = path.length
     if (PL < 24) continue
@@ -5893,10 +5912,14 @@ export function buildWorld(genesis) {
         const nt = nearestTowns(bx, by)
         const txt = nt.map(({ s, d }) => s.name + ' ' + Math.max(1, Math.round(d / LEAGUE))).join(', ')
         if (txt === saidLast) continue
+        if (alreadySaidNear(txt, bx, by)) continue
         let placed = false
         for (const side of [2, -2, 3, -3, 4, -4]) {
           const x = Math.round(bx + nx * side), y = Math.round(by + ny * side)
-          if (free(x, y)) { put('mile-' + (mileN++), 'signpost', x, y, { text: txt }); placed = true; saidLast = txt; break }
+          if (free(x, y)) {
+            put('mile-' + (mileN++), 'signpost', x, y, { text: txt })
+            placed = true; saidLast = txt; milesSaid.push({ txt, x, y }); break
+          }
         }
         if (placed) continue
       }

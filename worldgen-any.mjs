@@ -106,6 +106,21 @@ export function groundKindOf(genesis) {
   return (x, y) => gen.groundKindAt(genesis, x, y)
 }
 
+// §7ec-ii: AND WHICH COUNTRY A TILE IS IN, for the same reason and with more
+// at stake. `groundKindAt` is what a tile is made of and is free to be
+// retuned; `biomeAt` is in the GEOGRAPHY HASH, so it is the world's own answer
+// and a window may only read it. The window's copy was wrong on 57.9% of land
+// tiles: it named the wrong country under the minimap, changed the music to
+// match, and `huntsMe` reads the country to decide whether a beast is the kind
+// that will start something, so it was also wrong about what was about to
+// attack.
+export function biomeOf(genesis) {
+  const gen = generatorFor(genesis)
+  if (typeof gen.biomeAt !== 'function') return () => null
+  const wet = typeof gen.inSea === 'function' ? gen.inSea : () => false
+  return (x, y) => (wet(genesis, x, y) ? null : gen.biomeAt(genesis, x, y))
+}
+
 export function roadDataOf(genesis) {
   const gen = generatorFor(genesis)
   if (typeof gen.roadTilesOf !== 'function') return { tiles: [], bridges: [], bends: [] }

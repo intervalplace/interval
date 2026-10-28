@@ -91,14 +91,21 @@ let GIVEN_SS = null
 // fifteen thousand tiles, and a copy that is corrected is a copy that will
 // drift again. `/api/ground` is 13KB gzipped for the whole island.
 let GIVEN_GROUND = null, GIVEN_KINDS = null
+let GIVEN_BIOME = null, GIVEN_BIOMES = null
 export function tellGround(gd) {
-  if (!gd || !Array.isArray(gd.rows) || !gd.rows.length || gd.w !== W || gd.h !== H) {
+  // EITHER HALF IS WORTH TAKING. The guard required the SURFACES to be
+  // present before it would look at anything, so a payload carrying only the
+  // countries was refused whole and the window went on naming the wrong one.
+  if (!gd || gd.w !== W || gd.h !== H) {
     GIVEN_GROUND = null; GIVEN_KINDS = null; return false
   }
+  const haveRows = Array.isArray(gd.rows) && gd.rows.length
+  const haveBio = Array.isArray(gd.biomes) && gd.biomes.length
+  if (!haveRows && !haveBio) { GIVEN_GROUND = null; GIVEN_KINDS = null; return false }
   const kinds = ['']
   const idx = new Map()
   const flat = new Uint8Array(W * H)
-  for (const [y, runs] of gd.rows) {
+  for (const [y, runs] of (gd.rows ?? [])) {
     if (y < 0 || y >= H) continue
     for (const [x0, len, kind] of runs) {
       let k = idx.get(kind)
@@ -107,7 +114,24 @@ export function tellGround(gd) {
       for (let x = Math.max(0, x0); x < end; x++) flat[y * W + x] = k
     }
   }
-  GIVEN_GROUND = flat; GIVEN_KINDS = kinds
+  if (haveRows) { GIVEN_GROUND = flat; GIVEN_KINDS = kinds }
+  // §7ec-ii: and the countries, in the same payload. `biomeAt` is in the
+  // geography hash, so this is the world's answer and the only correct one.
+  if (Array.isArray(gd.biomes) && gd.biomes.length) {
+    const bk = ['']
+    const bi = new Map()
+    const bf = new Uint8Array(W * H)
+    for (const [y, runs] of gd.biomes) {
+      if (y < 0 || y >= H) continue
+      for (const [x0, len, kind] of runs) {
+        let k = bi.get(kind)
+        if (k === undefined) { k = bk.length; bk.push(kind); bi.set(kind, k) }
+        const end = Math.min(W, x0 + len)
+        for (let x = Math.max(0, x0); x < end; x++) bf[y * W + x] = k
+      }
+    }
+    GIVEN_BIOME = bf; GIVEN_BIOMES = bk
+  }
   return true
 }
 
@@ -120,7 +144,7 @@ export function configure(opts = {}) {
     ? opts.settlements.map((s) => ({ ...s, name: s.name ?? (s.tag[0].toUpperCase() + s.tag.slice(1)) }))
     : null
   // a new world means every memo is about the old one
-  GIVEN_GROUND = null; GIVEN_KINDS = null
+  GIVEN_GROUND = null; GIVEN_KINDS = null; GIVEN_BIOME = null; GIVEN_BIOMES = null
   _wet4 = null; _wetFor = null; _sea4 = null; _riv4 = null; _seaFor = null
   _roadBmp = null; _roadBmpFor = null
   _seedNumC = null
@@ -1912,6 +1936,13 @@ function regionAt6(x, y) {
   return best
 }
 function biomeAt6(x, y) {
+  // §7ec-ii: told beats derived, and `biomeAt` is in the geography hash, so
+  // the world's answer is the only correct one. Measured against it, this
+  // derivation was wrong on 57.9% of land tiles.
+  if (GIVEN_BIOME && x >= 0 && y >= 0 && x < W && y < H) {
+    const v = GIVEN_BIOME[y * W + x]
+    if (v) return GIVEN_BIOMES[v]
+  }
   if (inSeaBase6(x, y) && !onIsle6(x, y)) return 'sea'
   if (x <= brandX6(y)) return 'wilds'
   return regionAt6(x, y)
@@ -2209,6 +2240,21 @@ function regionNameAt(x, y) {
         return t.name ?? SETTLEMENT_NAMES[i] ?? 'a settlement'
     }
     if (IS_EXPANSE4()) return localeAt4(x, y) ?? REGION_NAMES[biomeAtE4(x, y)] ?? ''
+    // §7ec-ii: THE v6/v7 BRANCH WAS MISSING HERE AND IS PRESENT IN
+    // window-web's copy of this same function.
+    //
+    // Every world since v6 fell through to `biomeAtE`, which is the v1 island:
+    // four rules about thirds of the map, written before the countries this
+    // world has. So the name strip under the minimap, the music that follows
+    // it, and `huntsMe`'s question about whether a beast is the kind that
+    // starts something were all answered for a different island. Measured
+    // against the generator, wrong on 28% of land: you stand on the Moor and
+    // it says the Greenwood.
+    //
+    // This is the drift that an inlined copy makes invisible: the flat window
+    // had the branch, the module every other window imports did not, and
+    // nothing compared them.
+    if (IS_EXPANSE6()) return REGION_NAMES[biomeAt6(x, y)] ?? ''
     return REGION_NAMES[biomeAtE(x, y)] ?? ''
   } catch { return '' } // a nameplate must never stop the world drawing
 }

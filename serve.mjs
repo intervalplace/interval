@@ -236,7 +236,7 @@ function carriedThroughRenames(list) {
 import { IntervalNode } from './node.mjs'
 import { DEFAULT_STARTUP_VERIFY_RECENT_N } from './errors.mjs'
 import { IntervalClient } from './sdk.mjs'
-import { buildWorld, foundGenesis, roadDataOf, groundKindOf, seatsImports } from './worldgen-any.mjs'
+import { buildWorld, foundGenesis, roadDataOf, groundKindOf, biomeOf, seatsImports } from './worldgen-any.mjs'
 import { readFounding, writeFounding } from './worldcache.mjs'
 import { carry, provenance } from './crossing.mjs'
 import { IncomingTree } from './incoming.mjs'
@@ -1282,7 +1282,23 @@ const server = http.createServer((req, res) => {
             }
             if (runs.length) rows.push([y, runs])
           }
-          _groundCache = { w: gg.worldW, h: gg.worldH, rows }
+          // and the countries, in the same shape and the same fetch: 6KB
+          // gzipped, and the window had them wrong on three land tiles in five
+          const biomeAt = biomeOf(gg)
+          const bRows = []
+          for (let y = 0; y < gg.worldH; y++) {
+            const runs = []
+            let cur = null, start = 0
+            for (let x = 0; x <= gg.worldW; x++) {
+              const k = x < gg.worldW ? biomeAt(x, y) : null
+              if (k !== cur) {
+                if (cur !== null) runs.push([start, x - start, cur])
+                cur = k; start = x
+              }
+            }
+            if (runs.length) bRows.push([y, runs])
+          }
+          _groundCache = { w: gg.worldW, h: gg.worldH, rows, biomes: bRows }
         } catch (e) { _groundCache = { w: 0, h: 0, rows: [], error: e.message } }
       }
       return json(_groundCache)

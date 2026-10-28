@@ -16955,6 +16955,35 @@ wrong. That is the right failure: it is offline, and it says so.
 `blockedAt` and `biomeAt` are. What a tile is CALLED may be retuned after a
 founding. What a tile DOES may not.
 
+## 7ec-ii. The country a tile is in is the world's answer, not the window's
+
+**`biomeAt` is in the geography hash.** What a tile is MADE OF may be retuned
+after a founding; what country it IS may not. A window may read it and
+nothing else.
+
+It is not decoration. The country names the place under the minimap, it
+chooses the music that plays there, and `huntsMe` asks it whether a beast is
+the kind that will start something, so a window that has it wrong is wrong
+about where you are, what you are hearing, and what is about to attack.
+
+It is served with the surfaces, in the same fetch and the same shape: six
+kilobytes gzipped for the island.
+
+**The fault this ends.** `regionNameAt` in the shared terrain mirror had no
+branch for v6 or v7, so every world since fell through to the v1 island: four
+rules about thirds of the map, written before this world had the countries it
+has. Twenty-eight per cent of land named the wrong country. You stand on the
+Moor and it says the Greenwood.
+
+The flat window's own copy of that same function HAD the branch. That is what
+an inlined copy does: one of them was right, the module every other window
+imports was wrong, and nothing compared them.
+
+**And measure the function the window calls.** The first attempt at this
+measured `biomeAtE`, a v1-era function no world since has called, and reported
+57.9% wrong: a true number about dead code. The strip, the music and the
+hunting question all go through `regionNameAt`, so that is the promise.
+
 ## 7ed. Vegetation grows in clumps, never in a sprinkle
 
 **Scenery is placed in ones and twos with open ground between, never at a flat
@@ -16980,6 +17009,25 @@ blocks its tile and these are laid after the sealed-enclosure sweep, so §7u
 refuses one within two tiles of anything a field is made of, and is right to.
 The clumping is what the eye reads; the boundary was never the part that
 mattered.
+
+## 7ed-ii. No two stones within a league say the same thing
+
+**A milestone that repeats one already standing within sight is not a
+milestone, it is a repeated asset.** The road stones are cut in leagues, so a
+league is the distance: the same words may be true again further off, and this
+is a world where somebody walked out and cut them.
+
+The guard that existed stopped a stone repeating the one before it ON THE SAME
+ROAD, and that is all it stopped. Roads converge, and every road arriving near
+a town lays its own stones out of its own walk, so the country around a
+junction filled with stones agreeing with each other: thirty-seven pairs of
+identical stones standing within a league of one another, and "Anchor 1,
+Millbrook 1" cut five times in one stretch between the two towns it names.
+
+Refusing a repeat took the island's milestones from fifty-five to thirty-two
+and the identical pairs to none. Nothing was lost but the repetition: every
+stone removed was saying exactly what another stone within a league already
+said.
 
 ## 7h. Who Lives Here
 

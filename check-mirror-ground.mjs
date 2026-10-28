@@ -39,7 +39,18 @@ if (!process.argv.includes('--derived')) {
     }
     if (runs.length) rows.push([y, runs])
   }
-  if (!TM.tellGround({ w: g.worldW, h: g.worldH, rows }))
+  // and the countries, which the window had wrong on 57.9% of land tiles
+  const bRows = []
+  for (let y = 0; y < g.worldH; y++) {
+    const runs = []
+    let cur = null, start = 0
+    for (let x = 0; x <= g.worldW; x++) {
+      const k = x < g.worldW && !WG.inSea(g, x, y) ? WG.biomeAt(g, x, y) : null
+      if (k !== cur) { if (cur !== null) runs.push([start, x - start, cur]); cur = k; start = x }
+    }
+    if (runs.length) bRows.push([y, runs])
+  }
+  if (!TM.tellGround({ w: g.worldW, h: g.worldH, rows, biomes: bRows }))
     { quiet('the mirror refused the ground it was told'); process.exit(1) }
 }
 
@@ -74,6 +85,35 @@ for (let y = 0; y < g.worldH; y += STRIDE) {
     seen.get(k).n++
   }
 }
+// AND THE COUNTRY IT NAMES. `biomeAt` is in the geography hash, so there is
+// one right answer and the window may only read it. Checked separately from
+// the surfaces because it is a different promise: a surface is what a tile is
+// made of and may be retuned; a country is what the world says it IS.
+//
+// ASK `regionNameAt`, WHICH IS WHAT THE WINDOW SHOWS. The first cut of this
+// asked `biomeAtE`, a v1-era function that no world since has called, and
+// reported 57.9% wrong: a true number about dead code. The name strip under
+// the minimap, the music and `huntsMe` all go through regionNameAt, so that is
+// the promise to measure.
+const REGION_OF = { heartlands: 'the Heartlands', greenwood: 'the Greenwood',
+  downs: 'the Downs', moor: 'the Moor', fens: 'the Fens', crags: 'the Crags',
+  wilds: 'the Wilds' }
+let bioN = 0, bioBad = 0
+let bioEx = null
+for (let y = 0; y < g.worldH; y += STRIDE) {
+  for (let x = 0; x < g.worldW; x += STRIDE) {
+    if (WG.isWater(g, x, y) || WG.inSea(g, x, y)) continue
+    const truth = WG.biomeAt(g, x, y)
+    if (!truth) continue
+    bioN++
+    const want = REGION_OF[truth]
+    if (!want) continue
+    const said = TM.regionNameAt(x, y)
+    // a town names itself, which is right and is not a country
+    if (!Object.values(REGION_OF).includes(said)) { bioN--; continue }
+    if (said !== want) { bioBad++; if (!bioEx) bioEx = x + ',' + y + ' world ' + want + ', window ' + said }
+  }
+}
 const rows = [...seen].sort((a, b) => b[1].n - a[1].n)
 const wrong = rows.reduce((a, r) => a + r[1].n, 0)
 quiet(`${checked} tiles, ${wrong} where the window and the world disagree`)
@@ -88,4 +128,13 @@ if (wrong) {
   quiet('A window that draws different ground from the one a citizen walks on is')
   quiet('showing them a different island.')
 }
-process.exit(wrong ? 1 : 0)
+quiet('')
+quiet(bioN + ' land tiles asked which country they are in, ' + bioBad + ' answered wrong'
+  + (bioEx ? '   first at ' + bioEx : ''))
+if (bioBad) {
+  quiet('')
+  quiet('A country is not decoration: it names the place under the minimap, it')
+  quiet('chooses the music, and `huntsMe` asks it whether a beast is the kind')
+  quiet('that starts something.')
+}
+process.exit(wrong || bioBad ? 1 : 0)

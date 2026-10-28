@@ -760,6 +760,20 @@ const ssE = () => (_ssE ??= settlementsE())
 // A flat array rather than a Map: 458,752 lookups a frame go through here, and
 // the ground cache re-bakes whenever the camera crosses a tile.
 let _groundTold = null, _groundKinds = null
+// §7ec-ii: AND THE COUNTRIES, told for the same reason. This window's copy
+// of `biomeAt` was wrong on 57.9% of land tiles: it named the wrong country
+// under the minimap, `musicFollowsRegion` changed the music to match it, and
+// `huntsMe` reads the country to decide whether a beast is the kind that
+// starts something, so the window was also wrong about what was about to
+// attack. Unlike the surfaces, this one is not ours to retune: `biomeAt` is in
+// the geography hash. A window may read it and nothing else.
+let _biomeTold = null, _biomeKinds = null
+function biomeToldAt(x, y) {
+  if (!_biomeTold) return null
+  if (x < 0 || y < 0 || x >= W || y >= H) return null
+  const v = _biomeTold[y * W + x]
+  return v ? _biomeKinds[v] : null
+}
 function groundToldAt(x, y) {
   if (!_groundTold) return null
   if (x < 0 || y < 0 || x >= W || y >= H) return null
@@ -767,12 +781,16 @@ function groundToldAt(x, y) {
   return v ? _groundKinds[v] : null
 }
 function takeGroundTold(gd) {
-  if (!gd || !Array.isArray(gd.rows) || !gd.rows.length) return false
-  if (gd.w !== W || gd.h !== H) return false
+  // either half is worth taking: a payload with only the countries in it
+  // still fixes the country the minimap names
+  if (!gd || gd.w !== W || gd.h !== H) return false
+  const haveRows = Array.isArray(gd.rows) && gd.rows.length
+  const haveBio = Array.isArray(gd.biomes) && gd.biomes.length
+  if (!haveRows && !haveBio) return false
   const kinds = ['']
   const idx = new Map()
   const flat = new Uint8Array(W * H)
-  for (const [y, runs] of gd.rows) {
+  for (const [y, runs] of (gd.rows ?? [])) {
     if (y < 0 || y >= H) continue
     for (const [x0, len, kind] of runs) {
       let k = idx.get(kind)
@@ -781,7 +799,22 @@ function takeGroundTold(gd) {
       for (let x = Math.max(0, x0); x < end; x++) flat[y * W + x] = k
     }
   }
-  _groundTold = flat; _groundKinds = kinds
+  if (haveRows) { _groundTold = flat; _groundKinds = kinds }
+  if (Array.isArray(gd.biomes) && gd.biomes.length) {
+    const bk = ['']
+    const bi = new Map()
+    const bf = new Uint8Array(W * H)
+    for (const [y, runs] of gd.biomes) {
+      if (y < 0 || y >= H) continue
+      for (const [x0, len, kind] of runs) {
+        let k = bi.get(kind)
+        if (k === undefined) { k = bk.length; bk.push(kind); bi.set(kind, k) }
+        const end = Math.min(W, x0 + len)
+        for (let x = Math.max(0, x0); x < end; x++) bf[y * W + x] = k
+      }
+    }
+    _biomeTold = bf; _biomeKinds = bk
+  }
   return true
 }
 let _roadSet = null
@@ -2659,6 +2692,16 @@ function regionAt6(x, y) {
   return best
 }
 function biomeAt6(x, y) {
+  // §7ec-ii: TOLD BEATS DERIVED, and here it is not a preference. `biomeAt`
+  // is in the GEOGRAPHY HASH, so the world's answer is the only correct one
+  // and a window may read it and nothing else. This derivation was wrong on
+  // 57.9% of land tiles: it named the wrong country under the minimap,
+  // `musicFollowsRegion` played the wrong country's music to match, and
+  // `huntsMe` asks which country a beast is standing in to decide whether it
+  // is the kind that starts something, so the window was also wrong about what
+  // was about to attack.
+  const told7 = biomeToldAt(x, y)
+  if (told7) return told7
   if (inSeaBase6(x, y) && !onIsle6(x, y)) return 'sea'
   if (x <= brandX6(y)) return 'wilds'
   return regionAt6(x, y)
@@ -9148,7 +9191,7 @@ function _onState(s, worldId, local) {
         tag: t.tag, name: t.name ?? (t.tag ? t.tag[0].toUpperCase() + t.tag.slice(1) : ''),
         x: t.x, y: t.y, w: t.w, h: t.h }))
     }
-    _seedNumC = null; _ssE = null; _roadSet = null; _w7 = null; _groundTold = null
+    _seedNumC = null; _ssE = null; _roadSet = null; _w7 = null; _groundTold = null; _biomeTold = null
     miniReady = false   // the minimap must redraw for the new world, not keep the old one
     buildGround()
     // THE ROADS COME FROM THE WORLD, NOT A GUESS. Fetch the tiles the founding
