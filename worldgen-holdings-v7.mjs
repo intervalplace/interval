@@ -124,6 +124,27 @@ export const HOLDINGS = [
   },
 ]
 
+// FIFTY-TWO NAMES FOR FIFTY-TWO FARMS, AND IT HELD THIRTY-SIX.
+//
+// The placer took a name per holding by index and the index ran off the end of
+// this table, so the last sixteen seats wrapped back to the start of it. The
+// island was founded with two Coldharbours, two Hazelriggs and two of twelve
+// others, ninety tiles apart at the closest, each with its own post at its own
+// gate naming it.
+//
+// A name is the one thing a place has that tells you it is not the other one.
+// Two farms with one name is the exact signature of a world that was generated
+// rather than written, and it was readable from the road: walk north from
+// Millbrook, read "Marlpit", walk a hundred tiles and read "Marlpit" again.
+//
+// Nothing counted it because nothing compares two signs that are not on the
+// same road. The duplicate-milestone guard (SPEC §7ed-ii) refuses a stone that
+// repeats one within a league and these were further apart than that; what
+// found them was asking the finished island for every pair of posts anywhere
+// that say the same words, which is now a test.
+//
+// So: sixteen more names, in the same register and continuing the letters, and
+// this table must stay at least as long as the seats below it.
 export const HOLDING_NAMES = [
   'Ashcroft', 'Barleyhow', 'Coldharbour', 'Downend', 'Elderfield', 'Fallowlea',
   'Greyfold', 'Hazelrigg', 'Ingleby', 'Kettlewell', 'Lambfold', 'Marlpit',
@@ -131,6 +152,9 @@ export const HOLDING_NAMES = [
   'Thistlewaite', 'Underhow', 'Vetchfield', 'Wainscot', 'Yarrowlea', 'Threapland',
   'Brackenside', 'Clayhanger', 'Dowsett', 'Eastcote', 'Fernilee', 'Gorsemoor',
   'Haverbrack', 'Iveson', 'Longcroft', 'Mickleden', 'Nettlebed', 'Ollerton',
+  'Appleyard', 'Beckfoot', 'Carlinghow', 'Dykehead', 'Esholt', 'Flaxhill',
+  'Garthwaite', 'Hollinhead', 'Ivegill', 'Keldbeck', 'Lathgarth', 'Mossburn',
+  'Nabend', 'Owlerton', 'Pinfold', 'Quernmore',
 ]
 
 // ---------------------------------------------------------------------------
@@ -189,20 +213,47 @@ export const HOLDING_SEATS = [
   { name: 'Mickleden', kind: 'steading', x: 564, y: 395, lane: [[563,398],[562,398],[561,398],[561,397],[560,397],[560,396],[559,396],[559,395],[558,395],[558,394],[557,394],[557,393],[556,393],[556,392],[555,392],[555,391],[554,391],[554,390],[553,390],[553,389],[552,389],[552,388],[551,388],[551,387],[550,387],[550,386],[549,386]] },
   { name: 'Nettlebed', kind: 'fold', x: 532, y: 402, lane: [[532,405],[532,404],[532,403],[532,402],[532,401],[532,400],[532,399],[532,398],[532,397],[532,396]] },
   { name: 'Ollerton', kind: 'steading', x: 498, y: 395, lane: [[497,398],[497,399],[497,400],[497,401],[498,401]] },
-  { name: 'Ashcroft', kind: 'croft', x: 744, y: 256, lane: [[744,258],[745,258],[746,258],[747,258],[748,258],[749,258],[750,258],[751,258],[752,258],[753,258],[754,258],[755,258],[756,258],[757,258],[758,258],[759,258],[760,258],[761,258],[762,258],[762,257]] },
-  { name: 'Barleyhow', kind: 'hamlet', x: 736, y: 295, lane: [[738,295],[738,296],[738,297],[738,298],[738,299],[738,300],[737,300],[737,301],[736,301]] },
-  { name: 'Coldharbour', kind: 'fold', x: 723, y: 317, lane: [[723,320],[723,319],[723,318],[723,317],[723,316],[723,315],[723,314],[723,313],[722,313],[722,312],[721,312],[721,311],[720,311],[720,310],[719,310]] },
-  { name: 'Downend', kind: 'steading', x: 698, y: 318, lane: [[697,321],[698,321],[699,321],[700,321],[701,321],[702,321],[702,322],[703,322]] },
-  { name: 'Elderfield', kind: 'croft', x: 692, y: 342, lane: [[692,344],[692,343],[692,342],[692,341],[692,340],[692,339],[692,338],[692,337],[692,336]] },
-  { name: 'Fallowlea', kind: 'steading', x: 301, y: 288, lane: [[300,291],[300,290],[300,289],[300,288],[300,287],[301,287],[301,286],[302,286],[302,285],[303,285],[303,284],[304,284],[304,283],[305,283],[305,282],[306,282],[306,281],[307,281],[307,280],[308,280],[308,279],[309,279],[309,278],[310,278],[310,277],[311,277],[311,276],[312,276]] },
-  { name: 'Greyfold', kind: 'steading', x: 294, y: 264, lane: [[293,267],[293,266],[293,265],[294,265],[294,264],[295,264],[295,263],[296,263],[296,262],[297,262],[297,261],[298,261],[298,260],[299,260]] },
-  { name: 'Hazelrigg', kind: 'croft', x: 285, y: 243, lane: [[285,245],[285,246],[284,246],[284,247],[283,247],[283,248]] },
-  { name: 'Ingleby', kind: 'croft', x: 264, y: 254, lane: [[264,256],[264,255],[264,254],[264,253],[264,252],[264,251],[264,250],[264,249],[264,248],[264,247],[264,246],[264,245],[265,245],[265,244],[266,244]] },
-  { name: 'Kettlewell', kind: 'fold', x: 291, y: 214, lane: [[291,217],[292,217],[293,217],[294,217],[295,217],[295,218],[296,218]] },
-  { name: 'Lambfold', kind: 'fold', x: 248, y: 232, lane: [[248,235],[248,236],[248,237],[249,237],[249,238],[250,238]] },
-  { name: 'Marlpit', kind: 'fold', x: 342, y: 177, lane: [[342,180],[343,180],[344,180],[345,180],[346,180],[347,180],[347,179],[348,179],[348,178]] },
-  { name: 'Netherby', kind: 'steading', x: 333, y: 145, lane: [[332,148],[333,148],[334,148],[335,148],[335,147],[336,147],[336,146],[337,146],[337,145],[338,145],[338,144],[339,144],[339,143],[340,143],[340,142],[341,142]] },
-  { name: 'Oatlands', kind: 'steading', x: 515, y: 60, lane: [[514,63],[514,64],[514,65],[514,66],[515,66]] },
-  { name: 'Pikestaff', kind: 'croft', x: 545, y: 75, lane: [[545,77],[545,76],[545,75],[546,75],[546,74],[547,74],[547,73],[548,73],[548,72],[549,72],[549,71],[550,71]] },
-  { name: 'Quarrenden', kind: 'croft', x: 567, y: 85, lane: [[567,87],[567,86],[567,85],[567,84],[567,83],[567,82],[567,81],[567,80],[567,79]] },
+  { name: 'Appleyard', kind: 'croft', x: 744, y: 256, lane: [[744,258],[745,258],[746,258],[747,258],[748,258],[749,258],[750,258],[751,258],[752,258],[753,258],[754,258],[755,258],[756,258],[757,258],[758,258],[759,258],[760,258],[761,258],[762,258],[762,257]] },
+  { name: 'Beckfoot', kind: 'hamlet', x: 736, y: 295, lane: [[738,295],[738,296],[738,297],[738,298],[738,299],[738,300],[737,300],[737,301],[736,301]] },
+  { name: 'Carlinghow', kind: 'fold', x: 723, y: 317, lane: [[723,320],[723,319],[723,318],[723,317],[723,316],[723,315],[723,314],[723,313],[722,313],[722,312],[721,312],[721,311],[720,311],[720,310],[719,310]] },
+  { name: 'Dykehead', kind: 'steading', x: 698, y: 318, lane: [[697,321],[698,321],[699,321],[700,321],[701,321],[702,321],[702,322],[703,322]] },
+  { name: 'Esholt', kind: 'croft', x: 692, y: 342, lane: [[692,344],[692,343],[692,342],[692,341],[692,340],[692,339],[692,338],[692,337],[692,336]] },
+  { name: 'Flaxhill', kind: 'steading', x: 301, y: 288, lane: [[300,291],[300,290],[300,289],[300,288],[300,287],[301,287],[301,286],[302,286],[302,285],[303,285],[303,284],[304,284],[304,283],[305,283],[305,282],[306,282],[306,281],[307,281],[307,280],[308,280],[308,279],[309,279],[309,278],[310,278],[310,277],[311,277],[311,276],[312,276]] },
+  { name: 'Garthwaite', kind: 'steading', x: 294, y: 264, lane: [[293,267],[293,266],[293,265],[294,265],[294,264],[295,264],[295,263],[296,263],[296,262],[297,262],[297,261],[298,261],[298,260],[299,260]] },
+  { name: 'Hollinhead', kind: 'croft', x: 285, y: 243, lane: [[285,245],[285,246],[284,246],[284,247],[283,247],[283,248]] },
+  { name: 'Ivegill', kind: 'croft', x: 264, y: 254, lane: [[264,256],[264,255],[264,254],[264,253],[264,252],[264,251],[264,250],[264,249],[264,248],[264,247],[264,246],[264,245],[265,245],[265,244],[266,244]] },
+  { name: 'Keldbeck', kind: 'fold', x: 291, y: 214, lane: [[291,217],[292,217],[293,217],[294,217],[295,217],[295,218],[296,218]] },
+  { name: 'Lathgarth', kind: 'fold', x: 248, y: 232, lane: [[248,235],[248,236],[248,237],[249,237],[249,238],[250,238]] },
+  { name: 'Mossburn', kind: 'fold', x: 342, y: 177, lane: [[342,180],[343,180],[344,180],[345,180],[346,180],[347,180],[347,179],[348,179],[348,178]] },
+  { name: 'Nabend', kind: 'steading', x: 333, y: 145, lane: [[332,148],[333,148],[334,148],[335,148],[335,147],[336,147],[336,146],[337,146],[337,145],[338,145],[338,144],[339,144],[339,143],[340,143],[340,142],[341,142]] },
+  { name: 'Owlerton', kind: 'steading', x: 515, y: 60, lane: [[514,63],[514,64],[514,65],[514,66],[515,66]] },
+  { name: 'Pinfold', kind: 'croft', x: 545, y: 75, lane: [[545,77],[545,76],[545,75],[546,75],[546,74],[547,74],[547,73],[548,73],[548,72],[549,72],[549,71],[550,71]] },
+  { name: 'Quernmore', kind: 'croft', x: 567, y: 85, lane: [[567,87],[567,86],[567,85],[567,84],[567,83],[567,82],[567,81],[567,80],[567,79]] },
 ]
+
+// ---------------------------------------------------------------------------
+// AND NO TWO FARMS SHARE A NAME, CHECKED HERE RATHER THAN HOPED FOR
+// ---------------------------------------------------------------------------
+// This is the guard that was missing when the name table was shorter than the
+// seat table. It runs at import, on frozen data, so it either passes for ever
+// or it fails the moment somebody adds a seat without a name for it -- which
+// is the only moment anybody could act on it.
+//
+// It throws rather than warns. A founding that stands up two Coldharbours is a
+// world with a fault baked into its geography hash, and the only cure for that
+// is a refounding; refusing to build it costs an error message.
+{
+  const seen = new Map()
+  const dup = []
+  for (const s of HOLDING_SEATS) {
+    if (seen.has(s.name)) dup.push(s.name + ' at ' + s.x + ',' + s.y
+      + ' and at ' + seen.get(s.name))
+    else seen.set(s.name, s.x + ',' + s.y)
+  }
+  if (dup.length) throw new Error(
+    'two holdings cannot carry one name, and ' + dup.length + ' do:\n  ' + dup.join('\n  '))
+  const off = HOLDING_SEATS.map((s) => s.name).filter((n) => !HOLDING_NAMES.includes(n))
+  if (off.length) throw new Error(
+    'these holdings are named off the roster: ' + off.join(', ')
+    + ' (HOLDING_NAMES is the list of names this island uses)')
+}

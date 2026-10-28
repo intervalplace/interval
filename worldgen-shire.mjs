@@ -1008,12 +1008,14 @@ export function layPlan(ctx, name, rows, cx, cy, idPrefix, opts = {}) {
           if (t2 === 'hearth') trade = 'town'
         }
         const tag = name + '|' + trade + '|' + rx + ',' + ry
-        extra = { name: nameKeeper(tag) }
-        // and what they do, from the same answer the name was salted with
-        if (keeperCalling) {
-          const calling = keeperCalling(trade, tag)
-          if (calling) extra.kind = calling
-        }
+        // THE CALLING IS DECIDED FIRST, because the NAME wants it: a byname
+        // comes from what somebody does (expanse7's BYNAMES), and this used to
+        // name them before it knew. The call is pure and salted on the same
+        // tag, so moving it earlier changes nothing for the generators that
+        // pass no `keeperCalling` and ignore the second argument.
+        const calling = keeperCalling ? keeperCalling(trade, tag) : null
+        extra = { name: nameKeeper(tag, calling) }
+        if (calling) extra.kind = calling
       }
       E.addNode(w, idPrefix + '-' + (i++), type, x, y, extra)
       taken.add(key(x, y))

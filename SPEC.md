@@ -16984,6 +16984,29 @@ measured `biomeAtE`, a v1-era function no world since has called, and reported
 57.9% wrong: a true number about dead code. The strip, the music and the
 hunting question all go through `regionNameAt`, so that is the promise.
 
+## 7ec-iii. And the named places within a country are served with it
+
+**A country is too big to be an answer to "where am I".** The Wilds are a
+third of the island. Standing anywhere in them, "the Wilds" is true and tells
+a traveller nothing they could not see. The island carries twenty smaller
+names inside the countries -- Bleakfell, Watersmeet, the Barrow, Scaleshore --
+and until now a window had no way to know them.
+
+They go down with the surfaces and the countries, in the same fetch: twenty
+records, each a name, a centre and two radii, about a kilobyte. Small enough
+to send whole, so there is nothing to encode and nothing to drift.
+
+**A window names the smaller place first and falls back to the country.** You
+are "on Bleakfell" where Bleakfell reaches and "in the Wilds" where it does
+not. `regionNameAt` answers in that order, and the strip, the music and the
+hunting question all read it (§7ec-ii).
+
+**This is what paid for cutting the marker posts.** Twenty signposts stood at
+the hearts of the locales, each reading one word, because until the pillar
+served them the post was the only way the name existed in the world. Serving
+them first and cutting second is the order that matters: the other way round
+deletes the name rather than moving it. See §7ed-iii.
+
 ## 7ed. Vegetation grows in clumps, never in a sprinkle
 
 **Scenery is placed in ones and twos with open ground between, never at a flat
@@ -17028,6 +17051,66 @@ Refusing a repeat took the island's milestones from fifty-five to thirty-two
 and the identical pairs to none. Nothing was lost but the repetition: every
 stone removed was saying exactly what another stone within a league already
 said.
+
+## 7ed-iii. A bare name plaque is the one sign that teaches nothing
+
+**A signpost has to carry something a traveller cannot get standing beside
+it.** A milestone gives a distance. A town sign gives what the town keeps and
+what it does not: "Eelmarsh. Four racks and no bank: what you smoke here you
+carry out yourself." A wayside gives a rule. A post reading only "Bleakfell"
+gives the one fact the window is already saying, in a strip, continuously, for
+the whole locale rather than for one tile of it.
+
+Counted on the founded island: 66 posts that said something, 120 that were a
+name. Twenty of those were locale posts and they are gone. The rest stay,
+because a holding's name, a work's name and a cape's name are not served
+anywhere and a post is the only place they exist.
+
+**The order matters.** The posts could only go once `/api/ground` served the
+locales and the window named the one you stand in (§7ec-ii). Before that the
+post was the only way to learn the word, and cutting it would have deleted the
+name from the world rather than moved it.
+
+**What is lost is the point of what is kept.** Walking up to a post to read
+where you are is a smaller thing than not quite knowing until you arrive. The
+country does not label itself; the map, the ground and the people in it say
+where you are.
+
+**And look for it twice.** The posts were seated in the middle of the
+generator and a second pass at the very end reseated any the sweeps had taken,
+reporting it as a repair. Cutting the first seating changed the founded count
+by nothing at all: all twenty came back, and the only way anybody found out
+was counting the posts on the finished island instead of reading the code that
+places them.
+
+## 7ed-iv. A name with no byname is an index
+
+**Every keeper in the world carries a first name and a byname, and the byname
+comes from their calling.** `keeperName` returned one of twenty-seven first
+names and nothing else, for a hundred and eleven of the island's hundred and
+fifty-seven keepers. Measured on the founded island: three Zachariahs in
+Eastmere, three Delias in Anchor, two Tildas eight tiles apart, two Sims eight
+tiles apart, and Miles standing four tiles from Miles. Fifteen pairs within a
+league of each other, which is within sight.
+
+A real village does have four Johns, and that is not what this was. The four
+Johns in a real village are John at the Mill, John Shorthand and John of the
+Green: the byname is how a name stops being a number.
+
+**Nothing is invented for it.** The world already decides what each keeper
+does, from what they stand beside (§7h, `planCalling`). The byname pools are
+hand-written per calling, in the register the residents table already uses:
+Odo Twelvepence, Symond at the Mill, Sabina Ale-wife, Hild the Watch. So the
+byname always fits the person, because it is drawn from what the person is.
+
+**The hand-written names are reserved.** Corwin Underhill is the delver at the
+High Delving, written by hand, and the hash gave his whole name to the keeper
+of Millbrook's delve stall as well. A hashed name that lands on an authored
+one takes the next byname instead.
+
+**The bar is within a league, not never twice.** Two people of one name on
+opposite sides of the island is a world with two people of one name in it. Two
+in one street is a table being read with an index.
 
 ## 7h. Who Lives Here
 

@@ -92,6 +92,35 @@ let GIVEN_SS = null
 // drift again. `/api/ground` is 13KB gzipped for the whole island.
 let GIVEN_GROUND = null, GIVEN_KINDS = null
 let GIVEN_BIOME = null, GIVEN_BIOMES = null
+// §7ec-iii: WHICH NAMED PLACE YOU ARE STANDING IN.
+//
+// The strip under the minimap named the town you were in, or failing that the
+// COUNTRY, which is thirty thousand tiles wide. So between the towns a citizen
+// was told "the Heartlands" over and over, and the island's twenty named
+// places went unnamed in the one readout that could have said them.
+//
+// The world's own test, which is why it is point-in-ellipse and why the
+// SMALLEST wins: locales overlap, and the smaller of two is the more precise
+// thing to call where you are standing.
+//
+// This is where a place name belongs rather than on a plaque in a field. A
+// board you can read from across a furlong tells you where you are before you
+// get there; a strip that changes as you walk in tells you when you arrive,
+// which is the whole difference between a map and a journey. And a name you
+// can see is a name you can arrange to meet at, which is the only matchmaking
+// this world has.
+let GIVEN_LOCALES = null
+function localeGivenAt(x, y) {
+  if (!GIVEN_LOCALES) return null
+  let best = null, bestArea = Infinity
+  for (const L of GIVEN_LOCALES) {
+    const dx = (x - L.x) / L.rx, dy = (y - L.y) / L.ry
+    if (dx * dx + dy * dy > 1) continue
+    const a = L.rx * L.ry
+    if (a < bestArea) { bestArea = a; best = L }
+  }
+  return best ? best.name : null
+}
 export function tellGround(gd) {
   // EITHER HALF IS WORTH TAKING. The guard required the SURFACES to be
   // present before it would look at anything, so a payload carrying only the
@@ -132,6 +161,7 @@ export function tellGround(gd) {
     }
     GIVEN_BIOME = bf; GIVEN_BIOMES = bk
   }
+  if (Array.isArray(gd.locales) && gd.locales.length) GIVEN_LOCALES = gd.locales
   return true
 }
 
@@ -145,6 +175,7 @@ export function configure(opts = {}) {
     : null
   // a new world means every memo is about the old one
   GIVEN_GROUND = null; GIVEN_KINDS = null; GIVEN_BIOME = null; GIVEN_BIOMES = null
+  GIVEN_LOCALES = null
   _wet4 = null; _wetFor = null; _sea4 = null; _riv4 = null; _seaFor = null
   _roadBmp = null; _roadBmpFor = null
   _seedNumC = null
@@ -2254,7 +2285,7 @@ function regionNameAt(x, y) {
     // This is the drift that an inlined copy makes invisible: the flat window
     // had the branch, the module every other window imports did not, and
     // nothing compared them.
-    if (IS_EXPANSE6()) return REGION_NAMES[biomeAt6(x, y)] ?? ''
+    if (IS_EXPANSE6()) return localeGivenAt(x, y) ?? REGION_NAMES[biomeAt6(x, y)] ?? ''
     return REGION_NAMES[biomeAtE(x, y)] ?? ''
   } catch { return '' } // a nameplate must never stop the world drawing
 }

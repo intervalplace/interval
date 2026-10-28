@@ -121,6 +121,18 @@ export function biomeOf(genesis) {
   return (x, y) => (wet(genesis, x, y) ? null : gen.biomeAt(genesis, x, y))
 }
 
+// §7ec-iii: THE NAMED PLACES WITHIN A COUNTRY, so a window can say where you
+// are rather than only which country you are in. Twenty records with a centre
+// and two radii: small enough to send whole, so there is nothing to encode and
+// nothing to drift.
+export function localesOf(genesis) {
+  const gen = generatorFor(genesis)
+  if (typeof gen.localesOf !== 'function') return []
+  return gen.localesOf(genesis)
+    .filter((L) => L && L.name && Number.isFinite(L.x) && Number.isFinite(L.y))
+    .map((L) => ({ name: L.name, x: L.x, y: L.y, rx: L.rx, ry: L.ry }))
+}
+
 export function roadDataOf(genesis) {
   const gen = generatorFor(genesis)
   if (typeof gen.roadTilesOf !== 'function') return { tiles: [], bridges: [], bends: [] }

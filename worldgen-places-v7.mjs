@@ -49,6 +49,25 @@
 // A place is NOT required to be enclosed, connected, or useful. That is the
 // entire point of it.
 
+// §7ed-iii: A POST NAMES WHAT IS IN FRONT OF IT, NOT THE COUNTRY IT IS IN.
+//
+// Five of these had a `sign` that threw away the place's own name and printed
+// the locale instead: the ruin at Deadman's Reach has a post reading
+// "Deadman's Reach", the buried watchtower one reading "Cragfoot Scar". The
+// window now names the locale you stand in continuously, from the pillar's
+// answer, so those posts said the strip's word twice and the authored name
+// nowhere. They say the thing now: the Buried Watchtower, the Ruined Tower,
+// the Chase Kennels, the Chalk Barrow.
+//
+// The three where the place's name IS the locale's -- the Boneyard, the
+// Sheepfolds, the High Delving -- keep theirs, because there is no other name
+// to say.
+//
+// AND ONE OF THEM WAS MISSPELLED. `barrow` read "the garrow Crown", name and
+// sign both, with the comment directly above it saying "The Barrow Crown".
+// It had been founded that way and shown on a post on the crest. Nothing
+// checks a proper noun, so the only thing that finds this is reading the
+// island's words with your eyes.
 export const PLACES_V7 = {
   // ---- THE MOOR ------------------------------------------------------------
   // The name promised nine stones. There were none. This is the whole thesis
@@ -166,7 +185,7 @@ export const PLACES_V7 = {
   // No roof, no stair, four days' walk -- and now the drawing says so.
   deadreach: {
     name: "the Ruined Tower", locale: 'deadreach', floors: false,
-    sign: "Deadman's Reach",
+    sign: 'the Ruined Tower',
     rows: [
       '~~%%w%%~~',
       '~%%...%%~',
@@ -273,7 +292,7 @@ export const PLACES_V7 = {
   // The Chase kennels. Long empty, the runs still fenced.
   hollychase: {
     name: 'the Chase Kennels', locale: 'hollychase', floors: true,
-    sign: 'Hollybarrow Chase',
+    sign: 'the Chase Kennels',
     rows: [
       '~fffffffff~',
       '~f~~~~~~~f~',
@@ -296,7 +315,7 @@ export const PLACES_V7 = {
       '~~%%%%%~~',
       '~%~~~~~%~',
       '%~~~o~~~%',
-      '%~~~~~~~%',
+      '%~h~~~*~%',
       '~%~q~q~%~',
       '~~%%.%%~~',
       '~~~~.~~~~',
@@ -389,7 +408,7 @@ export const PLACES_V7 = {
   // Cragfoot Scar: a slide came down on a watchtower and stopped halfway.
   cragscar: {
     name: 'the Buried Watchtower', locale: 'cragscar', floors: false,
-    sign: 'Cragfoot Scar',
+    sign: 'the Buried Watchtower',
     rows: [
       '~~~%%~~~~',
       '~~%%.%~~~',
@@ -486,7 +505,7 @@ export const PLACES_V7 = {
   // on it means something, because there is now an inside for it to keep.
   whitechalk: {
     name: 'the Chalk Barrow', locale: 'whitechalk', floors: false,
-    sign: 'Whitechalk',
+    sign: 'the Chalk Barrow',
     rows: [
       '~%%%%%%%~',
       '~%.....%~',
@@ -562,8 +581,8 @@ export const PLACES_V7 = {
   // The Barrow Crown: the ring of stones on the crest, older than the road
   // that goes round it.
   barrow: {
-    name: 'the garrow Crown', locale: 'barrow', floors: false,
-    sign: 'the garrow Crown',
+    name: 'the Barrow Crown', locale: 'barrow', floors: false,
+    sign: 'the Barrow Crown',
     rows: [
       '~~!~!~!~~',
       '~!~~~~~!~',

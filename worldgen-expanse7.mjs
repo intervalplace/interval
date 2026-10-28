@@ -2197,10 +2197,108 @@ export function companion(g, x, y, salt) {
   return [o[0], o[1], want]
 }
 
-export function keeperName(tag, role) {
+// A NAME WITH NO BYNAME IS AN INDEX.
+//
+// This returned one of twenty-seven first names and nothing else, for a
+// hundred and eleven of the island's hundred and fifty-seven keepers. Counted
+// on the founded island: three Zachariahs in Eastmere, three Delias in Anchor,
+// two Tildas eight tiles apart, two Sims eight tiles apart, and Miles standing
+// four tiles from Miles. Fifteen pairs within a league of each other, which is
+// to say within sight.
+//
+// Twenty-seven names cannot cover a hundred and eleven people. A medieval
+// village genuinely has four Johns, and that is not what this looked like:
+// what it looked like was an index, because the four Johns in a real village
+// are John at the Mill, John Shorthand and John of the Green.
+//
+// So every keeper gets a byname, and it comes from their CALLING -- which the
+// world already knows, because `planCalling` decides it from what they stand
+// beside. Nothing is invented: the byname pools below are hand-written per
+// calling in the register the residents table already uses (Odo Twelvepence,
+// Symond at the Mill, Sabina Ale-wife, Hild the Watch), so the name always
+// fits the person. Twenty-seven firsts against six bynames a calling is
+// enough that two neighbours sharing a whole name takes real bad luck, and
+// test/signs.test.mjs refuses it within a league.
+//
+// The forty-six keepers with a hand-authored full name keep it. This only
+// names the ones nobody had named.
+const BYNAMES = {
+  banker:    ['Reckoner', 'Twelvepence', 'the Tally', 'Countwell', 'Pennyworth', 'at the Strongbox'],
+  merchant:  ['Cheapstow', 'the Packman', 'Chapman', 'Fairweather', 'at the Stall', 'Threepence'],
+  armour:    ['the Plater', 'Hammerhand', 'Ironside', 'at the Anvil', 'Mailmaker', 'Scalecoat'],
+  arms:      ['the Bladesmith', 'Edgewright', 'Sharpset', 'at the Forge', 'Spearwright', 'Swordwright'],
+  innkeeper: ['at the Sign', 'the Host', 'Barrelman', 'Goodale', 'of the Long Room', 'Lateabed'],
+  brewer:    ['Ale-wife', 'the Brewster', 'Mashtun', 'Hopsack', 'Goodbarrel', 'Thinbeer'],
+  mourner:   ['the Sexton', 'Gravewell', 'at the Yard', 'Longvigil', 'Candlehand', 'Bonewife'],
+  watchman:  ['the Watch', 'Nightwalk', 'Keenlook', 'at the Gate', 'Hornblower', 'Sleepless'],
+  drover:    ['Drover', 'Longwalk', 'the Herd', 'Roadwise', 'Oxgoad', 'Dusty'],
+  miller:    ['at the Mill', 'Milldust', 'Whitecoat', 'the Grinder', 'Sackman', 'Goodflour'],
+  shepherd:  ['Hillfoot', 'the Crook', 'Lambwright', 'of the Folds', 'Fleecehand', 'Highpasture'],
+  collier:   ['the Burner', 'Charcoal', 'Smokehand', 'Blackhand', 'at the Pit', 'Slowfire'],
+  quarrier:  ['the Breaker', 'Stonehand', 'Chiselwright', 'at the Face', 'Splitstone', 'Greyhand'],
+  delver:    ['Underhill', 'the Delver', 'Deepsought', 'Lampman', 'Lowgallery', 'Pickwright'],
+  seed:      ['Goodfurrow', 'the Sower', 'Seedsman', 'Cornwright', 'at the Garth', 'Ridgeway'],
+  beekeeper: ['the Beeward', 'Honeyhand', 'Skepwright', 'at the Skeps', 'Combwright', 'Summerhand'],
+  sawyer:    ['the Sawyer', 'Longsaw', 'Plankwright', 'at the Trestle', 'Sawdust', 'Straightgrain'],
+  lumber:    ['the Woodward', 'Axehand', 'Timberwright', 'Fellwell', 'Barkhand', 'Tallpine'],
+  fisher:    ['Eelwife', 'the Netman', 'Linehand', 'at the Staithe', 'Saltcoat', 'Lowtide'],
+  toll:      ['the Keeper', 'at the Bar', 'Onelog', 'Crossingman', 'Gatewright', 'Tollman'],
+}
+// SOMEBODY WHO LIVES HERE, for a keeper the world has not given a calling.
+// Nothing about a trade, because there is no trade to be wrong about.
+const BYNAMES_PLAIN = ['of the Vale', 'the Elder', 'at the Green', 'Longshadow',
+  'Weatherwise', 'Quickstep', 'Sixtoes', 'Winterborn']
+
+// AND THE ROLE IS A CALLING TOO, WHERE IT NAMES ONE.
+//
+// Fourteen keepers are placed directly rather than through a town plan, and
+// they pass what they ARE as the `role`: keeperName('sheds', 'eel'),
+// keeperName('vault', 'folds'). Without this the eel-shed fisher came out
+// "Ulric the Elder" and the counting-house banker "Edmund Weatherwise": the
+// plain pool, on the fourteen people in the world whose trade is least in
+// doubt. The role is read as a calling when it is one, and these few are the
+// words it uses that the callings do not.
+const ROLE_CALLING = {
+  eel: 'fisher', folds: 'banker', lantern: 'innkeeper', moorwatch: 'watchman',
+  burner: 'collier', quarryman: 'quarrier', kennel: 'drover', bows: 'arms',
+  delve: 'delver', high: 'delver', shep: 'shepherd',
+}
+
+// AND A HASHED NAME MAY NOT LAND ON AN AUTHORED ONE.
+//
+// Corwin Underhill is the delver at the High Delving, written by hand in
+// PLACE_INSIDE, and the hash gave his whole name to the keeper of Millbrook's
+// delve stall as well. The hand-written names are the ones that mean
+// something -- Odo Twelvepence, Wat of the Folds -- so they are reserved, and
+// a hash that lands on one takes the next byname instead.
+//
+// Built on first use rather than at module scope: both tables arrive by
+// import and a cycle would leave this holding undefined, which would silently
+// reserve nothing.
+let _authored = null
+const authoredNames = () => {
+  if (_authored) return _authored
+  _authored = new Set()
+  for (const r of RESIDENTS) if (r && r.name) _authored.add(r.name)
+  for (const v of Object.values(PLACE_INSIDE)) if (v && v.keeper && v.keeper.name) _authored.add(v.keeper.name)
+  return _authored
+}
+
+export function keeperName(tag, role, calling) {
   if (role === 'wizard') return 'Oberon'
   const h = E.sha256('keeper|' + tag + '|' + role)
-  return KEEPER_NAMES[h[0] % KEEPER_NAMES.length]
+  const first = KEEPER_NAMES[h[0] % KEEPER_NAMES.length]
+  // `calling` may arrive as the keeper's trade word, or not at all. An older
+  // call site passed an OBJECT here by mistake and it read as a calling with
+  // no pool, which is exactly the default, so this only has to refuse it.
+  const pool = (typeof calling === 'string' && BYNAMES[calling])
+    || BYNAMES[role] || BYNAMES[ROLE_CALLING[role]] || BYNAMES_PLAIN
+  const taken = authoredNames()
+  for (let i = 0; i < pool.length; i++) {
+    const whole = first + ' ' + pool[(h[1] + i) % pool.length]
+    if (!taken.has(whole)) return whole
+  }
+  return first + ' ' + pool[h[1] % pool.length]
 }
 
 // AND WHAT THEY DO. Seventy-six of the island's hundred and fifty-seven keepers
@@ -3400,7 +3498,7 @@ export function buildWorld(genesis) {
     // nine of those round a village is nine seam-table entries that were never
     // in the seam table. §7z: A PLACE MAY NOT SEED A TIER.
     const _laid = layPlan(planCtx, s.tag, ALL_PLANS[s.tag], s.x, s.y, 'plan-' + s.tag,
-      { nameKeeper: (k) => keeperName(k, 'plan'),
+      { nameKeeper: (k, calling) => keeperName(k, 'plan', calling),
         keeperCalling: (trade, tag) => planCalling(trade, tag, s.kind),
         legend: VILLAGE_LEGEND,
         ...(VILLAGE_LANDMARK_KIND[s.tag] ? { landmarkKind: VILLAGE_LANDMARK_KIND[s.tag] } : {}) })
@@ -3790,50 +3888,32 @@ export function buildWorld(genesis) {
       }
   }
 
-  // ---- the locales, signed ----
-  // A name nobody can read is not a name. Each locale gets a marker post
-  // near its heart, so "up on Bleakfell" is something a traveller can
-  // learn by walking rather than by being told.
-  let locN = 0
-  for (const L of localesOf(g)) {
-    let seated = false
-    // FIRM GROUND IF THERE IS ANY, AND ANY GROUND IF THERE IS NOT.
-    //
-    // Asking for firm ground alone cost Cragfoot Scar its post: there is no
-    // tile within forty-four of it that is both free and has three dry sides,
-    // so the loop simply ran out and the locale went unnamed. A named place
-    // with nothing to name it is a worse fault than the one being fixed --
-    // it is the exact shape of §7's "a thing that is in the world and
-    // invisible in it" -- and it would have gone unnoticed, because nothing
-    // counts posts.
-    //
-    // So the rule is a PREFERENCE. Sweep for firm ground; if the whole sweep
-    // finds none, sweep again for any ground at all and stand the post there.
-    for (const [want, reach] of [[firm, 44], [free, 60]]) {
-      for (let rad = 0; rad < reach && !seated; rad++)
-        for (let dy = -rad; dy <= rad && !seated; dy++) for (let dx = -rad; dx <= rad; dx++) {
-          if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
-          const x = L.x + dx, y = L.y + dy
-          if (!want(x, y)) continue
-          put('locale-' + L.tag, 'signpost', x, y, { text: L.name })
-          seated = true; locN++; break
-        }
-      if (seated) break
-    }
-    // AND IT SAYS SO WHEN IT CANNOT. This could always fail -- the sweep has
-    // always been bounded -- and when it did, the locale simply had no post
-    // and nothing anywhere said a word about it. Cragfoot Scar lost its post
-    // to a one-line change in what counts as ground, and the only reason
-    // anybody found out is that the two foundings happened to be counted
-    // against each other by hand.
-    //
-    // Everything else in this generator that falls short reports it: the
-    // residents who had nowhere to stand, the lock-up pieces that did not
-    // fit, the field that only laid five tiles of thirty. A named place with
-    // nothing to name it belongs on that list.
-    if (!seated) console.warn('WORLDGEN: ' + L.name + ' got no marker post')
-  }
-
+  // ---- the locales, UNSIGNED ----
+  // There were twenty posts here, one at the heart of each locale, reading
+  // "Bleakfell" or "Watersmeet" and nothing else. They are gone, and the
+  // reason is worth keeping because it is a rule about the whole island.
+  //
+  // The argument for them was "a name nobody can read is not a name". That
+  // was true when it was written: nothing in the window ever said the word
+  // Bleakfell, so the only way to learn it was to walk onto the post. It is
+  // not true now. The pillar serves the locales at /api/ground (§7ec-ii) and
+  // the window names the one you are standing in, in the strip, continuously.
+  // So the post and the strip said the same word at the same moment, and the
+  // post was the worse of the two: it said it in exactly one tile out of the
+  // few thousand the locale covers.
+  //
+  // And a bare name plaque is the one kind of sign that teaches nothing. The
+  // others all carry something a traveller cannot get any other way: a
+  // milestone gives a DISTANCE, a town sign gives what the town keeps and
+  // what it does not, a wayside gives a rule. Count them and the island had
+  // 44 signs that said something and 142 that were a name. These twenty were
+  // the ones provably redundant, so these twenty went.
+  //
+  // What is lost: the moment of walking up to a post and reading where you
+  // are. What is kept: not quite knowing, which is the older and better
+  // version of the same moment. The country does not label itself. The map
+  // and the hour and the ground under you say where you are, and a traveller
+  // who wants certainty asks somebody.
   // ---- the Brandline stones ----
   let br = 0
   for (let y = 4; y < H - 4; y += 14) {
@@ -4155,9 +4235,21 @@ export function buildWorld(genesis) {
       const x = b.x + dx, y = b.y + dy
       if (free(x, y)) { put('brmark-' + b.tag + dx + dy, 'landmark', x, y, { kind: 'bridge-stone' }) }
     }
+    // ONE POST PER BRIDGE, NOT ONE PER BANK.
+    //
+    // This stood a sign at dx -5 AND dx +5, so every bridge on the island had
+    // two posts ten tiles apart reading the same words: "Highford" twice, "the
+    // Millbrook Bridge" twice. Ten tiles is inside one view. The intent was to
+    // sign the crossing from either approach, which is a real thing roads do
+    // at a real scale and is not this one -- at ten tiles the second post is
+    // the first post again.
+    //
+    // §7ed-ii is the same rule for milestones and this is the same fault: the
+    // guard there refuses a stone repeating one within a league, and nothing
+    // was asking the question of anything that was not a milestone.
     for (const [dx, dy] of [[-5, 0], [5, 0]]) {
       const x = b.x + dx, y = b.y + dy
-      if (free(x, y)) put('brsign-' + b.tag + dx, 'signpost', x, y, { text: b.name })
+      if (free(x, y)) { put('brsign-' + b.tag, 'signpost', x, y, { text: b.name }); break }
     }
   }
 
@@ -5429,10 +5521,13 @@ export function buildWorld(genesis) {
         put('toll-keeper-millbrook', 'keeper', x, y, { kind: 'toll', name: 'the bridge-keeper' })
         seated = true; break
       }
+      // and ONE board, for the reason the bridge signs above give: this put
+      // the same sentence on two posts eight tiles apart.
       for (const dx of [-4, 4]) {
         const x = gx + dx, y = gy
         if (inB(x, y) && !taken.has(key(x, y)) && !isWater(g, x, y) && !blockedAt(g, x, y)) {
-          put('toll-sign' + dx, 'signpost', x, y, { text: 'the bridge is kept, a log to cross' })
+          put('toll-sign', 'signpost', x, y, { text: 'the bridge is kept, a log to cross' })
+          break
         }
       }
       if (!bar.length) console.warn('WORLDGEN: the Millbrook Bridge took no toll gate')
@@ -6199,21 +6294,30 @@ export function buildWorld(genesis) {
   { // the Sawyer's Camp
     const c = siteSeek(0.50, 0.15, 'greenwood', 4)
     sput('camp-house', 'hearth', c.x, c.y); sput('camp-hearth', 'campfire', c.x + 2, c.y)
-    sput('kpr-camp-sawyer', 'keeper', c.x + 1, c.y + 1, { name: keeperName('camp', 'sawyer', { name: keeperName('camp', 'sawyer') }) })
+    sput('kpr-camp-sawyer', 'keeper', c.x + 1, c.y + 1, { name: keeperName('camp', 'sawyer', 'sawyer') })
     for (const [i, [dx, dy]] of [[-3,-2],[3,-2],[-4,1],[4,1],[-2,3],[2,3],[0,-4],[0,4]].entries()) sput('camp-t-' + i, 'landmark', c.x + dx, c.y + dy, { kind: 'stump' })  // §6ao (v6): camp texture, not a grove
   }
-  { // the High Delving: now a WALLED quarry with one entrance -- a room
-    const c = siteSeek(0.81, 0.38, 'crags', 7)
-    let i = 0
-    for (let a = -6; a <= 6; a++) {
-      if (a !== 0) { sput('dlvw-' + (i++), 'wall', c.x + a, c.y - 5); sput('dlvw-' + (i++), 'wall', c.x + a, c.y + 5) }
-    }
-    for (let b2 = -4; b2 <= 4; b2++) { sput('dlvw-' + (i++), 'wall', c.x - 6, c.y + b2); sput('dlvw-' + (i++), 'wall', c.x + 6, c.y + b2) }
-    sput('delve-house', 'hearth', c.x - 4, c.y - 3); sput('delve-shelter', 'hearth', c.x + 4, c.y - 3)  // §6am (v6): was an anvil -- removed, so the only anvil is Thornbury's and ore leaves the Crags to be worked
-    sput('delve-hearth', 'campfire', c.x + 3, c.y - 3); sput('kpr-delve-high', 'keeper', c.x - 3, c.y - 3, { name: keeperName('delve', 'high', { name: keeperName('delve', 'high') }) })
-    for (const [i2, [dx, dy]] of [[-3,0],[3,0],[-2,2],[2,2],[0,3],[-4,1],[4,1],[-1,3],[1,-1]].entries()) sput('delve-r-' + i2, 'landmark', c.x + dx, c.y + dy, { kind: 'cairn' })  // §6ao (v6): quarry texture, not a seam
-    sput('delve-sign', 'signpost', c.x, c.y - 6, { text: 'the High Delving' })
-  }
+  // THE HIGH DELVING STOOD HERE TOO, AND THERE IS ONE OF IT.
+  //
+  // This block drew a walled quarry at siteSeek(0.81, 0.38) with a keeper, two
+  // hearths, a fire, nine cairns and a post reading "the High Delving". The
+  // places table (worldgen-places-v7.mjs) also draws a High Delving, with its
+  // own walls, its own coal and iron, three goblins, Corwin Underhill and its
+  // own post. They were THIRTY-ONE TILES APART. Two walled quarries of one
+  // name, each with a keeper, in sight of each other.
+  //
+  // The scene is the older of the two and it is the one that goes. The places
+  // entry is the authored one: it has what is behind its door written down,
+  // and a locale named after it.
+  //
+  // The hearth and the fire were the only things the scene had that the
+  // drawing did not, so they are in the drawing now, as 'h' and '*' inside the
+  // walls. A quarry has a shelter and something burning in it.
+  //
+  // How this was found, since it is worth repeating: not by reading either
+  // file -- each is correct alone -- but by asking the finished island whether
+  // any two posts anywhere say the same words. See test/signs.test.mjs.
+
   { // the Eel Sheds
     const c = siteSeek(0.48, 0.85, 'fens', 3)
     sput('sheds-house', 'hearth', c.x, c.y); sput('sheds-hearth', 'campfire', c.x + 2, c.y)
@@ -6270,48 +6374,71 @@ export function buildWorld(genesis) {
     for (let a = -3; a <= 3; a += 3) sput('mon-stone-' + (i2++), 'landmark', c.x + a, c.y + 6, { kind: 'standing-stone' })
   }
 
-  { // The Sheepfolds. The Downs get a BANK, and a tight ring of ordinary
-    // stone around it -- not a new tier, not a better rock, the same rock
-    // the Crags have. What the Downs sell is LOGISTICS: the only place on
-    // the island you can cut stone and bank it without a walk. That is
-    // precisely Al Kharid, whose mine holds nothing unique and is the most
-    // worked in the game, and it needs no new item to exist.
-    const c = siteSeek(0.72, 0.71, 'downs', 8)
-    sput('fold-house', 'hearth', c.x, c.y - 4); sput('kpr-fold-shep', 'keeper', c.x + 1, c.y - 4, { name: keeperName('fold', 'shep') })
-    sput('fold-hearth', 'campfire', c.x - 1, c.y - 4)
-    let i = 0
-    for (let a = -5; a <= 5; a++) { sput('foldf-' + (i++), 'fence', c.x + a, c.y - 2); if (a !== 0) sput('foldf-' + (i++), 'fence', c.x + a, c.y + 4) }
-    for (let b2 = -1; b2 <= 3; b2++) { sput('foldf-' + (i++), 'fence', c.x - 5, c.y + b2); sput('foldf-' + (i++), 'fence', c.x + 5, c.y + b2) }
-    sput('fold-sign', 'signpost', c.x, c.y - 5, { text: 'the Sheepfolds' })
-    // the counting house: a small walled room with a door, and a bank in it
-    const bx = c.x + 8, by = c.y - 6
-    let ok = true
-    for (let yy = by; yy < by + 5 && ok; yy++) for (let xx = bx; xx < bx + 6; xx++) if (!free(xx, yy)) { ok = false; break }
-    if (ok) {
-      let bi = 0
-      for (let yy = by; yy < by + 5; yy++) for (let xx = bx; xx < bx + 6; xx++) {
-        const edge = xx === bx || xx === bx + 5 || yy === by || yy === by + 4
-        if (!edge) continue
-        if (yy === by + 4 && xx === bx + 3) continue // the door
-        put('foldvault-w' + (bi++), 'wall', xx, yy)
+  { // THE SHEEPFOLDS STOOD HERE TWICE, AND THE COUNTING HOUSE IS WHY THIS
+    // BLOCK SURVIVES AT ALL.
+    //
+    // §6am: the Downs get a BANK. Not a new tier of stone and not a better
+    // rock -- what the Downs sell is LOGISTICS, the one place on the island
+    // you can cut stone and bank it without a walk. That is exactly Al
+    // Kharid, whose mine holds nothing unique and is the most worked in the
+    // game, and it needed no new item to exist.
+    //
+    // What this block ALSO drew was a sheep fold: a hearth, a shepherd, a
+    // fire, four runs of fence and a post reading "the Sheepfolds". The
+    // places table draws the Sheepfolds as well -- three pens, six sheep, Wat
+    // of the Folds, its own post -- and the two stood THIRTY-EIGHT TILES
+    // APART. Two folds of one name with two shepherds, each in sight of the
+    // other's country.
+    //
+    // So the fold here is gone and the authored one is the Sheepfolds. The
+    // counting house is not duplicated anywhere and is the Downs' whole
+    // reason for existing, so it stays -- beside the drawn fold now, instead
+    // of beside the one that is no longer there.
+    const seat = placeSeatsOf(g).find((P) => P.tag === 'sheepfolds')
+    if (!seat) console.warn('WORLDGEN: no seat for the Sheepfolds, so no counting house in the Downs')
+    else {
+      const c = { x: seat.x, y: seat.y }
+      // the counting house: a small walled room with a door, and a bank in it
+      let laid = false
+      // IT HAS TO LAND. The old seat was a siteSeek and this one is the drawn
+      // fold's, so the ground east of it is whatever the drawing left: if the
+      // first offset will not take a six-by-five room, try further out rather
+      // than quietly founding the Downs with no bank.
+      for (const [ox, oy] of [[8, -6], [-14, -6], [8, 2], [-14, 2], [8, -12], [-14, -12]]) {
+        const bx = c.x + ox, by = c.y + oy
+        let ok = true
+        for (let yy = by; yy < by + 5 && ok; yy++) for (let xx = bx; xx < bx + 6; xx++) if (!free(xx, yy)) { ok = false; break }
+        if (!ok) continue
+        let bi = 0
+        for (let yy = by; yy < by + 5; yy++) for (let xx = bx; xx < bx + 6; xx++) {
+          const edge = xx === bx || xx === bx + 5 || yy === by || yy === by + 4
+          if (!edge) continue
+          if (yy === by + 4 && xx === bx + 3) continue // the door
+          put('foldvault-w' + (bi++), 'wall', xx, yy)
+        }
+        put('foldvault', 'vault', bx + 2, by + 2)
+        put('kpr-vault-folds', 'keeper', bx + 3, by + 2, { name: keeperName('vault', 'folds') })
+        sput('foldvault-sign', 'signpost', bx + 3, by + 5, { text: 'the Sheepfolds counting house' })
+        laid = true
+        break
       }
-      put('foldvault', 'vault', bx + 2, by + 2)
-      put('kpr-vault-folds', 'keeper', bx + 3, by + 2, { name: keeperName('vault', 'folds') })
-      sput('foldvault-sign', 'signpost', bx + 3, by + 5, { text: 'the Sheepfolds counting house' })
+      // AND IT SAYS SO IF IT DOES NOT. The only bank outside a town quietly
+      // absent looks exactly like a bank nobody has walked to.
+      if (!laid) console.warn('WORLDGEN: the Sheepfolds counting house found no ground -- the Downs have no bank')
+      // §6ao (v6): the Sheepfolds' stones are TEXTURE, not a mining town. This
+      // laid up to forty-eight gatherable rocks with a bank beside them -- a
+      // second Cragfoot in the Downs that would have split the miners in two. A
+      // handful of boulder landmarks now mark the folds; the one seam is Cragfoot.
+      let rn = 0
+      for (let rad = 3; rad <= 14 && rn < 8; rad++)
+        for (let dy = -rad; dy <= rad && rn < 8; dy++) for (let dx = -rad; dx <= rad; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+          const x = c.x + dx, y = c.y + dy
+          if (!free(x, y) || biomeAt(g, x, y) !== 'downs') continue
+          if ((thash(g, x, y, 71) % 3) !== 0) continue
+          E.addNode(w, 'foldrock-' + (rn++), 'landmark', x, y, { kind: 'cairn' }); taken.add(key(x, y))
+        }
     }
-    // §6ao (v6): the Sheepfolds' stones are TEXTURE, not a mining town. This
-    // laid up to forty-eight gatherable rocks with a bank beside them -- a
-    // second Cragfoot in the Downs that would have split the miners in two. A
-    // handful of boulder landmarks now mark the folds; the one seam is Cragfoot.
-    let rn = 0
-    for (let rad = 3; rad <= 14 && rn < 8; rad++)
-      for (let dy = -rad; dy <= rad && rn < 8; dy++) for (let dx = -rad; dx <= rad; dx++) {
-        if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
-        const x = c.x + dx, y = c.y + dy
-        if (!free(x, y) || biomeAt(g, x, y) !== 'downs') continue
-        if ((thash(g, x, y, 71) % 3) !== 0) continue
-        E.addNode(w, 'foldrock-' + (rn++), 'landmark', x, y, { kind: 'cairn' }); taken.add(key(x, y))
-      }
   }
   { // The Moorwatch. The Moor's job is not to be farmed, it is to be the
     // APPROACH: the last country before the Brandline, where the ground
@@ -6512,7 +6639,7 @@ export function buildWorld(genesis) {
     }  }
 
   // ---- the country's resources ----
-  const counts = { waymarks: wm, wayrests: wr, brandstones: br, waysides: wayN, milestones: mileN, buildings: bldN, shirePlaces: placeN, capes: capeN, locales: locN, countryFurniture: furnN }
+  const counts = { waymarks: wm, wayrests: wr, brandstones: br, waysides: wayN, milestones: mileN, buildings: bldN, shirePlaces: placeN, capes: capeN, countryFurniture: furnN }
   const A = (n) => Math.max(1, Math.round(n * (W * H) / (896 * 512)))
   const B = (x, y) => biomeAt(g, x, y)
   const tree = (id, x, y) => E.addNode(w, id, 'tree', x, y)
@@ -9139,46 +9266,18 @@ export function buildWorld(genesis) {
     }
   }
 
-  // ---- AND THE MARKER POSTS, FOR THE SAME REASON AND BY THE SAME METHOD ----
+  // ---- THERE WERE MARKER POSTS HERE, AND A PASS THAT PUT THEM BACK ----
   //
-  // The locales are seated in the middle of this file and the posts are then
-  // at the mercy of every pass that comes after. Cragfoot Scar's was placed,
-  // counted as placed, and was not in the finished world: something between
-  // there and here took it, and the only way anybody noticed was two foundings
-  // counted against each other by hand.
+  // Twenty locale posts were seated in the middle of this file, and because
+  // the later sweeps kept taking them, this block stood at the very end and
+  // seated any that had gone missing. Both are gone; see "the locales,
+  // UNSIGNED" above for why.
   //
-  // Chasing which pass took it would fix this founding and not the next sweep
-  // somebody adds -- which is the argument the First Tally above already makes
-  // and wins. So the posts are checked HERE, last, after every pass that
-  // clears ground, and a locale that lost one gets another.
-  //
-  // A locale with no post is not cosmetic. "Up on Bleakfell" is a bearing
-  // somebody learns by walking, and §61b's rule is that a thing in the world
-  // and invisible in it is a fault. Fourteen of fifteen is the sort of number
-  // nothing counts and everybody lives with.
-  {
-    let reseated = 0
-    for (const L of localesOf(g)) {
-      if (w.nodes['locale-' + L.tag]) continue
-      let again = false
-      for (const [want, reach] of [[firm, 44], [free, 60]]) {
-        for (let rad = 0; rad < reach && !again; rad++)
-          for (let dy = -rad; dy <= rad && !again; dy++) for (let dx = -rad; dx <= rad; dx++) {
-            if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
-            const x = L.x + dx, y = L.y + dy
-            if (!want(x, y)) continue
-            // Nothing else may be standing here: every pass that clears ground
-            // has already run, so what is on a tile now is what stays on it.
-            if (Object.values(w.nodes).some((q) => q.x === x && q.y === y)) continue
-            put('locale-' + L.tag, 'signpost', x, y, { text: L.name })
-            again = true; reseated++; break
-          }
-        if (again) break
-      }
-      if (!again) console.warn('WORLDGEN: ' + L.name + ' has no marker post and no ground for one')
-    }
-    if (reseated) console.warn('WORLDGEN: ' + reseated + ' marker post(s) reseated after the sweeps')
-  }
+  // Worth keeping as a warning about this file rather than about signs: the
+  // posts were cut at the first seating and the founded island still carried
+  // all twenty, because THIS pass put every one of them back and reported it
+  // as a repair. The count did not move at all. Anything removed from this
+  // generator has to be looked for twice.
 
   return w
 }

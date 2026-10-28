@@ -64,11 +64,25 @@ for (const t of towns) {
 }
 
 // the places that are not settlements, named by the generator itself
+//
+// IT WAS PHOTOGRAPHING NONE OF THEM. This read `Object.entries(WG.LOCALES)`
+// and asked each value for a `.x`, and LOCALES is an ARRAY of records keyed
+// `fx`/`fy` -- a fraction of the map, not a tile. So `typeof v.x === 'number'`
+// was false twenty times out of twenty and the list came out empty, on a
+// sweep whose own first line says it photographs "every place there is".
+//
+// It said so, too, in a way nobody read: `--only delving` returned nought
+// pictures and reported "SWEEPDONE 0". A sweep that finds nothing to do and
+// says it cheerfully is the same fault as a dead checker that reads as a live
+// one.
+//
+// `localesOf` is the generator's own answer and gives tiles. The PLACES get
+// their own shots from `placeSeatsOf`, because a locale's centre is a
+// bearing and the place drawn in it may be thirty tiles off.
 const loose = []
 if (WG.SPAN_SITES) for (const s of WG.SPAN_SITES) loose.push(['span', s.name ?? s.tag ?? 'span', s.x, s.y])
-if (WG.LOCALES) for (const [k, v] of Object.entries(WG.LOCALES)) {
-  if (typeof v?.x === 'number') loose.push(['locale', v.name ?? k, v.x, v.y])
-}
+for (const L of WG.localesOf(g)) loose.push(['locale', L.name, L.x, L.y])
+for (const P of WG.placeSeatsOf(g)) loose.push(['place', P.name ?? P.tag, P.x, P.y])
 for (const [kind, name, x, y] of loose) at(kind, name, x, y, '')
 
 // §7ed: AND THE OPEN COUNTRY, which is most of the island and was the one

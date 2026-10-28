@@ -768,6 +768,35 @@ let _groundTold = null, _groundKinds = null
 // attack. Unlike the surfaces, this one is not ours to retune: `biomeAt` is in
 // the geography hash. A window may read it and nothing else.
 let _biomeTold = null, _biomeKinds = null
+// §7ec-iii: WHICH NAMED PLACE YOU ARE STANDING IN.
+//
+// The strip under the minimap named the town you were in, or failing that the
+// COUNTRY, which is thirty thousand tiles wide. So between the towns a citizen
+// was told "the Heartlands" over and over, and the island's twenty named
+// places went unnamed in the one readout that could have said them.
+//
+// The world's own test, which is why it is point-in-ellipse and why the
+// SMALLEST wins: locales overlap, and the smaller of two is the more precise
+// thing to call where you are standing.
+//
+// This is where a place name belongs rather than on a plaque in a field. A
+// board you can read from across a furlong tells you where you are before you
+// get there; a strip that changes as you walk in tells you when you arrive,
+// which is the whole difference between a map and a journey. And a name you
+// can see is a name you can arrange to meet at, which is the only matchmaking
+// this world has.
+let _localesTold = null
+function localeToldAt(x, y) {
+  if (!_localesTold) return null
+  let best = null, bestArea = Infinity
+  for (const L of _localesTold) {
+    const dx = (x - L.x) / L.rx, dy = (y - L.y) / L.ry
+    if (dx * dx + dy * dy > 1) continue
+    const a = L.rx * L.ry
+    if (a < bestArea) { bestArea = a; best = L }
+  }
+  return best ? best.name : null
+}
 function biomeToldAt(x, y) {
   if (!_biomeTold) return null
   if (x < 0 || y < 0 || x >= W || y >= H) return null
@@ -815,6 +844,7 @@ function takeGroundTold(gd) {
     }
     _biomeTold = bf; _biomeKinds = bk
   }
+  if (Array.isArray(gd.locales) && gd.locales.length) _localesTold = gd.locales
   return true
 }
 let _roadSet = null
@@ -2932,7 +2962,10 @@ function regionNameAt(x, y) {
         return t.name ?? SETTLEMENT_NAMES[i] ?? 'a settlement'
     }
     if (IS_EXPANSE4()) return localeAt4(x, y) ?? REGION_NAMES[biomeAtE4(x, y)] ?? ''
-    if (GEN === 'interval-expanse-v6' || GEN === 'interval-expanse-v7') return REGION_NAMES[biomeAt6(x, y)] ?? ''
+    if (GEN === 'interval-expanse-v6' || GEN === 'interval-expanse-v7') {
+      // the named place first, the country it sits in second
+      return localeToldAt(x, y) ?? REGION_NAMES[biomeAt6(x, y)] ?? ''
+    }
     return REGION_NAMES[biomeAtE(x, y)] ?? ''
   } catch { return '' } // a nameplate must never stop the world drawing
 }
@@ -9191,7 +9224,7 @@ function _onState(s, worldId, local) {
         tag: t.tag, name: t.name ?? (t.tag ? t.tag[0].toUpperCase() + t.tag.slice(1) : ''),
         x: t.x, y: t.y, w: t.w, h: t.h }))
     }
-    _seedNumC = null; _ssE = null; _roadSet = null; _w7 = null; _groundTold = null; _biomeTold = null
+    _seedNumC = null; _ssE = null; _roadSet = null; _w7 = null; _groundTold = null; _biomeTold = null; _localesTold = null
     miniReady = false   // the minimap must redraw for the new world, not keep the old one
     buildGround()
     // THE ROADS COME FROM THE WORLD, NOT A GUESS. Fetch the tiles the founding
