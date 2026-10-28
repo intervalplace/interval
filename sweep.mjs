@@ -71,6 +71,30 @@ if (WG.LOCALES) for (const [k, v] of Object.entries(WG.LOCALES)) {
 }
 for (const [kind, name, x, y] of loose) at(kind, name, x, y, '')
 
+// §7ed: AND THE OPEN COUNTRY, which is most of the island and was the one
+// thing this sweep never photographed. It covered towns, named locales, span
+// sites and one-off works: everything somebody BUILT. But "does the world look
+// generated" is a question about the ground between the towns, and the only
+// pictures of it were whatever happened to fall in the corner of a town shot.
+//
+// Three places in each country, spread far apart, each one taken where that
+// country actually is rather than at a guessed coordinate.
+{
+  const want = ['heartlands', 'greenwood', 'downs', 'moor', 'fens', 'crags', 'wilds']
+  const found = Object.fromEntries(want.map((b) => [b, []]))
+  const far = (list, x, y) => list.every((p) => Math.hypot(p[0] - x, p[1] - y) > 70)
+  for (let y = 12; y < g.worldH - 12; y += 7) {
+    for (let x = 12; x < g.worldW - 12; x += 7) {
+      const b = WG.biomeAt ? WG.biomeAt(g, x, y) : null
+      if (!b || !found[b] || found[b].length >= 3) continue
+      if (WG.isWater(g, x, y)) continue
+      if (!far(found[b], x, y)) continue
+      found[b].push([x, y])
+    }
+  }
+  for (const b of want) for (const [x, y] of found[b]) at('country', b, x, y, '')
+}
+
 // and the things the world stood up that are worth a look of their own
 const ONE_OFF = ['anvil', 'furnace', 'market', 'stall', 'bell', 'span', 'hoard', 'eel-buck', 'grove-plot', 'stamp']
 const byKind = {}

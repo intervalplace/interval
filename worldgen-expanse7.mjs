@@ -4925,6 +4925,92 @@ export function buildWorld(genesis) {
         if (b === 'fens' && (thash(g, x, y, 157) % 23) === 0) tree(x, y, 'willow')
         else if (b === 'moor' && (thash(g, x, y, 163) % 31) === 0) tree(x, y, 'thorn')
       }
+      // §7ed: THE WILDS AND THE MOOR, which are allowed to be empty and were
+      // EMPTY: 29% and 18% of views with nothing in them at all.
+      //
+      // These two should feel barer than the farmed country and they still do:
+      // the clumps are smaller and further apart than the greenwood's, and a
+      // third of the moor and two fifths of the wilds are left with none. The
+      // point is not to furnish them. It is that a citizen crossing the Wilds
+      // should be able to tell they are moving.
+      //
+      // What stands there is what the country leaves behind: dead timber,
+      // burnt timber, bone and raised stone. Nothing here is gatherable.
+      for (let y = 8; y < g.worldH - 8; y += 8) for (let x = 8; x < g.worldW - 8; x += 8) {
+        const b = biomeAt(g, x, y)
+        if (b !== 'wilds' && b !== 'moor') continue
+        const open = thash(g, (x >> 5) << 5, (y >> 5) << 5, 180) % 5
+        if (b === 'wilds' ? open < 2 : open < 1) continue      // the country's own clearings
+        if ((thash(g, x, y, 181) % 2) !== 0) continue
+        const n = 2 + (thash(g, x, y, 182) % 3)
+        for (let i = 0; i < n; i++) {
+          const ox = (thash(g, x + i * 3, y, 183) % 9) - 4
+          const oy = (thash(g, x, y + i * 3, 184) % 9) - 4
+          const r = thash(g, x + i, y + i, 185) % 10
+          tree(x + ox, y + oy, b === 'wilds'
+            ? (r < 5 ? 'dead-tree' : r < 7 ? 'burnt-tree' : r < 9 ? 'bone-pile' : 'cairn')
+            : (r < 6 ? 'thorn' : r < 8 ? 'dead-tree' : 'cairn'))
+        }
+      }
+      // AND A LONE THING NOW AND AGAIN, because clumping alone leaves holes.
+      //
+      // Clumps are what make a country look authored and they are also what
+      // leaves a screen with nothing in it: the first pass of the above put
+      // ninety more things in the Wilds and moved the blank views from 28.9%
+      // to 28.1%, because everything it placed went where things already were.
+      //
+      // So a second layer, very thin, on a JITTERED grid rather than a hash
+      // per tile: one feature every fourteen tiles or so, thrown up to five
+      // tiles off its peg. At that spacing it is two or three things in a
+      // whole screen, which cannot read as a lattice, and it means a citizen
+      // crossing the Wilds always has something to walk past. The clumps
+      // above still do the character; this only ends the empty frame.
+      for (let y = 10; y < g.worldH - 10; y += 14) for (let x = 10; x < g.worldW - 10; x += 14) {
+        const b = biomeAt(g, x, y)
+        if (b !== 'wilds' && b !== 'moor') continue
+        const jx = x + (thash(g, x, y, 190) % 11) - 5
+        const jy = y + (thash(g, x, y, 191) % 11) - 5
+        const r = thash(g, x, y, 192) % 10
+        tree(jx, jy, b === 'wilds'
+          ? (r < 4 ? 'dead-tree' : r < 6 ? 'burnt-tree' : r < 8 ? 'cairn' : 'bone-pile')
+          : (r < 5 ? 'thorn' : r < 8 ? 'dead-tree' : 'standing-stone'))
+      }
+      // §7ed: AND THE GREENWOOD, WHICH HAD NO TREES IN IT.
+      //
+      // Every other country got a landmark tree of its own and the one named
+      // after its woods did not: the crags have pines, the downs wind-thorns,
+      // the fens willows, the moor its thorns, the heartlands hedgerow oaks,
+      // and the greenwood had a rule for nothing at all. What stands there now
+      // is 338 walls, 63 hedges and 57 plots -- village furniture, clustered
+      // in the villages -- and ninety-odd pieces of scenery spread over
+      // thirty-five thousand tiles.
+      //
+      // Measured: ONE VIEW IN FOUR of the greenwood has nothing in it. Not
+      // thin, not scarce: a screen of flat green with no reason to be in it.
+      //
+      // This is scenery and NOT a resource. §6ao took the gatherable groves
+      // out on purpose -- "chopping is at the timber town; these are scenery"
+      // -- because copses full of fellable trees scattered the woodcutters
+      // away from Greenhollow, and that is the Schelling point working. A
+      // landmark tree cannot be felled, so the woods can look like woods
+      // without giving anybody a reason not to walk to the timber town.
+      //
+      // Clumped, in the two gates §7ed asks for: a wood is thickets and
+      // clearings, and a flat chance per tile is neither.
+      for (let y = 8; y < g.worldH - 8; y += 7) for (let x = 8; x < g.worldW - 8; x += 7) {
+        if (biomeAt(g, x, y) !== 'greenwood') continue
+        if ((thash(g, (x >> 5) << 5, (y >> 5) << 5, 170) % 4) === 0) continue  // a clearing
+        if ((thash(g, x, y, 171) % 2) !== 0) continue
+        const n = 3 + (thash(g, x, y, 172) % 5)
+        for (let i = 0; i < n; i++) {
+          const ox = (thash(g, x + i * 3, y, 173) % 9) - 4
+          const oy = (thash(g, x, y + i * 3, 174) % 9) - 4
+          // the wood's own mix: mostly oak, a yew here and there, and the
+          // odd dead one, which is what tells you a wood is old
+          const r = thash(g, x + i, y + i, 175) % 10
+          tree(x + ox, y + oy, r === 0 ? 'dead-tree' : r === 1 ? 'yew' : 'old-oak-lm')
+        }
+      }
 
       // AND THE AVENUE TO HOLLYBARROW. Two lines of oaks either side of the
       // road for forty tiles up to the town -- the one thing on this island
