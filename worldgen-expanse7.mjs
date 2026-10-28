@@ -4883,10 +4883,46 @@ export function buildWorld(genesis) {
       // generated. Hedgerow oaks and fen willows instead: a farmed country is
       // full of trees nobody planted deliberately, in ones and twos along a
       // boundary, and it never reads as a machine's work.
+      // §7ed: ONES AND TWOS, WHICH IS WHAT THE NOTE ABOVE ASKED FOR.
+      //
+      // §7af wanted hedgerow oaks "in ones and twos along a boundary", and
+      // what it wrote was a flat one-in-thirty-seven on EVERY heartlands tile:
+      // the same chance everywhere, which is a uniform sprinkle and the one
+      // thing that cannot read as somebody's work. Measured per 24-tile cell
+      // against every other landmark on the island, the oaks were the most
+      // evenly spread thing in the world: 304 of them touching 29% of all land
+      // cells, where the pines touch 14%, the willows 15% and the wind-thorns
+      // 16%. A wood has thickets and clearings. A sprinkle has neither.
+      //
+      // "Along a boundary" cannot be taken literally: §7u refuses a tree
+      // within two tiles of anything a field is made of, and it is right to,
+      // because these are laid after the sealed-enclosure sweep and a tree
+      // blocks its tile. So the other half of the sentence does the work.
+      // Seed points on a coarse grid, and two to four oaks around each, which
+      // is a clump of hedgerow timber rather than one tree per acre.
+      //
+      // Every placement still goes through `tree()`, so every refusal the
+      // island already makes is unchanged.
+      // TWO GATES, because one is a sprinkle however coarse it is. The
+      // heartlands is a single large country, so seeding it anywhere at any
+      // spacing still touches nearly every acre of it. The first gate asks
+      // whether this PART of the country has hedgerow timber at all -- a third
+      // of it does, which is what leaves open furlongs with none -- and the
+      // second plants a clump where it does.
+      for (let y = 8; y < g.worldH - 8; y += 9) for (let x = 8; x < g.worldW - 8; x += 9) {
+        if (biomeAt(g, x, y) !== 'heartlands') continue
+        if ((thash(g, (x >> 5) << 5, (y >> 5) << 5, 150) % 3) !== 0) continue
+        if ((thash(g, x, y, 151) % 3) !== 0) continue
+        const n = 2 + (thash(g, x, y, 152) % 3)
+        for (let i = 0; i < n; i++) {
+          const ox = (thash(g, x + i * 3, y, 153) % 9) - 4
+          const oy = (thash(g, x, y + i * 3, 154) % 9) - 4
+          tree(x + ox, y + oy, 'old-oak-lm')
+        }
+      }
       for (let y = 6; y < g.worldH - 6; y += 2) for (let x = 6; x < g.worldW - 6; x += 2) {
         const b = biomeAt(g, x, y)
-        if (b === 'heartlands' && (thash(g, x, y, 151) % 37) === 0) tree(x, y, 'old-oak-lm')
-        else if (b === 'fens' && (thash(g, x, y, 157) % 23) === 0) tree(x, y, 'willow')
+        if (b === 'fens' && (thash(g, x, y, 157) % 23) === 0) tree(x, y, 'willow')
         else if (b === 'moor' && (thash(g, x, y, 163) % 31) === 0) tree(x, y, 'thorn')
       }
 

@@ -106,7 +106,7 @@ const BEFORE_TPL = `<script>
   window.WebSocket = class { constructor () { this.readyState = 1; this.binaryType = ''
     window.__socks.push(this); setTimeout(() => this.onopen && this.onopen(), 0) }
     send () {} close () {} addEventListener () {} }
-  // §7g: THE SWEEP IS THE PILLAR, for the three things a window is TOLD.
+  // §7ec: THE SWEEP IS THE PILLAR, for the three things a window is TOLD.
   //
   // Refusing every fetch meant the sweep photographed the window's fallback:
   // derived town seats (which drift, and did, by four tiles at Millbrook),

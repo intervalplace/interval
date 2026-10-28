@@ -1247,7 +1247,7 @@ const server = http.createServer((req, res) => {
       }
       return json(_settleCache)
     }
-    // §7g: THE GROUND, TOLD RATHER THAN GUESSED.
+    // §7ec: THE GROUND, TOLD RATHER THAN GUESSED.
     //
     // Every window carries its own copy of the island's surfaces, and every
     // copy had drifted: measured tile by tile against the generator, the flat

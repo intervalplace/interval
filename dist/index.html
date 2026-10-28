@@ -746,7 +746,7 @@ function settlementsE() {
   ]
 }
 const ssE = () => (_ssE ??= settlementsE())
-// §7g: THE GROUND THE WORLD NAMES, TOLD RATHER THAN DERIVED.
+// §7ec: THE GROUND THE WORLD NAMES, TOLD RATHER THAN DERIVED.
 //
 // This window carried its own idea of every surface on the island and it was
 // wrong in fifteen thousand places: no floor anywhere, no chalk on the Downs,
@@ -1638,7 +1638,7 @@ const PLAN_ROOMS6_W = {"anchor":[[19,3,14,6],[4,4,5,3],[12,4,4,3],[37,4,5,4],[4,
 // fountain; v7 added the villages. Older foundings keep the frozen tables and
 // are bit-for-bit unmoved -- the same courtesy layPlan gives its legend.
 const IS_V67 = () => GEN === 'interval-expanse-v6' || GEN === 'interval-expanse-v7'
-// §7g: AND IT FELL BACK TO ITSELF. `planFor` ended `?? planFor(tag)`, so any
+// §7ec: AND IT FELL BACK TO ITSELF. `planFor` ended `?? planFor(tag)`, so any
 // world before v6, and any tag the v6 table does not carry, recursed until the
 // stack gave out. It has never fired because every live world is v6 or v7 and
 // every caller passes a tag the table has; it is one unlucky founding from a
@@ -2756,7 +2756,7 @@ function terrainOfE6(x, y) {
     }
     return 'river'
   }
-  // §7g: THE GROUND THE WORLD ACTUALLY LAYS.
+  // §7ec: THE GROUND THE WORLD ACTUALLY LAYS.
   //
   // Measured against the generator, tile by tile over all 458,752 of them:
   // this window drew different ground from the one a citizen walks on in
@@ -10083,7 +10083,7 @@ function terrainOfClassic(x, y) {
   if (hazardClosenessC(x, y) > 0.55) return 'scree' // the ground turns before the mob does (spec 2j)
   return 'meadow'
 }
-// §7g: THE GROUND WAS A CHESSBOARD, AND THAT IS WHY IT LOOKED GENERATED.
+// §7ec: THE GROUND WAS A CHESSBOARD, AND THAT IS WHY IT LOOKED GENERATED.
 //
 // Every tile picked its shade from a hash of its OWN coordinates. A hash of
 // one tile tells you nothing about the tile beside it, so each square landed
@@ -10207,7 +10207,7 @@ function paintGroundTile(g, x, y) {
   const h2 = (x, y, k) => (tileHash(x, y, k) % 1024) / 1024
   const isEdge = (x, y) => x === 0 || y === 0 || x === W - 1 || y === H - 1
     g.fillStyle = tileShade(x, y); g.fillRect(px(x), py(y), TILE, TILE)
-    // §7g: THE EDGE IS DRAWN WHERE THE GROUND CHANGES, AND NOWHERE ELSE.
+    // §7ec: THE EDGE IS DRAWN WHERE THE GROUND CHANGES, AND NOWHERE ELSE.
     //
     // This drew a shade down two sides of EVERY tile and called it "soft depth
     // instead of a hard grid". It is a hard grid: forty pixels apart, over the
@@ -10257,7 +10257,7 @@ function paintGroundTile(g, x, y) {
           g.beginPath(); g.moveTo(bx3, by3 + 3); g.lineTo(bx3 + 1, by3); g.stroke()
         }
       } else if (t3 === 'cobble' || t3 === 'plaza') {
-        // §7g: NOT ONE PER TILE. Every paved tile on the island carried
+        // §7ec: NOT ONE PER TILE. Every paved tile on the island carried
         // exactly one crescent. The position was hashed, so no two were in
         // the same place, and it made no difference whatever: one mark per
         // forty pixels, everywhere, is a lattice, and a square in Oxenford
@@ -10282,10 +10282,10 @@ function paintGroundTile(g, x, y) {
             py(y) + 6 + tileHash(x, y, 26 + m4 * 2) % 26, 2.4, 1.8)
       }
     }
-    // §7g: and the SECOND bevel, which drew the same grid again a few lines
+    // §7ec: and the SECOND bevel, which drew the same grid again a few lines
     // further down. Between them every tile on the island was boxed top and
     // bottom twice over. It goes where a step is, like the other one.
-    // §7g: A YARD DOES NOT END ON A RULED LINE.
+    // §7ec: A YARD DOES NOT END ON A RULED LINE.
     //
     // Terrain is per tile and nothing crossed the join, so where Oxenford's
     // paving met the grass the boundary ran dead straight across the whole

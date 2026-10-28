@@ -1,4 +1,4 @@
-// §7g: DOES THE WINDOW'S GROUND AGREE WITH THE WORLD'S.
+// §7ec: DOES THE WINDOW'S GROUND AGREE WITH THE WORLD'S.
 //
 // `terrain-mirror.mjs` is the window's copy of the island, because a browser
 // cannot import the generator. The copy has never been compared to the thing

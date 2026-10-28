@@ -1596,7 +1596,7 @@ test('the landmark fallback names what it could not draw', () => {
     'undrawnKind is not called from the fallback arm of the landmark chain')
 })
 
-// §7g: THE WINDOW'S GROUND IS THE WORLD'S GROUND.
+// §7ec: THE WINDOW'S GROUND IS THE WORLD'S GROUND.
 //
 // Every window carries a copy of the island's surfaces, because a browser
 // cannot import a nine-thousand-line generator that imports the engine. The

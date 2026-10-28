@@ -14,7 +14,7 @@
 // served beside it and resolves. `window-diablo.html`'s inlined copy needs the
 // tables pasted in, and its copy is already not byte-for-byte.
 import { WATERS, BECKS, BECK_FORDS, SHAPE_K } from './worldgen-water-v7.mjs'
-// §7g: AND THE BUILDINGS, for the same reason and on the same precedent.
+// §7ec: AND THE BUILDINGS, for the same reason and on the same precedent.
 //
 // There was not ONE floor tile drawn anywhere on this island. The world lays
 // `floor` inside every room of every town and village -- 2,190 tiles of it --
@@ -86,7 +86,7 @@ let GEN = 'interval-classic-v1', GSEED = ''
 // guessing. The tables below remain for the moments before the world has
 // announced itself.
 let GIVEN_SS = null
-// §7g: AND THE GROUND ITSELF, told rather than derived. Same argument as the
+// §7ec: AND THE GROUND ITSELF, told rather than derived. Same argument as the
 // settlements above, applied to every surface: this file's copy was wrong on
 // fifteen thousand tiles, and a copy that is corrected is a copy that will
 // drift again. `/api/ground` is 13KB gzipped for the whole island.
@@ -2094,7 +2094,7 @@ function terrainOfE6(x, y) {
     if (pl && isIndoor7(t2.tag, pl.rx, pl.ry)) return 'floor'
     return 'cobble'
   }
-  // §7g: THE ROAD TAKES ITS COUNTRY'S COLOUR, AND THE SHORE IS A SHORE.
+  // §7ec: THE ROAD TAKES ITS COUNTRY'S COLOUR, AND THE SHORE IS A SHORE.
   //
   // This path answered `trail` for every road on the island and gave the
   // shores nothing at all, while the world lays chalk through the Downs, peat

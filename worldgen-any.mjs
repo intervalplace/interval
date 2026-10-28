@@ -91,7 +91,7 @@ export const generatorIds = () => Object.keys(GENERATORS)
 //
 // Returned: { tiles: ["x,y", ...] all road tiles; bridges: ["x,y", ...] the
 // subset that crosses water; bends: [{x,y}] where a road turns (for waymarks) }.
-// §7g: THE GROUND ACCESSOR, so the pillar can tell a window what the world
+// §7ec: THE GROUND ACCESSOR, so the pillar can tell a window what the world
 // says the surface is rather than leaving every window to re-derive it. Every
 // window that re-derived it got it wrong: fifteen thousand tiles in the flat
 // one, and not one floor tile drawn anywhere on the island.

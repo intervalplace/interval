@@ -16930,6 +16930,57 @@ free sides, in and out, which is why it passed.
 
 §7g: THE ALTAR. Three quick-stones become a sigil here and nowhere else.
 
+## 7ec. A window is told the ground, it does not guess it
+
+**The surfaces of the island are served, not re-derived.** `groundKindAt` is
+the world's answer to what a tile is made of, and a window asks the pillar for
+it rather than keeping a copy of the rule.
+
+A browser cannot import the generator, so for a long time every window carried
+a hand copy of the island's surfaces. Every copy drifted. Measured tile by
+tile, the flat window drew different ground from the one a citizen walks on in
+fifteen thousand places: not one floor tile anywhere, so every house in every
+town stood on grass, and no chalk on the Downs, no peat on the Moor, no causey
+over the fen and no beaches.
+
+**The cure is not a better copy.** `/api/settlements` and `/api/roads` already
+existed because the same thing had happened to the town seats and the road
+network. `/api/ground` completes the set: every tile the world names, run
+length encoded by row, thirteen kilobytes for the island, fetched once.
+
+A window with no pillar falls back to deriving, and what it derives may be
+wrong. That is the right failure: it is offline, and it says so.
+
+**Surfaces are free to change.** `groundKindAt` is not in the geography hash;
+`blockedAt` and `biomeAt` are. What a tile is CALLED may be retuned after a
+founding. What a tile DOES may not.
+
+## 7ed. Vegetation grows in clumps, never in a sprinkle
+
+**Scenery is placed in ones and twos with open ground between, never at a flat
+chance per tile.** A uniform probability over a whole country puts the same
+number of the same thing on every acre, and that is the one pattern that
+cannot read as somebody's work: no thickets, no clearings, nothing to walk
+toward and nothing to come out of.
+
+The hedgerow oaks were written to stand "in ones and twos along a boundary"
+and were implemented as one chance in thirty-seven on every heartlands tile.
+Measured per cell against the rest of the island, they were the most evenly
+spread thing in the world: three hundred of them touching twenty-nine per cent
+of all land, where the pines touch fourteen, the willows fifteen and the wind
+thorns sixteen.
+
+**Two gates, not one.** The first asks whether this PART of the country has
+such timber at all; the second plants a clump where it does. One gate however
+coarse is still a sprinkle, because a single large country seeded anywhere at
+any spacing still touches nearly every acre of it.
+
+**Along a boundary is not available and does not need to be.** A landmark tree
+blocks its tile and these are laid after the sealed-enclosure sweep, so §7u
+refuses one within two tiles of anything a field is made of, and is right to.
+The clumping is what the eye reads; the boundary was never the part that
+mattered.
+
 ## 7h. Who Lives Here
 
 > **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:4470` by `spec-stubs.mjs`.
