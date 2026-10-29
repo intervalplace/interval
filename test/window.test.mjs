@@ -2110,3 +2110,77 @@ test('a health bar follows the last wound, not the wound itself', () => {
   assert.ok(!/o\.hp < o\.maxHp \|\| o\.anim/.test(win),
     'the old while-wounded rule is still in the citizen draw')
 })
+
+// §7ek: THE FRAME LOOP MUST NOT BE KILLABLE.
+//
+// `drawScene` was guarded and everything around it was not: `fitCanvas`, the
+// frame meter, and the re-scheduling itself. A throw in any of them ended the
+// loop for the session -- no next frame, no error bar, nothing to tap, and
+// the last complete picture left on the screen for ever.
+//
+// That is the worst failure this window has, because it does not look like a
+// window fault. It looks like the WORLD stopped, so it gets reported as the
+// world freezing and the window is not suspected.
+test('a throw anywhere in the frame cannot stop the loop', () => {
+  const at = win.indexOf('requestAnimationFrame(function frame(now)')
+  assert.ok(at > 0, 'the frame loop has moved')
+  const body = win.slice(at, win.indexOf('\nlet panelSig', at))
+  // the next frame is asked for in a finally, so nothing can skip it
+  assert.match(body, /\}\s*finally\s*\{\s*requestAnimationFrame\(frame\)\s*\}/,
+    'the next frame must be requested in a finally, or a throw ends the loop')
+  // and only there: a bare re-schedule outside the finally is the old shape
+  const asks = [...body.matchAll(/requestAnimationFrame\(frame\)/g)].length
+  assert.equal(asks, 1,
+    `the loop asks for the next frame ${asks} times; one of them is outside `
+    + 'the finally and can be skipped')
+  assert.match(body, /catch \(err\) \{\s*_noteFrameErr/,
+    'a throw in the frame must be reported, not swallowed')
+  // fitCanvas is the one that was outside and is the likeliest to throw on a
+  // phone, where the URL bar collapsing resizes the viewport mid-scroll
+  const tryAt = body.indexOf('try {'), fitAt = body.indexOf('fitCanvas()')
+  assert.ok(tryAt >= 0 && fitAt > tryAt, 'fitCanvas must be inside the try')
+})
+
+// §7ek: THE CANVAS STATE STACK MUST BALANCE ON EVERY PATH OUT.
+//
+// The flinch wrapper did `cx.save()` at the top of the creature closure and
+// `cx.restore()` at the bottom, and all twenty-three creature branches end in
+// `return` -- so the restore was never reached. One leaked canvas state per
+// creature per frame: with a flock in view at sixty frames a second that is
+// thousands of unbalanced saves a second, until the context stops drawing and
+// the window freezes on its last good picture.
+//
+// It froze a real session on a phone. It needed creatures nearby and a little
+// time, so a sweep past empty ground never reached it.
+//
+// This walks the closure and counts: every `return` must leave as many saves
+// as it found. A `finally` satisfies it; a restore at the bottom does not.
+test('every way out of the creature draw leaves the canvas balanced', () => {
+  const at = win.indexOf('layer.push({ z: Z(miy, 3), draw: () => {')
+  assert.ok(at > 0, 'the creature closure has moved')
+  let d = 0, end = at
+  for (let i = win.indexOf('{', at); i < win.length; i++) {
+    if (win[i] === '{') d++
+    else if (win[i] === '}') { d--; if (!d) { end = i; break } }
+  }
+  const body = win.slice(at, end)
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .split('\n').map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n')
+  // a save that is answered by a `finally` is safe whatever returns below it
+  const guarded = /cx\.save\(\)[\s\S]*?try \{[\s\S]*?\} finally \{ cx\.restore\(\) \}/.test(body)
+  // count the stack as it stands at each return
+  let depth = 0
+  const unbalanced = []
+  const tok = /cx\.save\(\)|cx\.restore\(\)|\breturn\b|\} finally \{ cx\.restore\(\) \}/g
+  for (const m of body.matchAll(tok)) {
+    if (m[0].includes('finally')) { depth--; continue }
+    if (m[0] === 'cx.save()') depth++
+    else if (m[0] === 'cx.restore()') depth--
+    else if (depth > 0 && !guarded) unbalanced.push(body.slice(0, m.index).split('\n').length)
+  }
+  assert.ok(guarded,
+    'the creature wrapper saves the canvas and restores it at the bottom of a '
+    + 'closure that twenty-three branches `return` out of. The restore is never '
+    + 'reached and the state stack grows until the window freezes. Use a finally.')
+  assert.deepEqual(unbalanced, [])
+})

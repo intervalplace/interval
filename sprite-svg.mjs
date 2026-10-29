@@ -449,10 +449,22 @@ export const spriteDataUri = (word, opts) => {
 // quietly came out as a goblin is the fault this file exists to avoid.
 const beastChain = (file) => {
   const W = readFileSync(file, 'utf8')
-  const a = W.indexOf("      if (m.type === 'dragon') {")
-  if (a < 0) throw new Error('sprite-svg: the creature chain no longer starts at the dragon')
-  const b = W.indexOf('\n    }})', a)
-  if (b < 0) throw new Error('sprite-svg: cannot find the end of the creature chain')
+  // BY MARKERS, NOT BY GUESSING AT PUNCTUATION.
+  //
+  // This found the chain's start by assuming the dragon came first and its end
+  // by looking for the closure's closing `}})`. Both are incidental: the day a
+  // try/finally was wrapped round the chain -- to stop a canvas state leaking
+  // on every one of the twenty-three branches that `return` -- the end marker
+  // moved inside the slice and the lifted code carried a `finally` with no
+  // `try`. The handbook broke, not the window, which is the wrong end to find
+  // out from.
+  const A = '// ---- CREATURE CHAIN BEGINS ----'
+  const B = '// ---- CREATURE CHAIN ENDS ----'
+  let a = W.indexOf(A)
+  if (a < 0) throw new Error('sprite-svg: window-web.html has no ' + A)
+  a = W.indexOf('\n', W.indexOf('\n', a) + 1) + 1   // past the marker's two comment lines
+  const b = W.indexOf(B, a)
+  if (b < 0) throw new Error('sprite-svg: window-web.html has no ' + B)
   const pa = W.indexOf('function poly(pts, fill, stroke) {')
   if (pa < 0) throw new Error('sprite-svg: window-web.html no longer has poly()')
   // THE WINDOW'S OWN STATS, not the engine's. The window keeps a copy of

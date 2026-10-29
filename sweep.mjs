@@ -110,7 +110,13 @@ for (const [kind, name, x, y] of loose) at(kind, name, x, y, '')
 }
 
 // and the things the world stood up that are worth a look of their own
-const ONE_OFF = ['anvil', 'furnace', 'market', 'stall', 'bell', 'span', 'hoard', 'eel-buck', 'grove-plot', 'stamp']
+// §7eg: AND THE THINGS THE WINDOW ONLY LEARNED TO DRAW THIS WEEK. Six of
+// these answered a click and drew nothing until two days ago, four of them
+// the only one of themselves in the world, and the sweep had never stood in
+// front of any of them. A window that has just been taught a word should be
+// photographed saying it.
+const ONE_OFF = ['anvil', 'furnace', 'market', 'stall', 'bell', 'span', 'hoard', 'eel-buck', 'grove-plot', 'stamp',
+  'rockfall', 'tollgate', 'altar', 'sawpit', 'looking-glass', 'hearth', 'bellwork']
 const byKind = {}
 for (const n of Object.values(world.nodes)) (byKind[n.type] ??= []).push(n)
 for (const kind of ONE_OFF) {
@@ -121,6 +127,7 @@ for (const kind of ONE_OFF) {
   }
 }
 
+const WALKN = (() => { const i = process.argv.indexOf('--walk'); return i > 0 ? Number(process.argv[i + 1]) || 40 : 0 })()
 const only = arg('--only')
 const plan = only ? shots.filter((s) => s.place === only || s.name.toLowerCase().includes(only.toLowerCase())) : shots
 
@@ -177,6 +184,7 @@ const AFTER = (plan, state, myId) => `<script>
   const SHOTS = ${JSON.stringify(plan)}
   const STATE = ${JSON.stringify(state)}
   const ME = ${JSON.stringify(myId)}
+  const WALKN = ${JSON.stringify(WALKN)}
   ;(async () => {
     const say = (t) => { document.title = t }
     try {
@@ -197,7 +205,26 @@ const AFTER = (plan, state, myId) => `<script>
       if (!cv) { say('SWEEPFAIL no canvas called world'); return }
       const settle = (ms) => new Promise((r) => setTimeout(r, ms))
       const out = []
-      for (const sh of SHOTS) {
+      // --walk N: a step a tick, the way a citizen actually moves, asking the
+      // window after every one whether it could still draw. A sweep teleports
+      // and a player walks, and the fault we are chasing only shows after a
+      // few steps.
+      if (WALKN) {
+        const meW = STATE.players[ME]
+        const x0 = meW.x, y0 = meW.y
+        for (let i = 0; i < WALKN; i++) {
+          meW.x = x0 + (i % 9) - 4
+          meW.y = y0 + Math.floor(i / 9)
+          STATE.tick = 600 + i
+          feedOne({ type: 'state', state: JSON.parse(JSON.stringify(STATE)), worldId: 'sweep' })
+          await settle(120)
+          const eb = document.getElementById('frameerr')
+          if (eb) { say('SWEEPFAIL step ' + i + ' at ' + meW.x + ',' + meW.y + ': '
+            + eb.textContent.replace(/\\s+/g, ' ').slice(0, 240)); return }
+        }
+        out.push(cv.toDataURL('image/png'))
+      }
+      if (!WALKN) for (const sh of SHOTS) {
         STATE.players[ME].x = sh.x
         STATE.players[ME].y = sh.y
         // NOON, AND NOT THE TICK THE WORLD WAS BORN ON. A world starts at

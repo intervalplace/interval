@@ -14415,8 +14415,25 @@ function drawScene(now) {
       // wobble.
       const _mlun = Math.max(0, 1 - (now - (mobStruck[id] ?? -9999)) / 260)
       const _lunge = Math.sin(_mlun * Math.PI) * 6
+      // TRY/FINALLY, AND THIS IS NOT BELT AND BRACES.
+      //
+      // Every one of the twenty-three creature branches below ends in
+      // `return`, which leaves this closure -- so a cx.restore() written at
+      // the bottom is NEVER REACHED. The first version of this wrapper did
+      // exactly that and leaked one canvas state per creature per frame:
+      // with a flock in view at sixty frames a second that is thousands of
+      // unbalanced saves a second, until the context stops drawing and the
+      // window freezes on its last good picture.
+      //
+      // It took a walk on a phone to find. It needs creatures nearby and a
+      // little time, so a sweep past empty ground never reached it -- and
+      // no test did either, because every test in this file reads the
+      // source and none of them runs it.
+      //
+      // A finally runs on the way out of a return. That is the whole fix.
       cx.save()
       cx.translate(-MF * _mhurt * 7 + MF * _lunge + (engaged ? MF * 2 : 0), _mhurt * 2.5)
+      try {
 
       const X = px(mix), Y = py(miy)
       // §6aa: A SWING THAT MISSES IS STILL A SWING.
@@ -14519,6 +14536,8 @@ function drawScene(now) {
       const hop = engaged ? Math.abs(Math.sin(now / 160)) * 2 : Math.sin(now / 700 + m.x) * 0.7
       shadow(X, Y, 9)
       if ((m.rootedUntil ?? 0) > s.tick) rootBind(X, Y)
+      // ---- CREATURE CHAIN BEGINS ---- (sprite-svg.mjs lifts to the END
+      // marker to draw the handbook's bestiary; keep both markers in place)
       if (m.type === 'dragon') {
         // IT IS BIGGER THAN ITS TILE, and it should be. Everything else in
         // this world fits inside forty pixels; the one thing that kills a
@@ -15524,7 +15543,8 @@ function drawScene(now) {
           cx.fillStyle = '#c0392b'; cx.fillRect(X + 13, Y + 4, 14 * (m.hp / 5), 3)
         cx.restore()
       }
-      cx.restore()
+      // ---- CREATURE CHAIN ENDS ----
+      } finally { cx.restore() }
 
     }})
   }
@@ -16322,16 +16342,41 @@ function drawScene(now) {
   cx.fillText('world ' + curWorldId.slice(0, 12) + '\u2026' + ', tick ' + s.tick + ', ' + phase + ', ' + BUILD + meterText, 6, cv.height - 6)
 }
 fitCanvas()
+// §7ek: THE LOOP MUST NOT BE KILLABLE.
+//
+// `drawScene` was guarded and everything around it was not: `fitCanvas`, the
+// frame meter, and the re-scheduling itself all sat outside. A throw in any
+// of them ended the loop for the session -- no next frame, no error bar,
+// nothing to tap, the last complete picture left on the screen for ever. The
+// window's whole failure story is "one bad frame should not kill a session",
+// and the three lines that could kill one were the three that were not
+// covered.
+//
+// A frozen window is also the hardest fault to report: it looks like the
+// world stopped rather than like the window did, so it gets described as the
+// world freezing and the window is not suspected.
+//
+// Everything in the frame is guarded now, and the next frame is asked for in
+// a `finally`, so the loop survives any throw anywhere in it. The worst case
+// is a skipped frame that SAYS it was skipped.
 requestAnimationFrame(function frame(now) {
-  if (document.hidden) { requestAnimationFrame(frame); return }
-  // cheap: it returns immediately unless the window or the device ratio moved
-  fitCanvas()
-  if (lastFrameAt) worstFrame = Math.max(worstFrame, now - lastFrameAt)
-  lastFrameAt = now
-  if (now - meterAt > 2000) { // meter: worst frame gap + broadcast jitter, 2s window
-    meterText = ', frame ' + Math.round(worstFrame) + 'ms, jit \u00b1' + Math.round(worstJitter) + 'ms'
-    worstFrame = 0; worstJitter = 0; meterAt = now
-  } _guarded('the world view', () => drawScene(now)); requestAnimationFrame(frame) })
+  try {
+    if (document.hidden) return
+    // cheap: it returns immediately unless the window or the device ratio moved
+    fitCanvas()
+    if (lastFrameAt) worstFrame = Math.max(worstFrame, now - lastFrameAt)
+    lastFrameAt = now
+    if (now - meterAt > 2000) { // meter: worst frame gap + broadcast jitter, 2s window
+      meterText = ', frame ' + Math.round(worstFrame) + 'ms, jit \u00b1' + Math.round(worstJitter) + 'ms'
+      worstFrame = 0; worstJitter = 0; meterAt = now
+    }
+    _guarded('the world view', () => drawScene(now))
+  } catch (err) {
+    _noteFrameErr('the frame', err)
+  } finally {
+    requestAnimationFrame(frame)
+  }
+})
 
 let panelSig = ''
 function panel(s) {
