@@ -53,7 +53,7 @@
   "protocol": {
     "specVersion": "1.05",
     "consensusVersion": "1.10",
-    "rulesHash": "d0ad3f77aecd8c9f"
+    "rulesHash": "05185ac400f37d43"
   },
   "engines": {
     "node": ">=22.5.0"

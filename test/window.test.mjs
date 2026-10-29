@@ -1913,3 +1913,64 @@ test('every thing the press handler answers can be right-clicked for a menu', ()
     'the right button lands on these and the window offers nothing: they neither '
     + 'build a list nor have a word in ONE_ACTION:\n  ' + [...new Set(missing)].join('\n  '))
 })
+
+// §7ej: NOTHING IN THE WORLD REACTED TO BEING HIT.
+//
+// A struck citizen recoils -- `drawCitizen` throws the body back along its
+// facing over 320ms and has done for a long time. Nothing else did, because
+// the comparison that notices a blow was only ever made over `s.players`.
+// You could hit a wolf and the wolf did not move; the health bar was the one
+// thing that said the blow landed, and until this week that bar was always
+// on, so a fight read as two figures standing in a field while an arithmetic
+// went on somewhere else.
+//
+// The same two lines over `s.mobs`, and the recoil applied ONCE around the
+// creature chain rather than in twenty-two drawings, because anything written
+// per-creature is forgotten on the twenty-third.
+test('a creature shows it when it is struck', () => {
+  assert.match(win, /const mobHit = \{\}/, 'nothing records when a creature was hit')
+  assert.match(win, /if \(o && s\.mobs\[mid\]\.hp < o\.hp\) mobHit\[mid\] = performance\.now\(\)/,
+    'the hp drop that marks a blow is not watched for creatures')
+  // and the draw reads it, with the citizen's own 320ms
+  assert.match(win, /const _mhurt = Math\.max\(0, 1 - \(now - \(mobHit\[id\] \?\? -9999\)\) \/ 320\)/,
+    'the creature draw no longer reads the blow')
+  assert.match(win, /cx\.translate\(-MF \* _mhurt \* 7/,
+    'a struck creature must be thrown back, the way a struck citizen is')
+  // AND THE OTHER HALF: one that flinches but never strikes is being beaten
+  // rather than fought, with all the motion on the citizen's side.
+  assert.match(win, /const mobStruck = \{\}/, 'nothing records a blow a creature LANDS')
+  assert.match(win, /if \(s\.mobs\[mid\]\.mad === pid\) mobStruck\[mid\] = performance\.now\(\)/,
+    'a lunge must belong to the beast that is coming for THAT citizen, not to '
+    + 'every beast standing near somebody who took a wound')
+  assert.match(win, /MF \* _lunge/, 'the lunge goes toward what it is fighting')
+})
+
+// §7ej: AND EVERY CREATURE MOVES BETWEEN TICKS, which is this window's job.
+//
+// Four of them animated off `world.tick` -- a crow flapping once a second is
+// not flight, it is a shrug; a hanged body twitching once a second is not a
+// sway. Three more had no motion written at all: a boar, a goat and an adder
+// standing perfectly still in the open country.
+//
+// The DUMMY is the one exception and is named here. It is a pell on a post:
+// standing still is what it does, and it flinches when struck like everything
+// else now.
+test('every creature moves between ticks', () => {
+  const at = win.indexOf('const hop = engaged ?')
+  assert.ok(at > 0, 'the creature chain no longer starts where this expects')
+  const lines = win.slice(at).split('\n')
+  const still = []
+  for (let i = 0; i < lines.length && i < 1700; i++) {
+    const m = /if \(m\.type === '([a-z-]+)'\) \{/.exec(lines[i])
+    if (!m) continue
+    const ind = lines[i].search(/\S/)
+    let j = i + 1
+    while (j < lines.length && !(lines[j].trim() === '}' && lines[j].search(/\S/) === ind)) j++
+    const body = lines.slice(i, j).join('\n')
+    // `now` is the frame clock; `hop` is the shared bob built from it
+    if (!/now \/|\bhop\b/.test(body)) still.push(m[1])
+    i = j
+  }
+  assert.deepEqual(still, ['dummy'],
+    'these creatures stand perfectly still, for ever:\n  ' + still.join('\n  '))
+})

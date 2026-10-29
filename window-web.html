@@ -7636,6 +7636,8 @@ let statePeriod = TICK_MS  // measured broadcast rhythm: states are never exactl
 let tickOffset = null  // wall-clock anchor of tick 0 (smoothed)
 let worstFrame = 0, lastFrameAt = 0, worstJitter = 0, meterAt = 0, meterText = ''
 const hitFlash = {}   // pid -> ms timestamp of last damage taken
+const mobHit = {}     // §7ej: and the same for everything the world sends at you
+const mobStruck = {}  // §7ej: mobId -> ms of the last blow it LANDED
 let celebrate = null  // { text, at }: level-up banner + sparks
 let announceShow = null, announceQueue = [], _lastAnnounceTick = null // global milestone cries
 const bubbles = {}    // pid -> { text, at } speech bubbles
@@ -9341,6 +9343,34 @@ function _onState(s, worldId, local) {
   if (prevState) for (const pid in s.players) {
     const o = prevState.players[pid]
     if (o && s.players[pid].hp < o.hp) hitFlash[pid] = performance.now()
+  }
+  // §7ej: AND SO DOES EVERYTHING ELSE. A citizen struck recoils -- 320ms,
+  // `drawCitizen` has done it for a long time -- and nothing in the world
+  // did, because this comparison was only ever made for PLAYERS. You could
+  // hit a wolf and the wolf did not move. The number on its health bar was
+  // the only thing that said the blow had landed, and until tonight that bar
+  // was always on, so a fight read as two figures standing in a field while
+  // an arithmetic went on somewhere else.
+  //
+  // The same two lines, over `s.mobs`. The engine already sends what is
+  // needed; nothing new goes on the wire.
+  if (prevState) for (const mid in s.mobs) {
+    const o = prevState.mobs?.[mid]
+    if (o && s.mobs[mid].hp < o.hp) mobHit[mid] = performance.now()
+  }
+  // §7ej: AND WHEN ONE LANDS A BLOW, which is the other half. A creature that
+  // flinches but never strikes is being beaten rather than fought: all the
+  // motion in an exchange belonged to the citizen.
+  //
+  // Nothing on the wire says "this beast hit you". What the window has is a
+  // citizen whose health just fell and a beast that is angry at them by name,
+  // which is the same two facts the engine used to decide it. A beast that is
+  // merely NEARBY when somebody takes a wound does not lunge: `mad` is the id
+  // of whoever it is coming for, so it has to be coming for THIS citizen.
+  if (prevState) for (const pid in s.players) {
+    const o = prevState.players[pid]
+    if (!o || s.players[pid].hp >= o.hp) continue
+    for (const mid in s.mobs) if (s.mobs[mid].mad === pid) mobStruck[mid] = performance.now()
   }
   const me = s.players[myId]
   // §0f: THE MOVE LOCK MUST BE RELEASED EVEN AT THE GATE.
@@ -14232,6 +14262,45 @@ function drawScene(now) {
       cx.beginPath(); cx.arc(X + 16, Y + 14, 10 + ph9 * 8, 0, 7); cx.stroke()
     } })
     layer.push({ z: Z(miy, 3), draw: () => {
+      // §7ej: EVERY CREATURE FLINCHES, AND EVERY CREATURE LEANS INTO A FIGHT.
+      //
+      // Done HERE, once, rather than in twenty-three drawings. The creature
+      // chain below is a long if/else on `m.type` and each branch positions
+      // its own art, so anything written per-creature gets written twenty-three
+      // times, is forgotten on the twenty-fourth, and the twenty-fourth is the
+      // one somebody adds next year.
+      //
+      // THE RECOIL is the citizen's own, read off the same clock: 320ms,
+      // easing out, away from whoever landed the blow. `drawCitizen` has done
+      // this for a long time and the world never did, so a fight looked like
+      // two figures standing still while an arithmetic happened elsewhere.
+      //
+      // THE LEAN is two pixels toward what it is fighting. Not a lunge and
+      // not an attack animation: those belong to each creature and some of
+      // them have one. This is the thing all of them can honestly do, which
+      // is to be facing INTO the fight rather than standing in it.
+      // THE SAME DISPLACEMENT A STRUCK CITIZEN TAKES, read off the same clock
+      // and the same curve: thrown back along its own facing and dropped a
+      // little, over 320ms. `drawCitizen` does `X -= face * recoil * 7` and
+      // `Y += recoil * 2.5`, so this is that, as a transform, because a
+      // creature's art is not drawn from an X the wrapper can edit.
+      //
+      // NO FLASH. The first attempt painted a tinted rectangle through
+      // `source-atop` to light the creature up under the blow, and that is
+      // wrong here: source-atop paints wherever the canvas is already opaque,
+      // the GROUND is already opaque, and the result is a pale square lying
+      // on the grass. The citizen has no flash either. A thing that is thrown
+      // back has visibly been hit.
+      const _mhurt = Math.max(0, 1 - (now - (mobHit[id] ?? -9999)) / 320)
+      // THE LUNGE: forward over 260ms, out fast and back slower, which is the
+      // shape of a blow rather than a bob. Shorter than the recoil on purpose,
+      // so an exchange reads as two separate things happening and not one
+      // wobble.
+      const _mlun = Math.max(0, 1 - (now - (mobStruck[id] ?? -9999)) / 260)
+      const _lunge = Math.sin(_mlun * Math.PI) * 6
+      cx.save()
+      cx.translate(-MF * _mhurt * 7 + MF * _lunge + (engaged ? MF * 2 : 0), _mhurt * 2.5)
+
       const X = px(mix), Y = py(miy)
       const engaged = meP?.action?.mobId === id
       // §6aa: A SWING THAT MISSES IS STILL A SWING.
@@ -14656,13 +14725,24 @@ function drawScene(now) {
         // for every creature on every frame and this drawing threw it away.
         cx.save()
         if (MF < 0) { cx.translate(X + 20, 0); cx.scale(-1, 1); cx.translate(-(X + 20), 0) }
-        cx.fillStyle = '#4a3a2c'; cx.beginPath(); cx.ellipse(X + 20, Y + 25, 13, 8, 0, 0, 7); cx.fill()
-        cx.fillStyle = '#3a2c20'; cx.beginPath(); cx.ellipse(X + 30, Y + 22, 7, 6, 0, 0, 7); cx.fill()
+        // §7ej: IT BREATHES AND IT ROOTS. This drawing had no motion of any
+        // kind: a boar standing in the greenwood perfectly still, for ever.
+        // A pig's head is down in the ground nearly all the time, which is
+        // both the easiest thing to draw and the truest.
+        const _bbr = Math.sin(now / 900 + m.x) * 0.7          // the ribs
+        const _brt = Math.sin(now / 1500 + m.y * 0.6) * 2.2   // the snout, working
+        cx.fillStyle = '#4a3a2c'; cx.beginPath(); cx.ellipse(X + 20, Y + 25, 13, 8 + _bbr, 0, 0, 7); cx.fill()
+        cx.fillStyle = '#3a2c20'; cx.beginPath(); cx.ellipse(X + 30, Y + 22 + _brt, 7, 6, 0, 0, 7); cx.fill()
+        // the tusks and the eye belong to the HEAD and move with it; the legs
+        // belong to the ground and do not. The first version translated once
+        // and took the legs down into the earth with the snout.
+        cx.save(); cx.translate(0, _brt)
         cx.fillStyle = '#ddd6c4'                                        // tusks
         cx.beginPath(); cx.moveTo(X + 35, Y + 23); cx.lineTo(X + 38, Y + 19); cx.lineTo(X + 36, Y + 24); cx.fill()
+        cx.fillStyle = '#c46a2a'; cx.beginPath(); cx.arc(X + 32, Y + 20, 1.6, 0, 7); cx.fill()
+        cx.restore()
         cx.fillStyle = '#2a1f16'
         for (const bx of [13, 18, 24, 28]) cx.fillRect(X + bx, Y + 31, 3, 6)
-        cx.fillStyle = '#c46a2a'; cx.beginPath(); cx.arc(X + 32, Y + 20, 1.6, 0, 7); cx.fill()
         cx.restore()
         return
       }
@@ -14671,10 +14751,15 @@ function drawScene(now) {
         // for every creature on every frame and this drawing threw it away.
         cx.save()
         if (MF < 0) { cx.translate(X + 20, 0); cx.scale(-1, 1); cx.translate(-(X + 20), 0) }
+        // §7ej: THE HEAD DIPS. The sheep has grazed since it was drawn and the
+        // goat on the same hill did not move at all.
+        const _gz = Math.sin(now / 1200 + m.x * 0.8) * 1.8
         cx.fillStyle = '#cdc3b0'; cx.beginPath(); cx.ellipse(X + 19, Y + 24, 11, 7, 0, 0, 7); cx.fill()
+        cx.save(); cx.translate(0, _gz)
         cx.fillStyle = '#e4dcc9'; cx.beginPath(); cx.arc(X + 29, Y + 20, 6, 0, 7); cx.fill()
         cx.strokeStyle = '#6b5a44'; cx.lineWidth = 2                    // swept horns
         cx.beginPath(); cx.moveTo(X + 29, Y + 15); cx.quadraticCurveTo(X + 35, Y + 11, X + 32, Y + 8); cx.stroke()
+        cx.restore()
         cx.fillStyle = '#8a7f6c'
         for (const bx of [13, 18, 23]) cx.fillRect(X + bx, Y + 30, 2, 7)
         cx.restore()
@@ -14685,7 +14770,9 @@ function drawScene(now) {
         // for every creature on every frame and this drawing threw it away.
         cx.save()
         if (MF < 0) { cx.translate(X + 20, 0); cx.scale(-1, 1); cx.translate(-(X + 20), 0) }
-        const flap = Math.sin(((world?.tick ?? 0) + m.x * 5) * 0.4) * 2
+        // §7ej: a crow's wings on the frame clock. On the tick clock this
+        // was one flap a second, which is not flight, it is a shrug.
+        const flap = Math.sin(now / 240 + m.x * 2) * 2
         cx.fillStyle = '#1c1c22'; cx.beginPath(); cx.ellipse(X + 20, Y + 24, 8, 6, 0, 0, 7); cx.fill()
         cx.beginPath(); cx.moveTo(X + 13, Y + 22 - flap); cx.lineTo(X + 20, Y + 20)
         cx.lineTo(X + 27, Y + 22 + flap); cx.lineTo(X + 20, Y + 26); cx.fill()
@@ -14791,13 +14878,18 @@ function drawScene(now) {
         // for every creature on every frame and this drawing threw it away.
         cx.save()
         if (MF < 0) { cx.translate(X + 20, 0); cx.scale(-1, 1); cx.translate(-(X + 20), 0) }
+        // §7ej: IT MOVES ALONG ITSELF. A snake drawn as one fixed curve is a
+        // piece of rope. The control point travels and the head follows it,
+        // which is the whole of what a slither looks like at this size.
+        const _sl = Math.sin(now / 700 + m.y * 1.1) * 4
+        const _sh = Math.sin(now / 700 + m.y * 1.1 + 1.2) * 1.4
         cx.strokeStyle = '#5a6b34'; cx.lineWidth = 4; cx.lineCap = 'round'
         cx.beginPath(); cx.moveTo(X + 9, Y + 30)
-        cx.quadraticCurveTo(X + 20, Y + 20, X + 31, Y + 27); cx.stroke()
+        cx.quadraticCurveTo(X + 20 + _sl, Y + 20, X + 31, Y + 27 + _sh); cx.stroke()
         cx.lineWidth = 1.6; cx.strokeStyle = '#2f3a1c'
-        cx.beginPath(); cx.moveTo(X + 12, Y + 28); cx.quadraticCurveTo(X + 20, Y + 22, X + 29, Y + 26); cx.stroke()
-        cx.fillStyle = '#6d8140'; cx.beginPath(); cx.arc(X + 32, Y + 27, 3.4, 0, 7); cx.fill()
-        cx.fillStyle = '#d8b83c'; cx.beginPath(); cx.arc(X + 33, Y + 26, 1.2, 0, 7); cx.fill()
+        cx.beginPath(); cx.moveTo(X + 12, Y + 28); cx.quadraticCurveTo(X + 20 + _sl, Y + 22, X + 29, Y + 26); cx.stroke()
+        cx.fillStyle = '#6d8140'; cx.beginPath(); cx.arc(X + 32, Y + 27 + _sh, 3.4, 0, 7); cx.fill()
+        cx.fillStyle = '#d8b83c'; cx.beginPath(); cx.arc(X + 33, Y + 26 + _sh, 1.2, 0, 7); cx.fill()
         cx.restore()
         return
       }
@@ -14817,7 +14909,13 @@ function drawScene(now) {
         const t7 = (world?.tick ?? 0)
         const phase = ((t7 % 4) + 4) % 4              // matches MOB_STATS.every
         const wind = phase === 3 ? 1 : phase === 0 ? -0.6 : 0
-        const sway = Math.sin((t7 + m.y * 5) * 0.09) * 1.2
+        // §7ej: THE SWAY RUNS ON THE FRAME CLOCK, the wind-back above does not.
+        // `wind` is tick-aligned deliberately -- it matches MOB_STATS.every, so
+        // the arm comes back exactly when the thing strikes. The SWAY is not
+        // an action, it is a body hanging in the wind, and on the tick clock
+        // it moved once a second: a hanged man twitching rather than swaying.
+        // §7b (motion between ticks) is the whole job of this window.
+        const sway = Math.sin(now / 11000 + m.y * 0.45) * 1.2
         cx.fillStyle = 'rgba(70,90,60,.28)'           // the smell of it
         cx.beginPath(); cx.ellipse(X + 20, Y + 26, 12, 14, 0, 0, 7); cx.fill()
         cx.fillStyle = '#4a4738'                       // the shroud, gone to rags
@@ -14845,7 +14943,8 @@ function drawScene(now) {
         // for every creature on every frame and this drawing threw it away.
         cx.save()
         if (MF < 0) { cx.translate(X + 20, 0); cx.scale(-1, 1); cx.translate(-(X + 20), 0) }
-        const drift = Math.sin(((world?.tick ?? 0) + m.y * 3) * 0.12) * 1.4
+        // §7ej: on the frame clock. A wight that drifts once a second hops.
+        const drift = Math.sin(now / 8300 + m.y * 0.36) * 1.4
         cx.fillStyle = 'rgba(120,150,140,.22)'
         cx.beginPath(); cx.ellipse(X + 20, Y + 26 + drift, 11, 13, 0, 0, 7); cx.fill()
         cx.fillStyle = '#6d7b72'
@@ -14867,7 +14966,8 @@ function drawScene(now) {
         // and made of the same stone the diggers are breaking -- they were
         // drawing NOTHING, so a citizen a week into the dig would have been
         // bitten by empty air.
-        const bob = Math.sin(((world?.tick ?? 0) + m.x * 7 + m.y * 3) * 0.18) * 1.6
+        // §7ej: on the frame clock, or four imps bob in one-second steps
+        const bob = Math.sin(now / 5600 + m.x * 1.26 + m.y * 0.54) * 1.6
         cx.fillStyle = '#5d5a52'
         cx.beginPath(); cx.arc(X + 20, Y + 24 + bob, 8, 0, 7); cx.fill()
         cx.fillStyle = '#6e6b61'
@@ -15307,6 +15407,8 @@ function drawScene(now) {
           cx.fillStyle = '#c0392b'; cx.fillRect(X + 13, Y + 4, 14 * (m.hp / 5), 3)
         cx.restore()
       }
+      cx.restore()
+
     }})
   }
 

@@ -17250,6 +17250,51 @@ what types it answers and refuses any that neither build a list nor have a
 word, which is the difference between a list somebody wrote and a list the
 code agrees with.
 
+## 7ej. Everything in the world reacts to being hit, and moves between ticks
+
+**A struck creature is thrown back, the way a struck citizen is.** The window
+has recoiled a wounded citizen for a long time: 320ms, along their own
+facing. Nothing else in the world did, because the comparison that notices a
+blow -- this tick's health against last tick's -- was only ever made over the
+PLAYERS. You could hit a wolf and the wolf did not move. The number on its
+health bar was the only thing that said the blow had landed, and while that
+bar was always on (§7ef) a fight read as two figures standing in a field
+while an arithmetic went on somewhere else.
+
+The same two lines over the creatures, and the recoil applied ONCE around the
+whole creature chain rather than in twenty-two drawings. Anything written per
+creature is written twenty-two times, forgotten on the twenty-third, and the
+twenty-third is the one somebody adds next year.
+
+**And it lunges when it lands one.** A creature that flinches but never
+strikes is being beaten rather than fought: every piece of motion in an
+exchange belonged to the citizen. Nothing on the wire says "this beast hit
+you", so the window reads the same two facts the engine used to decide it --
+a citizen whose health just fell, and a beast that is angry at them BY NAME.
+A beast merely standing near somebody who took a wound does not lunge.
+
+The lunge is 260ms against the recoil's 320, deliberately, so an exchange
+reads as two separate things happening rather than one wobble.
+
+**No flash.** The first attempt lit the creature under the blow by painting a
+tint through `source-atop`, which paints wherever the canvas is already
+opaque -- and the GROUND is opaque, so it put a pale square on the grass. The
+citizen has no flash either. A thing thrown backwards has visibly been hit.
+
+**And they move between ticks, which is the whole job of this window.** Four
+creatures animated off `world.tick`: a crow flapping once a second is not
+flight, it is a shrug, and a hanged body twitching once a second is not a
+sway. Three more had no motion written at all -- a boar, a goat and an adder
+standing perfectly still in open country.
+
+**Tick-aligned motion stays tick-aligned**, and the two are different things.
+The gibbet-dead's arm winds back on the tick on purpose, because it matches
+the interval at which the thing strikes. Its SWAY is not an action, it is a
+body hanging in the wind, and that belongs to the frame clock.
+
+**The training pell is the one thing allowed to stand still**, because that is
+what it does. It flinches when struck like everything else.
+
 ## 7h. Who Lives Here
 
 > **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:4470` by `spec-stubs.mjs`.
