@@ -2016,3 +2016,69 @@ test('the gold chain is drawn as the old chain, not as jewellery', () => {
   assert.match(win, /const want = \(i \/ \(N - 1\)\) \* total/,
     'the links are not spaced by arc length, so a sag bunches them')
 })
+
+// §7ej: NOTHING IN A CLOSURE MAY BE READ ABOVE ITS OWN DECLARATION.
+//
+// This shipped to interval.place and shut the door. The flinch wrapper reads
+// `engaged`, `engaged` was declared forty lines below it, and a `const` is in
+// the temporal dead zone until its own line has run -- so the FIRST creature
+// drawn threw "Cannot access 'engaged' before initialization". The window
+// caught it per frame and said "the world is fine, this frame was skipped",
+// which was true and meant nothing could be drawn at all.
+//
+// It got through because every test in this file reads the SOURCE. Not one of
+// them runs it. `sprite-svg.mjs` does execute the creature chain to make the
+// handbook's plates, and the handbook built clean, because it lifts the chain
+// and not the wrapper around it.
+//
+// This is the cheap half: a scoped use-before-declaration check over the
+// creature closure, which is exactly the shape of the fault. The expensive
+// half -- standing the window up and looking at whether creatures are in the
+// picture -- is what `sweep.mjs` does, and what found it in the end.
+test('the creature draw reads nothing before it is declared', () => {
+  const at = win.indexOf('layer.push({ z: Z(miy, 3), draw: () => {')
+  assert.ok(at > 0, 'the creature closure has moved')
+  let d = 0, end = at
+  for (let i = win.indexOf('{', at); i < win.length; i++) {
+    if (win[i] === '{') d++
+    else if (win[i] === '}') { d--; if (!d) { end = i; break } }
+  }
+  const body = win.slice(at, end)
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .split('\n').map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n')
+  // ONLY THE CLOSURE'S OWN TOP LEVEL. Each creature is an `if (m.type ===
+  // ...) { }` block with its own scope, so a `const sway` in the wight and a
+  // `sway` in the gibbet-dead are different names entirely. A check that does
+  // not know that reports a dozen creatures and is ignored, which is worse
+  // than no check: the first version of this did exactly that.
+  //
+  // AND THE TOP LEVEL IS MEASURED, NOT ASSUMED. The closure opens with
+  // `layer.push({ z: ..., draw: () => {`, which is three braces on one line,
+  // so its own statements sit at depth THREE. A first version assumed one,
+  // matched nothing, and passed happily when the bug it was written for was
+  // put back -- a check that cannot fail is worse than no check at all.
+  const depthAt = []
+  {
+    let d = 0
+    for (let i = 0; i < body.length; i++) {
+      if (body[i] === '{') d++
+      else if (body[i] === '}') d--
+      depthAt[i] = d
+    }
+  }
+  const TOP = depthAt[body.indexOf('\n')]   // the depth the closure's body sits at
+  const bad = []
+  for (const m of body.matchAll(/^\s*(?:const|let) ([A-Za-z_$][\w$]*) =/gm)) {
+    const declAt = m.index + m[0].indexOf(m[1])
+    if (depthAt[declAt] !== TOP) continue               // inside a creature's own block
+    const name = m[1]
+    const re = new RegExp('(?<![\\w$.])' + name.replace(/\$/g, '\\$') + '(?![\\w$])', 'g')
+    for (const u of body.slice(0, m.index).matchAll(re)) {
+      if (depthAt[u.index] === TOP) { bad.push(name); break }
+    }
+  }
+  assert.deepEqual(bad, [],
+    'these are read before they are declared, inside the closure that draws '
+    + 'every creature. A const in the dead zone throws on the first creature '
+    + 'and takes the whole world view with it:\n  ' + bad.join('\n  '))
+})

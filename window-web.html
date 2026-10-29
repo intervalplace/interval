@@ -14349,6 +14349,18 @@ function drawScene(now) {
       cx.beginPath(); cx.arc(X + 16, Y + 14, 10 + ph9 * 8, 0, 7); cx.stroke()
     } })
     layer.push({ z: Z(miy, 3), draw: () => {
+      // WHETHER YOU ARE FIGHTING IT, declared HERE because the flinch wrapper
+      // below reads it and `const` is in the temporal dead zone until its own
+      // line has run. It used to be declared after the wrapper, which threw
+      // "Cannot access 'engaged' before initialization" on the first frame a
+      // creature was drawn -- and the whole world view with it, because this
+      // closure is where every creature is painted.
+      //
+      // The window caught it and said the world was fine and the frame was
+      // skipped, which was true and also meant NOTHING could be drawn, so the
+      // door could not be entered. A per-frame guard turns a reference error
+      // into an empty world rather than a stack trace.
+      const engaged = meP?.action?.mobId === id
       // §7ej: EVERY CREATURE FLINCHES, AND EVERY CREATURE LEANS INTO A FIGHT.
       //
       // Done HERE, once, rather than in twenty-three drawings. The creature
@@ -14389,7 +14401,6 @@ function drawScene(now) {
       cx.translate(-MF * _mhurt * 7 + MF * _lunge + (engaged ? MF * 2 : 0), _mhurt * 2.5)
 
       const X = px(mix), Y = py(miy)
-      const engaged = meP?.action?.mobId === id
       // §6aa: A SWING THAT MISSES IS STILL A SWING.
       //
       // Three beasts set about a citizen at once and they swing every other
