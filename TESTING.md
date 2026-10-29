@@ -1,6 +1,6 @@
 # Interval. Testing & Freeze Evidence
 
-Release 1.0.5, protocol spec v1.05, consensus spec v1.10, rules hash
+Release 1.0.6, protocol spec v1.05, consensus spec v1.10, rules hash
 `589867972d8d5e35…`.
 
 This document states exactly what is tested, with what inputs, for how

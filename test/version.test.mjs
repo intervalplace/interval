@@ -114,6 +114,25 @@ test('rules hash in docs matches sha256(SPEC.md)', () => {
   // Any 16-hex run on a site page is one of these. Nothing else on the site is
   // written that way, and if something ever is, this will say so and it can be
   // excluded deliberately rather than by accident.
+  // AND THE README, which was left out and had gone stale.
+  //
+  // The banner test below checks the README's release, spec and consensus
+  // VERSIONS and never looked at its rules hash, so the front page of a
+  // public repository cited `4cbf903bee7dd6b5` -- a constitution two
+  // foundings old -- while every other document had moved on. That is the
+  // same fault site/map.html had, and the check written to catch it stopped
+  // at the site directory.
+  //
+  // Every doc that quotes a rules hash is checked here now, by the same rule:
+  // a 16-hex run in one of these is a rules-hash prefix and must be THIS one.
+  for (const doc of ['README.md', 'CONSENSUS.md', 'TESTING.md']) {
+    const text = read(doc)
+    for (const m of text.matchAll(/\brules hash[^`]*`([0-9a-f]{16})\b/gi)) {
+      assert.equal(m[1], prefix,
+        `${doc} cites rules hash ${m[1]}; the constitution hashes to ${prefix}`)
+    }
+  }
+
   const siteDir = path.join(root, 'site')
   for (const f of fs.readdirSync(siteDir)) {
     if (!f.endsWith('.html') || f.includes('before') || f.startsWith('probe-')) continue

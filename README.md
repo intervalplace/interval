@@ -2,7 +2,7 @@
 
 *A world with a constitution instead of an owner.*
 
-*Release 1.0.5 · protocol spec v1.05 · consensus spec v1.10 · rules hash `4cbf903bee7dd6b5`…
+*Release 1.0.6 · protocol spec v1.05 · consensus spec v1.10 · rules hash `589867972d8d5e35`…
 These four move together; a change to any one of them is a new release, and a
 change to the constitution is a new world.*
 
