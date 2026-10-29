@@ -17148,9 +17148,18 @@ this window took from has no floating nameplates either: you hover and the
 window tells you, and a health bar appears over a creature once it is in a
 fight.
 
-**Wounded is on the list deliberately.** A beast that has been hit and walked
-off is carrying something the player earned. Taking it back when the cursor
-moves would be the window hiding a fact rather than keeping quiet.
+**A wound is an event with a tail, not a state.** Three rules were tried and
+the first two were both wrong. "While wounded" put a permanent bar over a
+citizen who took one blow and walked away: an hour of a fixture saying
+something that stopped being news in the first second, which is the always-on
+fault this section exists to end. "Only at the blow", the 320ms of the
+flinch, is worse -- an exchange lands every tick or two, so the bar strobes
+through a fight and is absent between the blows, exactly when it is wanted.
+
+So it stays while the wound is RECENT: eight seconds, long enough that no
+fight can gap it and short enough that walking away clears it. The same
+number for citizens and creatures, so a fight does not have two clocks in
+it.
 
 **Nothing tracked the pointer at all.** The only thing the window knew about
 the mouse was where it had been CLICKED, which is why everything labelled

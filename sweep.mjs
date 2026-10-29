@@ -212,6 +212,25 @@ const AFTER = (plan, state, myId) => `<script>
         out.push(cv.toDataURL('image/png'))
         say('SWEEPAT ' + out.length + '/' + SHOTS.length)
       }
+      // §7ej: AND IF THE WINDOW CAUGHT A DRAW ERROR, SAY SO.
+      //
+      // The window guards each frame: it reports the fault in a bar at the
+      // bottom, says the world is fine and the frame was skipped, and carries
+      // on. Both halves are true and the second one hides the first. A
+      // temporal dead zone in the creature closure threw on every frame for a
+      // day -- the door could not be entered, and the sweep went on returning
+      // pictures and calling them a success, because the ground still drew.
+      //
+      // So the sweep reads the window's own report. It is not a new check: it
+      // is the window's check, finally listened to.
+      //
+      // FOUR BACKSLASHES. This page is built as a template literal in
+      // sweep.mjs, and a lone backslash-s is not an escape a template
+      // recognises, so it arrives as the LETTER s: the first version reported
+      // "The world i fine and till ticking" because its own regex had
+      // eaten every s in the sentence.
+      const errBar = document.getElementById('frameerr')
+      if (errBar) { say('SWEEPFAIL the window could not draw: ' + errBar.textContent.replace(/\\s+/g, ' ').slice(0, 220)); return }
       const box = document.createElement('div')
       box.id = 'sweepout'
       box.textContent = out.join('|')
@@ -225,7 +244,20 @@ const AFTER = (plan, state, myId) => `<script>
 
 // the citizen doing the walking: a plain body, so nothing is hidden behind gear
 const myId = 'f'.repeat(64)
-world.players[myId] = { x: towns[0].x, y: towns[0].y, hp: 10, maxHp: 10, gold: 0,
+// §7ef: AND IN FULL HEALTH, FROM THE ENGINE'S OWN ANSWER.
+//
+// This said `hp: 10, maxHp: 10`, and the window does not take a citizen's
+// word for their maximum: `maxHpOf` works it out, and a citizen of this world
+// has sixty-four. So every sweep picture ever taken has shown the walker at
+// ten of sixty-four with a red sliver over their head, and the window was
+// right each time -- the fixture was handing it somebody nearly dead.
+//
+// It surfaced the day the health bar stopped being drawn unconditionally,
+// because a bar that is always there says nothing and a bar that means
+// "wounded" is read. `E.maxHealth` is the engine's own function; a number
+// written here would drift from it by the end of the month.
+const FULL_HP = E.maxHealth({})
+world.players[myId] = { x: towns[0].x, y: towns[0].y, hp: FULL_HP, maxHp: FULL_HP, gold: 0,
   inventory: Array(28).fill(null), skills: {},
   equipment: { weapon: null, offhand: null, head: null, body: null, legs: null } }
 

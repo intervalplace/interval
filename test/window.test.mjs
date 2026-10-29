@@ -2082,3 +2082,31 @@ test('the creature draw reads nothing before it is declared', () => {
     + 'every creature. A const in the dead zone throws on the first creature '
     + 'and takes the whole world view with it:\n  ' + bad.join('\n  '))
 })
+
+// §7ef: A WOUND IS AN EVENT WITH A TAIL, NOT A STATE.
+//
+// Three rules were tried. "While wounded" put a permanent bar over a citizen
+// who took one blow and walked away -- an hour of a fixture saying something
+// that stopped being news in the first second, which is the always-on fault
+// the plate rule was written to end. "Only at the blow", 320ms, is worse: an
+// exchange lands every tick or two, so the bar strobes through a fight and is
+// absent between blows.
+//
+// Eight seconds. Long enough that no fight can gap it, short enough that
+// walking away clears it, and the SAME number for citizens and creatures so
+// a fight does not have two clocks in it.
+test('a health bar follows the last wound, not the wound itself', () => {
+  assert.match(win, /const HURT_SHOWS_MS = (\d+)/, 'the tail on a wound is gone')
+  const ms = Number(/const HURT_SHOWS_MS = (\d+)/.exec(win)[1])
+  assert.ok(ms >= 3000 && ms <= 20000,
+    `${ms}ms is not a tail: under three seconds a fight gaps it, over twenty `
+    + 'it is the permanent bar again')
+  // the creatures read it off the blow that is already recorded for the flinch
+  assert.match(win, /const _hurt = \(now - \(mobHit\[id\] \?\? -9e9\)\) < HURT_SHOWS_MS/,
+    'creatures no longer show a bar from the last blow')
+  // and the citizens off theirs, rather than off being below full
+  assert.match(win, /\(o\.now - \(o\.hitAt \?\? -9e9\)\) < HURT_SHOWS_MS \|\| o\.anim === 'fight'/,
+    'a citizen still wears a bar for being wounded rather than for being hit')
+  assert.ok(!/o\.hp < o\.maxHp \|\| o\.anim/.test(win),
+    'the old while-wounded rule is still in the citizen draw')
+})

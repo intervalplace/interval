@@ -7724,6 +7724,21 @@ let tickOffset = null  // wall-clock anchor of tick 0 (smoothed)
 let worstFrame = 0, lastFrameAt = 0, worstJitter = 0, meterAt = 0, meterText = ''
 const hitFlash = {}   // pid -> ms timestamp of last damage taken
 const mobHit = {}     // §7ej: and the same for everything the world sends at you
+// §7ef: HOW LONG A WOUND IS NEWS.
+//
+// The first rule was "while wounded", which meant a citizen who took one blow
+// and walked away carried a bar over their head until they healed -- an hour
+// of a permanent fixture saying something that stopped being news in the
+// first second. That is the always-on fault it was supposed to end.
+//
+// The rule it was argued against was "only at the blow", 320ms, and that is
+// worse: an exchange lands every tick or two, so the bar would strobe through
+// a fight and vanish between blows.
+//
+// Neither, then. It stays while the wound is RECENT, and eight seconds is
+// long enough that no fight can gap it and short enough that walking away
+// clears it. A wound is an event with a tail, not a state.
+const HURT_SHOWS_MS = 8000
 const mobStruck = {}  // §7ej: mobId -> ms of the last blow it LANDED
 let celebrate = null  // { text, at }: level-up banner + sparks
 let announceShow = null, announceQueue = [], _lastAnnounceTick = null // global milestone cries
@@ -11493,7 +11508,10 @@ function drawCitizen(X, Y, o) {
   cx.fillStyle = o.branded ? '#e8452e' : o.mine ? '#ffffff' : '#e2b63e'
   cx.font = 'bold 10px Verdana'; cx.textAlign = 'center'
   cx.fillText(o.name, X + 20, Y - 7)
-  if (o.hp < o.maxHp || o.anim === 'fight') {
+  // §7ef: AND A CITIZEN'S ON THE SAME TERMS. This read `o.hp < o.maxHp`, so a
+  // citizen who took one blow and walked away wore a bar until they healed.
+  // Eight seconds from the last wound, or while they are in a fight.
+  if ((o.now - (o.hitAt ?? -9e9)) < HURT_SHOWS_MS || o.anim === 'fight') {
     cx.fillStyle = '#4a1008'; cx.fillRect(X + 12, Y - 3, 16, 2.4)
     cx.fillStyle = '#c0392b'; cx.fillRect(X + 12, Y - 3, 16 * (o.hp / o.maxHp), 2.4)
   }
@@ -14480,8 +14498,9 @@ function drawScene(now) {
       // (mobMaxHp falls back to 1); now it simply draws none until you point
       // at it, which is quieter and no less wrong, and test/tables.test.mjs
       // is what keeps the table whole.
-      const _mx = st?.maxHp ?? m.maxHp ?? 0
-      const _hurt = _mx > 0 && m.hp < _mx
+      // §7ef: LATELY hurt, not merely wounded. `mobHit` already carries when
+      // the last blow landed, for the flinch.
+      const _hurt = (now - (mobHit[id] ?? -9e9)) < HURT_SHOWS_MS
       // §7ef: AND THE HEALTH BAR ON THE SAME TERMS AS THE NAME. A sheep at
       // full health standing in a field is not in a fight and has nothing to
       // report. Drawn in twelve places, one per creature, so the decision is
