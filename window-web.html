@@ -302,6 +302,16 @@
      country. So the canvas is not asked to render more; it is DISPLAYED
      larger and cropped. The bitmap stays 560x400, object-fit does the rest.
      !important is needed because fitCanvas writes cv.style.height inline. */
+  /* §7ei: A PHONE HAS NO RIGHT BUTTON, so the long press is the right button,
+     and the system has to be told to keep its hands off the gesture. Without
+     these three the browser gets there first: iOS raises its own selection
+     callout on a long press and never fires `contextmenu` at all, and a drag
+     across the world scrolls the page instead of reaching the canvas. */
+  #world {
+    touch-action: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none; user-select: none;
+  }
   body.at-door #world {
     position: fixed !important; inset: 0 !important; z-index: 1 !important;
     width: 100vw !important; height: 100vh !important; height: 100dvh !important;
@@ -19193,7 +19203,56 @@ function worldPress(e, asLeft) {
 // in a `finally`, because a branch that throws would otherwise leave every
 // later menu in the window -- the pack's, the book's -- offering to walk to
 // a tile somebody pressed minutes ago.
-cv.addEventListener('click', (e) => { try { worldPress(e) } finally { _pressTile = null } })
+cv.addEventListener('click', (e) => {
+  // §7ei: AND THE TAP THAT ENDS A LONG PRESS IS NOT A TAP. A long press ends
+  // with a `click` like any other touch, so without this the world would open
+  // the menu AND do the thing the menu was offering to do.
+  //
+  // Asked here rather than in a listener of its own that swallows the event.
+  // That was the first attempt and it does not work: for a listener on the
+  // TARGET element, the capture flag changes nothing and the two run in
+  // registration order, so the swallower -- declared below, with the long
+  // press it belongs to -- would have fired after this.
+  if (_lpFired) { _lpFired = false; return }
+  try { worldPress(e) } finally { _pressTile = null }
+})
+// §7ei: THE LONG PRESS IS THE RIGHT BUTTON, because a phone has no other one.
+//
+// `contextmenu` is a desktop event. Android Chrome happens to fire it on a
+// long press, so the right-click menu worked there by accident; iOS fires it
+// never, and raises its own selection callout instead -- which is the same
+// fault as Chrome's menu opening over the game, on the client that cannot
+// work around it. The packaged iOS app is a web view, so it inherits this
+// exactly, and it is one of the two clients this project ships.
+//
+// So the window times the press itself rather than waiting for an event the
+// platform may never send. Four hundred and fifty milliseconds, and it is
+// cancelled by a lift or by moving more than a thumb's wobble -- ten pixels,
+// because a finger never holds perfectly still and a three-pixel threshold
+// would mean the menu almost never opens.
+const LONG_PRESS_MS = 450, LONG_PRESS_SLOP = 10
+let _lpTimer = null, _lpFrom = null, _lpFired = false
+const _lpStop = () => { if (_lpTimer) { clearTimeout(_lpTimer); _lpTimer = null } _lpFrom = null }
+cv.addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'mouse') return          // the mouse has a real button
+  _lpStop(); _lpFired = false
+  _lpFrom = { x: e.clientX, y: e.clientY }
+  _lpTimer = setTimeout(() => {
+    _lpTimer = null
+    _lpFired = true
+    // the same door the right button uses, so the two can never offer
+    // different things
+    _menuAt = { x: e.clientX, y: e.clientY }
+    try { worldPress({ type: 'contextmenu', clientX: e.clientX, clientY: e.clientY }) }
+    finally { _menuAt = null; _pressTile = null }
+  }, LONG_PRESS_MS)
+})
+cv.addEventListener('pointermove', (e) => {
+  if (!_lpFrom) return
+  if (Math.abs(e.clientX - _lpFrom.x) > LONG_PRESS_SLOP
+   || Math.abs(e.clientY - _lpFrom.y) > LONG_PRESS_SLOP) _lpStop()
+})
+for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) cv.addEventListener(ev, _lpStop)
 cv.addEventListener('contextmenu', (e) => {
   e.preventDefault()
   // where the menu opens. `_pressAt` is set by the global pointerdown for any

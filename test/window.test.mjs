@@ -1844,8 +1844,13 @@ test('no creature draws a health bar outside the one gate', () => {
 test('right-clicking the world opens the world’s menu, not the browser’s', () => {
   assert.match(win, /function worldPress\(/,
     'the press handler must be a named function, or only one button can reach it')
-  assert.match(win, /cv\.addEventListener\('click', \(e\) => \{ try \{ worldPress\(e\)/,
+  assert.match(win, /cv\.addEventListener\('click', \(e\) => \{[\s\S]{0,1400}?worldPress\(e\)/,
     'the left button must still reach the handler')
+  // §7ei: and a phone, which has no right button, reaches the same door
+  assert.match(win, /const LONG_PRESS_MS = \d+/,
+    'no long press, so there is no way to open a menu on a phone')
+  assert.match(win, /if \(_lpFired\) \{ _lpFired = false; return \}/,
+    'the click that ends a long press must not also do the thing')
   const at = win.indexOf("cv.addEventListener('contextmenu'")
   assert.ok(at > 0, 'the canvas has no contextmenu listener, so the browser keeps the right button')
   const seg = win.slice(at, at + 900)

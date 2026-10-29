@@ -17220,6 +17220,27 @@ already does, taken from the sentence the window already feeds when it does
 it: the bell "goes out over the whole town", so you ring it; the pell "takes
 a BLOW", so you strike it; the sigil "is made". Nothing is invented.
 
+**A phone has no right button, so the long press is the right button.**
+`contextmenu` is a desktop event. Android Chrome happens to fire it on a long
+press, so the menu worked there by accident; iOS fires it never and raises
+its own selection callout instead, which is the same fault as the browser
+menu opening over the game, on the client that cannot work around it. The
+packaged iOS app is a web view and inherits it exactly.
+
+So the window times the press itself rather than waiting for an event the
+platform may never send: 450ms, cancelled by a lift or by moving more than
+ten pixels, which is a thumb's wobble rather than a drag. The canvas also has
+to tell the system to keep its hands off the gesture -- `touch-action: none`,
+`-webkit-touch-callout: none`, `user-select: none` -- or the browser gets
+there first.
+
+**And the tap that ends a long press is not a tap.** It arrives as an
+ordinary `click`, so without refusing it the world would open the menu AND do
+the thing the menu was offering. It is refused inside the handler rather than
+by a listener that swallows the event: for a listener on the TARGET element
+the capture flag changes nothing, the two run in registration order, and the
+swallower would have fired second.
+
 **The list of eighteen was wrong, and the test is what asks.** Written by
 reading the handler for branches that ACT, it missed six: `bell` is the same
 rope as `bellwork` under a second name, `butt` is the pell's archery twin,
