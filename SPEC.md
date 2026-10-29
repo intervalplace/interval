@@ -10385,10 +10385,30 @@ cosmetic, worn because it is worth being seen in. Melee had no such thing, so a
 citizen who wanted to look like they had arrived could dress the part and not
 arm it.
 
-The OLD CHAIN is the one to gild, and the joke is the reason: it is a length of
-rusted chain, the worst weapon in the world, and this is the version cast in
-gold. **Twelve gold bars and the chain itself, and the numbers are identical.**
+The OLD CHAIN is the one to gild, and the joke is the reason: it is a length
+of rusted chain that LOOKS like the worst weapon in the world and is one of
+the two best in it. Its hit bonus is 1, the lowest of anything that does
+damage at all -- and a blow is `1 + floor(prowess/10) + the weapon`, so at
+ninety the base is nine and the bonus barely matters. What matters is that it
+swings EVERY tick where a mell swings every two, at perfect accuracy where a
+mell is at minus ten. The engine measures the handgonne losing to it 9:31.
+
+It is also the one item in the world with no price at any store: it falls
+from a troll at two in sixty-five thousand and can only ever pass between
+citizens. Gold cannot be turned into it except by asking somebody who has
+one. **Ten gold bars and the chain itself, and the numbers are identical.**
+It is a WEAPON and it is held in the weapon hand: not a chain for a neck.
+A cosmetic flex has to be visibly the same object as the thing it flatters,
+or there is nothing to flex.
 Somebody will carry it.
+
+**This section was wrong twice and the engine was right both times.** The
+prose said twelve gold bars where the generated table three thousand lines
+above says ten, and it called the old chain the WORST weapon in the world
+where the engine's own measurement calls it one of the two best. A
+hand-written number beside a generated one, and a hand-written judgement
+beside a measured one: the same fault this project keeps finding in windows,
+found here inside the constitution itself.
 
 ## 36. Six blows, six splats
 

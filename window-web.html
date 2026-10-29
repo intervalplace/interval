@@ -3083,6 +3083,59 @@ window.addEventListener('resize', () => { fitCanvas() })
 // items drawn by the same hand as the world: no emoji speaks this dialect
 const ICON_CV = {}
 function itemSprite(item) {
+  // §35: WHERE THE CHAIN'S LINKS LIE, used by both chains.
+  //
+  // INSIDE this function on purpose. `sprite-svg.mjs` lifts `itemSprite`
+  // alone out of this file and runs it against an SVG pen to make the
+  // handbook's plates, so a const declared beside it does not exist when the
+  // book is built: the first version of this threw ReferenceError out of the
+  // handbook rather than out of the window.
+  //
+  // A chain hangs. The old drawing was five links on a ruler-straight
+  // diagonal at one fixed angle, which is a chain drawn as a line, and a line
+  // is the one thing a chain cannot be.
+  //
+  // So: a run from low-left to high-right with a SAG bowed across it, and
+  // every link turned by the tangent where it sits, worked out from its
+  // neighbours rather than written down -- so the sag can be retuned and the
+  // links stay lying along it. They alternate upright and flat, which is how
+  // the links of a real chain lie against each other and what the Unreal
+  // window's own nine do ("alternating flat and upright the way a chain
+  // actually lies", `chain` in make_art.py). Two windows, one object.
+  //
+  // SIX, not seven: seven at this size overlap into a caterpillar. The
+  // spacing is what makes it read as separate links at 32 pixels.
+  const CHAIN_LINKS = (() => {
+    const A = { x: 7.5, y: 25.5 }, B = { x: 26, y: 9.5 }   // the two ends
+    const SAG = 4.2
+    const at = (t) => ({
+      x: A.x + (B.x - A.x) * t - Math.sin(Math.PI * t) * SAG * 0.45,
+      y: A.y + (B.y - A.y) * t + Math.sin(Math.PI * t) * SAG,
+    })
+    // BY ARC LENGTH, not by t. Even steps in t along a curve that sags put
+    // the links closer together where the curve is steep: the first attempt
+    // bunched four of them at one end and left the last two adrift. Walk the
+    // curve, measure it, then step along it evenly.
+    const S = 200, pts = [at(0)], len = [0]
+    for (let k = 1; k <= S; k++) {
+      const q = at(k / S)
+      len.push(len[k - 1] + Math.hypot(q.x - pts[k - 1].x, q.y - pts[k - 1].y))
+      pts.push(q)
+    }
+    const total = len[S]
+    const N = 6, out = []
+    for (let i = 0; i < N; i++) {
+      const want = (i / (N - 1)) * total
+      let k = 1; while (k < S && len[k] < want) k++
+      const pt = pts[k]
+      // the tangent from the points either side, so the link lies ALONG the
+      // curve wherever the curve happens to go
+      const a0 = pts[Math.max(0, k - 6)], a1 = pts[Math.min(S, k + 6)]
+      out.push({ x: pt.x, y: pt.y, a: Math.atan2(a1.y - a0.y, a1.x - a0.x), flat: i % 2 === 1 })
+    }
+    return out
+  })()
+
   if (ICON_CV[item]) return ICON_CV[item]
   const c = document.createElement('canvas'); c.width = 32; c.height = 32
   const g = c.getContext('2d')
@@ -3613,16 +3666,35 @@ function itemSprite(item) {
       g.fillStyle = '#6b1f1c'; g.beginPath(); g.arc(24, 26, 1.6, 0, 7); g.fill()
       break }
     // §7by: THE GOLD CHAIN. The worst weapon in the world, cast in gold.
+    // §35: THE GOLD CHAIN IS THE OLD CHAIN, DIPPED. It is not jewellery.
+    //
+    // This was drawn as a necklace: a draped S-curve with round beads on it,
+    // the thing you wear round a neck. It is a WEAPON -- `slotOf` says
+    // weapon, it wants prowess 90 like its parent, and its combat line is
+    // identical to the old chain's to the number: hit 1, every 1, reach 1.
+    //
+    // The recipe is the whole argument and it is one line of the engine:
+    //
+    //     'gold-chain': { 'gold-bar': 10, 'old-chain': 1 }
+    //
+    // Ten bars of gold and the chain you already own. Nothing about it is
+    // made new. It is the same five links, gilded, and that is the joke --
+    // old chain, gold chain -- and the point: a thing to want when the best
+    // weapon in the world is already yours and is not enough. A cosmetic
+    // flex has to be visibly the SAME OBJECT or there is nothing to flex.
+    //
+    // Drawn from the old chain's own geometry so the two cannot drift apart
+    // again: identical links, identical angle, gold instead of grey, with a
+    // catch of light on each one that the iron does not have.
     case 'gold-chain': {
-      g.strokeStyle = '#8a6a1a'; g.lineWidth = 5
-      g.beginPath(); g.moveTo(7, 9); g.quadraticCurveTo(20, 22, 31, 12)
-      g.quadraticCurveTo(22, 30, 10, 27); g.stroke()
-      g.strokeStyle = '#e2b63e'; g.lineWidth = 3
-      g.beginPath(); g.moveTo(7, 9); g.quadraticCurveTo(20, 22, 31, 12)
-      g.quadraticCurveTo(22, 30, 10, 27); g.stroke()
-      g.fillStyle = '#f6dd8c'
-      for (const [lx, ly] of [[9,11],[16,18],[24,17],[30,13],[19,27],[11,26]]) {
-        g.beginPath(); g.arc(lx, ly, 2.2, 0, 7); g.fill()
+      for (const L of CHAIN_LINKS) {
+        const rx = L.flat ? 2.1 : 2.6, ry = L.flat ? 3.0 : 3.4
+        g.strokeStyle = '#7a5a12'; g.lineWidth = L.flat ? 3.4 : 3.2   // the shadow in the link
+        g.beginPath(); g.ellipse(L.x, L.y, rx, ry, L.a, 0, 7); g.stroke()
+        g.strokeStyle = '#e2b63e'; g.lineWidth = 2                    // the gold itself
+        g.beginPath(); g.ellipse(L.x, L.y, rx, ry, L.a, 0, 7); g.stroke()
+        g.strokeStyle = '#fbeeb2'; g.lineWidth = 0.9                  // and the light on it
+        g.beginPath(); g.ellipse(L.x - 0.5, L.y - 0.6, rx, ry, L.a, 2.2, 4.4); g.stroke()
       }
       break }
     // §7bw: SALT FISH. Split, salted, and dried hard enough to travel.
@@ -4028,14 +4100,29 @@ function itemSprite(item) {
       if (!bt) { g.fillStyle = 'rgba(255,255,255,.22)'
         g.beginPath(); g.ellipse(13, 14, 4.4, 1.6, -0.3, 0, 7); g.fill() }
       break }
+    // §35: A CHAIN HANGS. It does not stand.
+    //
+    // Five links on a ruler-straight diagonal, every one at the same angle:
+    // that is a chain drawn as a line, and a line is the one thing a chain
+    // cannot be. A length of chain left to itself falls in a catenary, each
+    // link turning a little further than the one above it, and the links at
+    // the bottom lying flatter than the links at the top.
+    //
+    // Seven links on that curve now, each turned by the slope where it sits,
+    // and alternating upright and flat the way a real chain lies -- which is
+    // also what the Unreal window does with its own nine ("alternating flat
+    // and upright the way a chain actually lies", see `chain` in make_art.py).
+    // Two windows, one object; they should agree about its shape.
+    //
+    // CHAIN_LINKS is shared with the gold chain below, which is this chain
+    // dipped, so the two cannot drift into being different objects again.
     case 'old-chain': {
-      g.strokeStyle = '#8a8a82'; g.lineWidth = 2
-      for (let li = 0; li < 5; li++) {
-        const lx = 8 + li * 4.2, ly = 24 - li * 4.2
-        g.beginPath(); g.ellipse(lx, ly, 2.6, 3.4, -0.78, 0, 7); g.stroke()
+      for (const L of CHAIN_LINKS) {
+        g.strokeStyle = '#6b6b62'; g.lineWidth = L.flat ? 2.6 : 2
+        g.beginPath(); g.ellipse(L.x, L.y, L.flat ? 2.1 : 2.6, L.flat ? 3.0 : 3.4, L.a, 0, 7); g.stroke()
+        g.strokeStyle = '#9a9a90'; g.lineWidth = 1
+        g.beginPath(); g.ellipse(L.x - 0.4, L.y - 0.4, L.flat ? 2.1 : 2.6, L.flat ? 3.0 : 3.4, L.a, 3.6, 5.6); g.stroke()
       }
-      g.strokeStyle = '#6b6b62'; g.lineWidth = 1
-      g.beginPath(); g.ellipse(8, 24, 2.6, 3.4, -0.78, 0, 7); g.stroke()
       break }
     case 'gold-coin':
       g.fillStyle = '#8a6415'; g.beginPath(); g.arc(16, 17.4, 10, 0, 7); g.fill()

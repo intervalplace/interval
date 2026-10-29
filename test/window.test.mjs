@@ -1974,3 +1974,45 @@ test('every creature moves between ticks', () => {
   assert.deepEqual(still, ['dummy'],
     'these creatures stand perfectly still, for ever:\n  ' + still.join('\n  '))
 })
+
+// §35: THE GOLD CHAIN IS THE OLD CHAIN, DIPPED.
+//
+// It was drawn as a necklace: a draped S-curve with round beads on it. It is
+// a WEAPON -- `slotOf` says weapon, it wants prowess 90 like its parent, and
+// its combat line is identical to the old chain's to the number. The recipe
+// is the whole argument in one line of the engine: ten gold bars and the
+// chain you already own. Nothing about it is made new.
+//
+// The same fault was found and fixed in the Unreal window a while ago, where
+// the note calls it "a reading of the word rather than of the world". The
+// flat window kept it, which is what happens when two windows draw the same
+// object from two files.
+//
+// This holds the GEOMETRY rather than the colour: the two must be built from
+// the same link positions, so they cannot drift back into being different
+// objects. A cosmetic flex has to be visibly the thing it flatters.
+test('the gold chain is drawn as the old chain, not as jewellery', () => {
+  const at = win.indexOf("case 'gold-chain':")
+  assert.ok(at > 0, 'the gold chain has no sprite')
+  const gold = win.slice(at, win.indexOf('break }', at))
+  const ot = win.indexOf("case 'old-chain':")
+  const old = win.slice(ot, win.indexOf('break }', ot))
+  // ONE link run, walked by both. Not "the same numbers written twice":
+  // the same array, so the sag can be retuned and the two cannot part.
+  assert.match(win, /const CHAIN_LINKS = \(\(\) => \{/,
+    'the chains no longer share one set of links')
+  for (const [name, body] of [['old', old], ['gold', gold]])
+    assert.match(body, /for \(const L of CHAIN_LINKS\)/,
+      `the ${name} chain does not walk the shared links, so the two are free `
+      + 'to become different objects again')
+  // and it is not a draped cord with beads on it
+  assert.ok(!/quadraticCurveTo/.test(gold),
+    'the gold chain is drawn as a draped curve, which is a necklace')
+  // §35: A CHAIN HANGS. Every link turned by the tangent where it sits,
+  // rather than all of them at one fixed angle, which is a chain drawn as a
+  // line. Spaced by ARC LENGTH, or a sagging run bunches them at one end.
+  assert.match(win, /a: Math\.atan2\(a1\.y - a0\.y, a1\.x - a0\.x\)/,
+    'the links no longer lie along the curve they sit on')
+  assert.match(win, /const want = \(i \/ \(N - 1\)\) \* total/,
+    'the links are not spaced by arc length, so a sag bunches them')
+})
