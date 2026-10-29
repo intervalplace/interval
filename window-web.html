@@ -7976,6 +7976,20 @@ let _menuAt = null   // set for the length of one right-click, read here only
 // The bar below stays as the fallback for a menu opened by something that is
 // not a press at all -- a keyboard shortcut, or the world itself asking.
 let _pressAt = null
+// §7ei: THE TILE A WORLD PRESS LANDED ON, and nothing else reads it.
+//
+// `walk here` is the one option the right button gives you in the model this
+// window took its interaction from that nothing here offered: a way ONTO a
+// tile that has something on it without setting the something off. You cannot
+// get it from the left button, because the left button's whole job is to do
+// the thing.
+//
+// It is appended in `chooseAction` rather than written into twenty option
+// lists, for the reason that function already gives: one list either way, or
+// the two inputs drift into offering different verbs. Set for the length of
+// one press and cleared after, so a menu raised by the pack never grows a
+// `walk here` for a tile nobody pressed.
+let _pressTile = null
 // `closest` is an ELEMENT method and a pointer event does not always carry
 // one: a synthetic event, or one that lands on the document or the window
 // itself, has a target with no such function and the handler throws. Both
@@ -8012,6 +8026,14 @@ function undrawnKind(kind) {
 const say1 = (w) => String(w ?? '').replace(/-/g, ' ')
 const cap1 = (t) => String(t ?? '').charAt(0).toUpperCase() + String(t ?? '').slice(1)
 function chooseAction(opts, at) {
+  // §7ei: and every menu raised over the world carries `walk here`.
+  if (_pressTile) {
+    const wt = _pressTile
+    opts = [...opts, { label: 'walk here', act: () => {
+      intent = { kind: 'walk', x: wt.x, y: wt.y }
+      nudgeIntent()
+    } }]
+  }
   const where = at ?? _menuAt ?? _pressAt
   if (where) return floatMenu(opts, where)
   const bar = document.getElementById('choosebar') ?? (() => {
@@ -17987,7 +18009,36 @@ cv.addEventListener('pointerleave', () => { hoverT = null })
 // browser's menu is refused over the canvas, always, including on the tiles
 // where the world has nothing to offer: a right-click that sometimes gives
 // you Reload is worse than one that reliably gives you nothing.
-function worldPress(e) {
+// §7ei: THE ONE THING EACH OF THESE CAN BE ASKED, IN THE WORLD'S OWN WORDS.
+//
+// Thirty-one kinds of thing answer a press. Thirteen build a list and have
+// always opened one. These eighteen have exactly one thing that can be done
+// to them, so they simply did it -- correctly, under §7y, because a menu of
+// one option is worse than the option. But that left the right button with
+// nothing to offer on eighteen of the thirty-one, and `walk here` is a real
+// second option on every one of them.
+//
+// Not one word here is invented. Each is the plain verb for what the branch
+// below already does, taken from the sentence the window already feeds when
+// it does it: the bell "goes out over the whole town", so you ring it; the
+// pell "takes a BLOW", so you strike it; the sigil "is made".
+const ONE_ACTION = {
+  altar: 'make a sigil', anvil: 'smith', bellwork: 'ring the bell',
+  campfire: 'cook', fire: 'cook', dummy: 'strike the pell', ferry: 'sail',
+  fountain: 'look into it', guard: 'talk to the guard', hearth: 'look at the hearth',
+  keeper: 'talk to them', landmark: 'look at it', 'looking-glass': 'change your look',
+  plot: 'sow', rockfall: 'mine it', sawpit: 'saw', smith: 'talk to the smith',
+  stamp: 'crush stone', tollgate: 'pay the toll', waystone: 'read it', well: 'drink',
+  // and the six the first pass of this missed, which is exactly why the test
+  // asks the HANDLER what it answers rather than trusting this list: `bell`
+  // is the same rope as `bellwork` under a second name, `butt` is the pell's
+  // archery twin, and the three that are only ever READ were invisible to a
+  // search for branches that act.
+  bell: 'ring the bell', butt: 'shoot the butt', crier: 'listen',
+  signpost: 'read it', palisade: 'look at it', wall: 'look at it',
+}
+
+function worldPress(e, asLeft) {
   if (!world) return
   const r = cv.getBoundingClientRect()
   // raw canvas pixels first: the minimap is drawn in them, the world is not
@@ -18021,6 +18072,11 @@ function worldPress(e) {
   if (x < 0 || x >= W || y < 0 || y >= H) return
   const me = world.players[myId]; if (!me) return
   const adj = (o) => Math.abs(me.x - o.x) + Math.abs(me.y - o.y) === 1
+  // §7ei: which button, and which tile. `asLeft` is the right-click menu
+  // calling this back to run the thing it offered, so it must not be read as
+  // a right-click again or the menu would reopen itself for ever.
+  const rightPress = !asLeft && e.type === 'contextmenu'
+  _pressTile = { x, y }
 
   // a new order interrupts the old work by REPLACING it: the engine
   // honors the latest input natively. (An explicit stop sent alongside
@@ -18266,6 +18322,17 @@ function worldPress(e) {
   for (const [id, n] of Object.entries(world.nodes))
     if (n.x === x && n.y === y) {
       if (me.action?.nodeId === id) return                     // already working it: silent
+      // §7ei: a thing with ONE action offers it rather than doing it, when it
+      // is the right button being pressed. `chooseAction` adds `walk here`,
+      // which is the whole reason this exists: the left button still does the
+      // thing, and the right one lets you go to the tile instead.
+      if (rightPress && ONE_ACTION[n.type]) {
+        // the callback runs long after this press is over, so it owns the
+        // tile for its own run and clears it again
+        chooseAction([{ label: ONE_ACTION[n.type],
+          act: () => { try { worldPress(e, true) } finally { _pressTile = null } } }])
+        return
+      }
       // §6dd: A DRY WELL IS NOT AN EXHAUSTED SEAM. This guard was written when
       // `depletedUntil` only ever appeared on something you gather from, so the
       // moment a well started carrying one (§6dd) clicking it answered
@@ -19122,7 +19189,11 @@ function worldPress(e) {
   if (me.action && me.action.type !== 'walk') send({ do: 'stop' })
   else nudgeIntent()
 }
-cv.addEventListener('click', worldPress)
+// §7ei: `_pressTile` lives for the length of one press. Both doors clear it
+// in a `finally`, because a branch that throws would otherwise leave every
+// later menu in the window -- the pack's, the book's -- offering to walk to
+// a tile somebody pressed minutes ago.
+cv.addEventListener('click', (e) => { try { worldPress(e) } finally { _pressTile = null } })
 cv.addEventListener('contextmenu', (e) => {
   e.preventDefault()
   // where the menu opens. `_pressAt` is set by the global pointerdown for any
@@ -19130,7 +19201,7 @@ cv.addEventListener('contextmenu', (e) => {
   // long press on some platforms), so this says it plainly rather than
   // relying on the press having happened.
   _menuAt = { x: e.clientX, y: e.clientY }
-  try { worldPress(e) } finally { _menuAt = null }
+  try { worldPress(e) } finally { _menuAt = null; _pressTile = null }
 })
 </script>
 <script>

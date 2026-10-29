@@ -17207,9 +17207,27 @@ pointer. The other eighteen have exactly one thing that can be done to them
 -- a waystone is read, an anvil is worked, a guard nods -- so they do it, and
 that is §7y rather than a gap: a menu of one option is worse than the option.
 
-**What is still missing is `walk here`**, which is the one thing the right
-button gives you in the model this came from that nothing here offers: a way
-onto a tile that has something on it without setting the something off.
+**And every menu over the world carries `walk here`.** It is the one option
+the left button can never give you, because the left button's whole job is to
+do the thing: a way onto a tile that has something on it without setting the
+something off. It is appended in `chooseAction` rather than written into
+twenty option lists, for the reason that function already gives -- one list
+either way, or the two inputs drift into offering different verbs.
+
+**So the eighteen offer their one action instead of performing it, when it is
+the right button.** The word for each is the plain verb for what the branch
+already does, taken from the sentence the window already feeds when it does
+it: the bell "goes out over the whole town", so you ring it; the pell "takes
+a BLOW", so you strike it; the sigil "is made". Nothing is invented.
+
+**The list of eighteen was wrong, and the test is what asks.** Written by
+reading the handler for branches that ACT, it missed six: `bell` is the same
+rope as `bellwork` under a second name, `butt` is the pell's archery twin,
+and `signpost`, `crier`, `palisade` and `wall` are only ever READ, so a search
+for branches that do something could not see them. The check asks the HANDLER
+what types it answers and refuses any that neither build a list nor have a
+word, which is the difference between a list somebody wrote and a list the
+code agrees with.
 
 ## 7h. Who Lives Here
 

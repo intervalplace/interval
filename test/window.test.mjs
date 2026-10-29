@@ -1844,7 +1844,7 @@ test('no creature draws a health bar outside the one gate', () => {
 test('right-clicking the world opens the world’s menu, not the browser’s', () => {
   assert.match(win, /function worldPress\(/,
     'the press handler must be a named function, or only one button can reach it')
-  assert.match(win, /cv\.addEventListener\('click', worldPress\)/,
+  assert.match(win, /cv\.addEventListener\('click', \(e\) => \{ try \{ worldPress\(e\)/,
     'the left button must still reach the handler')
   const at = win.indexOf("cv.addEventListener('contextmenu'")
   assert.ok(at > 0, 'the canvas has no contextmenu listener, so the browser keeps the right button')
@@ -1856,4 +1856,55 @@ test('right-clicking the world opens the world’s menu, not the browser’s', (
   // and it opens UNDER THE POINTER: `_menuAt` is what `chooseAction` reads
   assert.match(seg, /_menuAt = \{ x: e\.clientX, y: e\.clientY \}/,
     'a menu opened by the right button must appear where the pointer is')
+})
+
+// §7ei: AND EVERY THING THE RIGHT BUTTON LANDS ON OFFERS SOMETHING.
+//
+// Thirty-one kinds of thing answer a press. Thirteen build a list through
+// `chooseAction`; the other eighteen have exactly one action, so they did it
+// and the right button had nothing to say over any of them. They offer that
+// one action now, and `chooseAction` adds `walk here` to it -- the option the
+// left button can never give you, because the left button's job is to do the
+// thing.
+//
+// This fails when somebody adds a nineteenth single-action type and forgets
+// the word for it, which is the only way this can rot.
+test('every thing the press handler answers can be right-clicked for a menu', () => {
+  const at = win.indexOf('function worldPress(')
+  let d = 0, end = at
+  for (let i = win.indexOf('{', at); i < win.length; i++) {
+    if (win[i] === '{') d++
+    else if (win[i] === '}') { d--; if (!d) { end = i; break } }
+  }
+  const body = win.slice(at, end)
+  const verbs = new Set()
+  {
+    const m = win.match(/const ONE_ACTION = \{[\s\S]*?\n\}/)
+    assert.ok(m, 'ONE_ACTION is gone, so the single-action things offer nothing')
+    for (const [, k] of m[0].matchAll(/(?:^|[\s{,])'?([a-z-]+)'?:\s*'/g)) verbs.add(k)
+  }
+  // every type the handler branches on, and whether that branch builds a list
+  const lines = body.split('\n')
+  const missing = []
+  for (let i = 0; i < lines.length; i++) {
+    const m = /if \(n\.type === '([a-z-]+)'(?: \|\| n\.type === '([a-z-]+)')?\)? ?\{/.exec(lines[i])
+    if (!m) continue
+    for (const t of [m[1], m[2]].filter(Boolean)) {
+      if (verbs.has(t)) continue
+      // does its branch build a list of its own? COUNT BRACES, because a
+      // one-line branch closes on its own line and a search for a lone `}`
+      // runs past it to the end of the handler, picking up somebody else's
+      // chooseAction and reporting the type as answered.
+      const from = lines.slice(i).join('\n')
+      let d2 = 0, stop = from.length
+      for (let k = from.indexOf('{'); k < from.length; k++) {
+        if (from[k] === '{') d2++
+        else if (from[k] === '}') { d2--; if (!d2) { stop = k; break } }
+      }
+      if (!from.slice(0, stop).includes('chooseAction(')) missing.push(t)
+    }
+  }
+  assert.deepEqual([...new Set(missing)], [],
+    'the right button lands on these and the window offers nothing: they neither '
+    + 'build a list nor have a word in ONE_ACTION:\n  ' + [...new Set(missing)].join('\n  '))
 })
