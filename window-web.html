@@ -17973,7 +17973,21 @@ const _hoverFrom = (e) => {
 cv.addEventListener('pointermove', (e) => { hoverT = _hoverFrom(e) })
 cv.addEventListener('pointerleave', () => { hoverT = null })
 
-cv.addEventListener('click', (e) => {
+// §7ei: THE RIGHT BUTTON WAS THE BROWSER'S, NOT THE WORLD'S.
+//
+// The world had exactly one pointer listener, `click`, which is the LEFT
+// button. Nothing ever called `preventDefault` on a `contextmenu` over the
+// canvas, so right-clicking anything in the world raised Chrome's own menu --
+// Back, Reload, Save As, Inspect -- over the game. The window's own menu was
+// unreachable with the button the whole interaction model is built on (§5t:
+// left does the default thing, right offers every option), and the only place
+// the right button worked at all was the pack, which suppresses it on `#inv`.
+//
+// So the handler is a named function now and both buttons reach it. The
+// browser's menu is refused over the canvas, always, including on the tiles
+// where the world has nothing to offer: a right-click that sometimes gives
+// you Reload is worse than one that reliably gives you nothing.
+function worldPress(e) {
   if (!world) return
   const r = cv.getBoundingClientRect()
   // raw canvas pixels first: the minimap is drawn in them, the world is not
@@ -19107,6 +19121,16 @@ cv.addEventListener('click', (e) => {
   // rarer case keeps its old one-tick handoff through onState.
   if (me.action && me.action.type !== 'walk') send({ do: 'stop' })
   else nudgeIntent()
+}
+cv.addEventListener('click', worldPress)
+cv.addEventListener('contextmenu', (e) => {
+  e.preventDefault()
+  // where the menu opens. `_pressAt` is set by the global pointerdown for any
+  // button, but a contextmenu can arrive without one (a keyboard menu key, a
+  // long press on some platforms), so this says it plainly rather than
+  // relying on the press having happened.
+  _menuAt = { x: e.clientX, y: e.clientY }
+  try { worldPress(e) } finally { _menuAt = null }
 })
 </script>
 <script>

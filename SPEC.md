@@ -17186,6 +17186,31 @@ free. The flip ends before anything that prints a WORD -- the siren's "taken",
 the lamprey's "spent" -- or the word comes out back to front, and before the
 health bar, or it would empty from the wrong end.
 
+## 7ei. The right button belongs to the world
+
+**Right-clicking anything in the flat window raised the browser's menu.**
+Back, Reload, Save As, Inspect, over the game. The world had exactly one
+pointer listener on its canvas, `click`, which is the left button, and
+nothing ever called `preventDefault` on a `contextmenu` there. So the button
+the interaction model is built on (§5t: left does the default thing, right
+offers every option) reached the world nowhere except the pack, which
+suppresses it on its own element.
+
+**The handler is a named function and both buttons call it.** A listener body
+cannot be called twice. The browser's menu is refused over the canvas always,
+including on tiles where the world offers nothing: a right-click that
+sometimes gives you Reload is worse than one that reliably gives you nothing.
+
+**What it reaches, measured.** Thirty-one kinds of thing answer a press.
+Thirteen build a list through `chooseAction` and now open it under the
+pointer. The other eighteen have exactly one thing that can be done to them
+-- a waystone is read, an anvil is worked, a guard nods -- so they do it, and
+that is §7y rather than a gap: a menu of one option is worse than the option.
+
+**What is still missing is `walk here`**, which is the one thing the right
+button gives you in the model this came from that nothing here offers: a way
+onto a tile that has something on it without setting the something off.
+
 ## 7h. Who Lives Here
 
 > **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:4470` by `spec-stubs.mjs`.

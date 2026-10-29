@@ -1535,8 +1535,12 @@ test('the nine fold away, and the pack does not', () => {
 //
 // The two are one mistake with one tell: a canvas call in the click handler.
 test('the click handler draws nothing, and nothing it does is unreachable', () => {
-  const at = win.indexOf("cv.addEventListener('click'")
-  assert.ok(at > 0, 'window-web no longer has a canvas click handler')
+  // §7ei: the handler is a NAMED FUNCTION now, because the right button needs
+  // to reach it too and a listener body cannot be called twice. Anchoring on
+  // the listener finds a line BELOW the whole handler and every search from
+  // it comes up empty.
+  const at = win.indexOf('function worldPress(')
+  assert.ok(at > 0, 'window-web no longer has a world press handler')
   // to the end of that listener, by counting braces from its opening
   let depth = 0, end = at
   for (let i = win.indexOf('{', at); i < win.length; i++) {
@@ -1651,8 +1655,8 @@ test('the bank and the counter open a list, like the stall does', () => {
   // and the drawing comes first, so a plain indexOf tests the art and reports
   // that the bank answers with a sentence. The same shape as the fault that
   // made the stall menu unreachable: two branches, one condition.
-  const clicks = code.indexOf("cv.addEventListener('click'")
-  assert.ok(clicks > 0, 'window-web has no canvas click handler')
+  const clicks = code.indexOf('function worldPress(')
+  assert.ok(clicks > 0, 'window-web has no world press handler')
   const branch = (type) => {
     const at = code.indexOf(`if (n.type === '${type}') {`, clicks)
     assert.ok(at > 0, `no click branch for ${type}`)
@@ -1823,4 +1827,33 @@ test('no creature draws a health bar outside the one gate', () => {
   }
   assert.deepEqual(bad, [],
     'these health bars are drawn whatever is happening:\n  ' + bad.join('\n  '))
+})
+
+// §7ei: THE RIGHT BUTTON BELONGS TO THE WORLD, NOT TO CHROME.
+//
+// The world had exactly one pointer listener, `click`, which is the left
+// button. Nothing called `preventDefault` on a `contextmenu` over the canvas,
+// so right-clicking anything in the world raised the browser's own menu --
+// Back, Reload, Save As, Inspect -- over the game, and the window's own menu
+// was unreachable with the button the whole interaction model is built on.
+// The only place the right button worked was the pack, which suppresses it
+// on `#inv`.
+//
+// This holds the three parts: the handler is reachable by name, the right
+// button is wired to it, and the browser's menu is refused.
+test('right-clicking the world opens the world’s menu, not the browser’s', () => {
+  assert.match(win, /function worldPress\(/,
+    'the press handler must be a named function, or only one button can reach it')
+  assert.match(win, /cv\.addEventListener\('click', worldPress\)/,
+    'the left button must still reach the handler')
+  const at = win.indexOf("cv.addEventListener('contextmenu'")
+  assert.ok(at > 0, 'the canvas has no contextmenu listener, so the browser keeps the right button')
+  const seg = win.slice(at, at + 900)
+  assert.match(seg, /e\.preventDefault\(\)/,
+    'the browser menu is not refused, so it opens over the game')
+  assert.match(seg, /worldPress\(e\)/,
+    'the right button is swallowed but never reaches the world')
+  // and it opens UNDER THE POINTER: `_menuAt` is what `chooseAction` reads
+  assert.match(seg, /_menuAt = \{ x: e\.clientX, y: e\.clientY \}/,
+    'a menu opened by the right button must appear where the pointer is')
 })
