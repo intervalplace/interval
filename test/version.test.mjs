@@ -214,3 +214,36 @@ test('the manifest unit count equals the sum over the discovered unit files', ()
   for (const f of unitFiles) sum += m.tests.files[f] ?? 0
   assert.equal(sum, m.tests.unit, 'manifest unit total equals the per-file sum over discovered files')
 })
+
+// §2n: THE COVER NAMES THE WORLD, AND A WORLD IS THREE THINGS.
+//
+// The cover printed one hash under the word "world" and it was the ENGINE's.
+// A world is its rules, its engine and its land: `validateGenesis` refuses a
+// node whose engine differs AND one whose land differs, and the rules are
+// hashed into the founding, so all three move the world and the book named
+// one of them. The proof is the founding this was found at, which refounded
+// for three reasons at once; a generator edit moves the land and leaves
+// engine.js untouched, and the cover would not have moved at all.
+//
+// Three prefixes rather than one combined digest: a combined hash says two
+// copies differ and never which part.
+//
+// The LAND is checked for shape rather than value. Computing it means
+// building the island, sixty seconds, and this suite should not found a world
+// to read a cover. What this catches is the regression that actually happened
+// -- a cover naming fewer than three things, or carrying a stale stamp.
+test('the handbook cover names the rules, the engine and the land', () => {
+  const book = read('site/handbook-print.html')
+  const m = book.match(/rules ([0-9a-f]{8}) &middot; engine ([0-9a-f]{8}) &middot; land ([0-9a-f]{8})/)
+  assert.ok(m, 'the cover no longer names rules, engine and land. '
+    + 'One number cannot identify a world that three things define.')
+  const [, r, e, l] = m
+  assert.equal(r, rulesHash(new URL('../', import.meta.url)).slice(0, 8),
+    'the cover cites a rules hash this constitution does not have')
+  const eng = E.engineHashOf(fs.readFileSync(path.join(root, 'engine.js'), 'utf8'))
+  assert.equal(e, eng.slice(0, 8),
+    'the cover cites an engine hash this engine does not have')
+  assert.match(l, /^[0-9a-f]{8}$/)
+  // and the three are not the same number wearing three labels
+  assert.equal(new Set([r, e, l]).size, 3, 'two of the cover’s three hashes are identical')
+})

@@ -45,6 +45,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { spriteDataUri, beastDataUri } from './sprite-svg.mjs'
+import { rulesHash } from './rules-hash.mjs'
 
 // The path, not the URL's pathname: a directory with a space in it arrives
 // percent-encoded and `readFileSync` takes it literally, so the world could
@@ -67,7 +68,32 @@ const ART = HERE + '../interval/Art/Icons/'
 // The whole premise at the top of this file is that a copy of this book
 // records a world that cannot move under it. It has to be the world's own
 // number or it records nothing.
+//
+// AND IT IS THREE NUMBERS, NOT ONE. This printed the ENGINE hash under the
+// word "world", and the engine is one of three things a world is made of.
+// `validateGenesis` refuses a node whose engine differs, refuses one whose
+// LAND differs, and the rules are hashed into the founding too -- so all
+// three move the world, and the book was naming one of them.
+//
+// The proof is the founding this book was built for: it refounded for three
+// separate reasons at once, and a cover showing only the engine would have
+// moved for one of them. A generator edit moves the land and leaves
+// engine.js untouched, and the cover would not have changed at all while
+// the island did.
+//
+// Three short prefixes rather than one combined digest, deliberately. A
+// combined hash tells you two copies differ and never which part; these tell
+// you WHICH, which is the same diagnosis why-refound.mjs gives in prose and
+// the thing somebody holding two books actually wants.
+//
+// The world's full identity -- `worldId`, the hash of the whole canonical
+// genesis -- is deliberately NOT here. It commits to the founding instant and
+// the founder's key, and a book printed before a founding cannot know either.
+// What a book can honestly claim is the SHAPE: these rules, this engine,
+// this island.
 const WORLD = E.engineHashOf(readFileSync(HERE + 'engine.js', 'utf8'))
+const RULES = rulesHash(new URL('./', import.meta.url))
+
 
 // ---------------------------------------------------------------------------
 // THE WORLD'S OWN WORDS, ASKED FOR RATHER THAN REMEMBERED
@@ -309,6 +335,24 @@ const priced = (i) => (T('PRICES')[i] != null ? `${T('PRICES')[i]}` : '')
 // written into the generator at y=452, so anything shorter puts it off the
 // edge of the world. WORLDGEN_MIN is 448 by 256, exactly half of each.
 const WORLD_W = 896, WORLD_H = 512
+// THE LAND COSTS A MINUTE, so it is remembered. Not a shortcut around
+// computing it: the same computation, kept, and thrown away the moment the
+// generator's source changes. `TIDE` below reads the generator's SOURCE for
+// the same reason and says so; this one cannot, because a geography hash is
+// the hash of a built island and there is nothing in the source to read.
+const LAND = (() => {
+  const genSrc = readFileSync(HERE + 'worldgen-expanse7.mjs', 'utf8')
+  const key = E.engineHashOf(genSrc) + '|' + WG.TALLYHOLM_SEED + '|' + WORLD_W + 'x' + WORLD_H
+  const file = HERE + '.handbook-land.json'
+  try {
+    const was = JSON.parse(readFileSync(file, 'utf8'))
+    if (was && was.key === key && /^[0-9a-f]{64}$/.test(was.land)) return was.land
+  } catch { /* no memory of it, or an unreadable one: work it out again */ }
+  const g = WG.makeExpanse7Genesis(WG.TALLYHOLM_SEED, RULES, 0, WORLD_W, WORLD_H)
+  const land = g.geographyHash
+  try { writeFileSync(file, JSON.stringify({ key, land }, null, 2)) } catch { /* read-only tree */ }
+  return land
+})()
 
 // As runs of land per row rather than as a raster: it is vector, so it is
 // crisp at any size on paper, and a row of open sea costs nothing at all.
@@ -370,7 +414,8 @@ page('cover', `
   <h1>INTERVAL</h1>
   <div class="sub">A HANDBOOK</div>
   ${orn}
-  <div class="worldline">world ${WORLD.slice(0, 12)}</div>
+  <div class="worldline">rules ${RULES.slice(0, 8)} &middot; engine ${
+    WORLD.slice(0, 8)} &middot; land ${LAND.slice(0, 8)}</div>
   <div class="foot">One interval a second since the founding</div>`)
 
 // WHICH INTERVAL THIS COPY WAS PRINTED AT.
