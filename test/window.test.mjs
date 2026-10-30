@@ -2184,3 +2184,30 @@ test('every way out of the creature draw leaves the canvas balanced', () => {
     + 'reached and the state stack grows until the window freezes. Use a finally.')
   assert.deepEqual(unbalanced, [])
 })
+
+// §6dg: A FIRE ARROW IS ON FIRE.
+//
+// It flew as a bone-white streak exactly like an ordinary arrow: the tracer
+// was pushed with four numbers and a time, and the one thing it never carried
+// was what was in the quiver. The arrow on the drawn string was generic for
+// the same reason -- the citizen drawing knows `bow: RANGED_ITEMS.has(...)`
+// and has never known the ammunition.
+//
+// The rarest thing an archer can carry looked like the first thing they are
+// given, which is the same fault the bows themselves had before §7f.
+test('a fire arrow burns, on the string and in the air', () => {
+  assert.match(win, /const nockedIsFire = \(p\) =>/,
+    'nothing works out whether what is nocked is a fire arrow')
+  // both tracers carry it, or one kind of shot burns and the other does not
+  const pushes = [...win.matchAll(/arrowShots\.push\(\{[^}]*\}\)/g)].map((m) => m[0])
+  assert.ok(pushes.length >= 2, `expected the shot tracers; found ${pushes.length}`)
+  for (const p of pushes)
+    assert.match(p, /fire: nockedIsFire\(me\)/,
+      'a tracer is pushed without recording what was loosed:\n  ' + p)
+  // the tracer draws it differently
+  assert.match(win, /if \(a2\.fire\) \{/, 'the tracer draws every arrow the same')
+  // and the citizen has it on the string
+  assert.match(win, /fireNocked: nockedIsFire\(p\),/,
+    'the citizen drawing is never told what is in the quiver')
+  assert.match(win, /if \(o\.fireNocked\) \{/, 'a drawn bow shows no fire on the head')
+})

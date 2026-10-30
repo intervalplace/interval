@@ -8335,7 +8335,23 @@ addEventListener('unhandledrejection', (e) => {
   try { feed('[err] ' + (e.reason?.message ?? e.reason ?? 'rejection')) } catch {}
 })
 let xpDrops = []      // { amt, x, y, at }: floating +xp for gathering/cooking
-let arrowShots = []   // { x0, y0, x1, y1, at }: tracers for arrows in flight
+let arrowShots = []   // { x0, y0, x1, y1, at, fire }: tracers for arrows in flight
+// §6dg: AND WHAT WAS LOOSED. A fire arrow flew as a bone-white streak exactly
+// like an ordinary one: the tracer was pushed with four numbers and a time,
+// and the one thing it did not carry was the thing in the quiver.
+//
+// `ammoForItem` is the window's copy of the engine's rule about what a weapon
+// draws from, and it already answers this: a bow draws `arrows` unless it is
+// one of the self-loading kinds. So the question is only whether the pack
+// holds fire arrows and nothing ordinary -- a citizen with both loses the
+// choice to the engine, which spends the plain ones first.
+const nockedIsFire = (p) => {
+  try {
+    const inv = p?.inventory ?? []
+    const has = (w) => inv.some((sl) => sl && sl.item === w && (sl.qty ?? 1) > 0)
+    return has('fire-arrows') && !has('arrows')
+  } catch { return false }
+}
 let stillRings = []   // { x, y, at }: the truce, spoken, one expanding white ring
 // §7cr: AND THE OTHER SPELLS HAD NOTHING AT ALL.
 //
@@ -9691,7 +9707,7 @@ function _onState(s, worldId, local) {
       if (k === 'woodcraft' && me.skills[k] > old.skills[k]) SFX.fire()
       if (k === 'marksmanship' && me.skills[k] > old.skills[k]) {
         const foe = onACreature(me.action) ? world.mobs?.[me.action.mobId] : null
-        if (foe) { arrowShots.push({ x0: me.x, y0: me.y, x1: foe.x, y1: foe.y, at: performance.now() }); if (arrowShots.length > 6) arrowShots.shift() }
+        if (foe) { arrowShots.push({ x0: me.x, y0: me.y, x1: foe.x, y1: foe.y, at: performance.now(), fire: nockedIsFire(me) }); if (arrowShots.length > 6) arrowShots.shift() }
         tone(880, 0.06, { type: 'triangle', vol: 0.05 }); tone(240, 0.1, { type: 'square', vol: 0.03, at: 0.05 }) // the string, then the thud
       }
       if (k === 'mourning' && me.skills[k] > old.skills[k]) { tone(520, 0.3, { type: 'sine', vol: 0.05 }); tone(390, 0.4, { type: 'sine', vol: 0.04, at: 0.05 }) }
@@ -9710,7 +9726,7 @@ function _onState(s, worldId, local) {
       const newArr = me.inventory.reduce((a2, sl) => a2 + (sl?.item === 'arrows' ? sl.qty : 0), 0)
       if (newArr < oldArr && me.skills.marksmanship === old.skills.marksmanship) { // loosed and MISSED: seen and heard, softer
         const foe = onACreature(me.action) ? world.mobs?.[me.action.mobId] : null
-        if (foe) { arrowShots.push({ x0: me.x, y0: me.y, x1: foe.x + 0.6, y1: foe.y - 0.4, at: performance.now() }); if (arrowShots.length > 6) arrowShots.shift() }
+        if (foe) { arrowShots.push({ x0: me.x, y0: me.y, x1: foe.x + 0.6, y1: foe.y - 0.4, fire: nockedIsFire(me), at: performance.now() }); if (arrowShots.length > 6) arrowShots.shift() }
         tone(880, 0.05, { type: 'triangle', vol: 0.04 })
       } }
     if (me.hp < old.hp) { feed('You take ' + (old.hp - me.hp) + ' damage.'); SFX.hit() }
@@ -11362,6 +11378,17 @@ function drawCitizen(X, Y, o) {
     if (!loosed) {
       cx.strokeStyle = dbow8 ? '#e8c08a' : '#8a5a2a'; cx.lineWidth = 1.6
       cx.beginPath(); cx.moveTo(nockX, Y + 18); cx.lineTo(X + 20 + BF * 12, Y + 18); cx.stroke()
+      // §6dg: AND IF IT IS A FIRE ARROW, IT IS ALREADY BURNING ON THE STRING.
+      // The head is where the fire is, so it sits at the far end of the shaft
+      // rather than along it: a drawn bow with a lit head is the whole reason
+      // anybody carries these.
+      if (o.fireNocked) {
+        const tipX = X + 20 + BF * 12, fg = 0.6 + Math.sin(o.now / 110) * 0.4
+        cx.fillStyle = 'rgba(255,' + Math.round(150 + 70 * fg) + ',50,' + (0.7 + 0.25 * fg).toFixed(2) + ')'
+        cx.beginPath(); cx.ellipse(tipX, Y + 18, 2.2 + fg * 0.8, 1.8 + fg * 0.6, 0, 0, 7); cx.fill()
+        cx.fillStyle = 'rgba(255,200,90,.22)'
+        cx.beginPath(); cx.arc(tipX, Y + 18, 5.5 + fg, 0, 7); cx.fill()
+      }
     } else {
       // the string still ringing, a moment after
       const ring = (shotT - 0.66) / 0.34
@@ -15674,6 +15701,9 @@ function drawScene(now) {
       // drawn empty-handed and never nocked an arrow. The finest weapon in
       // the world was invisible on the person carrying it.
       bow: RANGED_ITEMS.has(p.equipment?.weapon?.item),
+      // §6dg: and what is in the quiver, so a fire arrow is alight on the
+      // string. The tracer learned this the same way (see nockedIsFire).
+      fireNocked: nockedIsFire(p),
       shooting: RANGED_ITEMS.has(p.equipment?.weapon?.item) && p.action
         && inAFight(p.action)
         && (() => { const t2 = p.action.mobId ? s.mobs[p.action.mobId] : s.players[p.action.targetId]
@@ -16094,9 +16124,25 @@ function drawScene(now) {
     const f2 = (now - a2.at) / 280, f3 = Math.max(0, f2 - 0.22)
     const ax = px(lerp(a2.x0, a2.x1, f2)) + 8, ay = py(lerp(a2.y0, a2.y1, f2)) + 8
     const bx = px(lerp(a2.x0, a2.x1, f3)) + 8, by = py(lerp(a2.y0, a2.y1, f3)) + 8
-    cx.strokeStyle = 'rgba(232,228,208,' + (1 - f2 * 0.6) + ')'
-    cx.lineWidth = 1.4
-    cx.beginPath(); cx.moveTo(bx, by); cx.lineTo(ax, ay); cx.stroke()
+    if (a2.fire) {
+      // §6dg: A FIRE ARROW IS ON FIRE. Three strokes: a dark smoke trail
+      // behind it, the burning shaft, and the head itself, which is the
+      // brightest thing in the picture for a quarter of a second.
+      cx.strokeStyle = 'rgba(60,40,30,' + (0.35 * (1 - f2)) + ')'
+      cx.lineWidth = 3.4
+      cx.beginPath(); cx.moveTo(bx, by); cx.lineTo(ax, ay); cx.stroke()
+      cx.strokeStyle = 'rgba(240,140,40,' + (1 - f2 * 0.5) + ')'
+      cx.lineWidth = 2
+      cx.beginPath(); cx.moveTo(bx, by); cx.lineTo(ax, ay); cx.stroke()
+      cx.fillStyle = 'rgba(255,232,150,' + (1 - f2 * 0.4) + ')'
+      cx.beginPath(); cx.arc(ax, ay, 2.2, 0, 7); cx.fill()
+      cx.fillStyle = 'rgba(255,170,60,.18)'
+      cx.beginPath(); cx.arc(ax, ay, 7, 0, 7); cx.fill()
+    } else {
+      cx.strokeStyle = 'rgba(232,228,208,' + (1 - f2 * 0.6) + ')'
+      cx.lineWidth = 1.4
+      cx.beginPath(); cx.moveTo(bx, by); cx.lineTo(ax, ay); cx.stroke()
+    }
   }
   // the stilling's ring: everything else adds motion; this removes it
   // §7db: THE NAMES OF THINGS NEAR YOU.
