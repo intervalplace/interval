@@ -17324,6 +17324,41 @@ body hanging in the wind, and that belongs to the frame clock.
 **The training pell is the one thing allowed to stand still**, because that is
 what it does. It flinches when struck like everything else.
 
+## 7dq-iv. The cave is dark, and the light a citizen carries is what they see by
+
+**The engine has said this since the Smother was written and no window drew
+it.** The only thing light decided anywhere was one tile: the Smother's mouth
+refuses anybody not lit. So the rule was real, the dark was not in the
+picture, and a torch's clock -- which the engine's own note calls "the whole
+point of the item" -- could be discovered only by walking to the mouth and
+being refused.
+
+**Which tiles are dark is served with the ground** (§7ec). The Smother's
+interior, every tile of its drawing except the mouth itself, which stays lit
+because it is the threshold you stand on to be refused. A hundred and fifty
+one tiles on this island. **It changes no tile's walkability and enters no
+geography hash**, exactly as `elevGrid` does not: it is a list a window draws
+by, and what a citizen may DO in the dark stays with the engine.
+
+**Whether a citizen carries light is told by the node, never worked out by
+the window.** `carriesLight` is four rules at once -- a weapon that burns, the
+siphon's fuel, fire-arrows counting as a light, and the torch's timer -- and
+the engine exports it with a note saying a window that copies them will drift
+from the door that actually decides. It is its own message, sent on change: the
+state is consensus and is not the bridge's to decorate, and most ticks go out
+as patches, which are hand-rolled buffers on the path that once ran a node out
+of memory.
+
+**A lamp, not a switch.** Carrying light does not clear the cave; it clears
+what is near you, about four and a half tiles, and the dark closes behind. A
+flat on and off would make the item pointless the moment it was in the pack.
+The reach is measured in TILES: a number in canvas pixels is half a tile on a
+sharp screen, which is how the first attempt lit nothing at all.
+
+**And the torch says how long it has.** On the line that is rebuilt every
+frame, because the side panel is signature-gated and a clock there would
+rebuild the whole bar once a second.
+
 ## 7h. Who Lives Here
 
 > **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:4470` by `spec-stubs.mjs`.

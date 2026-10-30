@@ -128,6 +128,7 @@ for (const kind of ONE_OFF) {
 }
 
 const WALKN = (() => { const i = process.argv.indexOf('--walk'); return i > 0 ? Number(process.argv[i + 1]) || 40 : 0 })()
+const LIT = process.argv.includes('--lit')
 const only = arg('--only')
 const plan = only ? shots.filter((s) => s.place === only || s.name.toLowerCase().includes(only.toLowerCase())) : shots
 
@@ -185,6 +186,7 @@ const AFTER = (plan, state, myId) => `<script>
   const STATE = ${JSON.stringify(state)}
   const ME = ${JSON.stringify(myId)}
   const WALKN = ${JSON.stringify(WALKN)}
+  const LIT = ${JSON.stringify(LIT)}
   ;(async () => {
     const say = (t) => { document.title = t }
     try {
@@ -196,6 +198,7 @@ const AFTER = (plan, state, myId) => `<script>
       if (typeof onMessage !== 'function') { say('SWEEPFAIL the window has no onMessage'); return }
       const feedOne = (m) => onMessage({ data: JSON.stringify(m) })
       feedOne({ type: 'hello', playerId: ME })
+      if (LIT) feedOne({ type: 'lit', lit: true })
       // through the door without typing a name: there is nobody here to type one
       try { entered = true } catch (e) {}
       for (const id of ['gate', 'gateinfo']) {
@@ -305,7 +308,7 @@ const served = (() => {
   return {
     settlements: { settlements: WG.settlementsOf(g).map((t) => ({ tag: t.tag, name: t.name, x: t.x, y: t.y, w: t.w, h: t.h })) },
     roads: { tiles: [...WG.roadTilesOf(g)], bridges: [], bends: [] },
-    ground: { w: g.worldW, h: g.worldH, rows },
+    ground: { w: g.worldW, h: g.worldH, rows, dark: WG.darkTilesOf ? WG.darkTilesOf(g) : [] },
   }
 })()
 const BEFORE = BEFORE_TPL.replace('__SERVED__', JSON.stringify(served))

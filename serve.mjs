@@ -236,7 +236,7 @@ function carriedThroughRenames(list) {
 import { IntervalNode } from './node.mjs'
 import { DEFAULT_STARTUP_VERIFY_RECENT_N } from './errors.mjs'
 import { IntervalClient } from './sdk.mjs'
-import { buildWorld, foundGenesis, roadDataOf, groundKindOf, biomeOf, localesOf, seatsImports } from './worldgen-any.mjs'
+import { buildWorld, foundGenesis, roadDataOf, groundKindOf, biomeOf, localesOf, darkTilesOf, seatsImports } from './worldgen-any.mjs'
 import { readFounding, writeFounding } from './worldcache.mjs'
 import { carry, provenance } from './crossing.mjs'
 import { IncomingTree } from './incoming.mjs'
@@ -1299,7 +1299,9 @@ const server = http.createServer((req, res) => {
             if (runs.length) bRows.push([y, runs])
           }
           _groundCache = { w: gg.worldW, h: gg.worldH, rows, biomes: bRows,
-            locales: localesOf(gg) }
+            // §7dq-iv: and where it is dark, so a window draws by the light a
+            // citizen carries rather than guessing which places are caves
+            locales: localesOf(gg), dark: darkTilesOf(gg) }
         } catch (e) { _groundCache = { w: 0, h: 0, rows: [], error: e.message } }
       }
       return json(_groundCache)
@@ -2118,6 +2120,35 @@ node.onTick = (state) => {
   const DROP_ABOVE = 32 * 1024 * 1024  // ~50 states behind: it is not coming back
   let skipped = 0, dropped = 0, worst = 0
   for (const ws of patched) if (!sockets.has(ws)) patched.delete(ws)
+  // §7dq-iii: AND THE WINDOW IS TOLD WHETHER IT CARRIES LIGHT.
+  //
+  // The engine exports `carriesLight` for exactly this and says why in its own
+  // margin: the rule is four things at once -- the weapon table's `burns`, the
+  // siphon's fuel, fire-arrows counting as a light, and the torch's timer --
+  // and a window working them out for itself would be reimplementing all four
+  // and drifting from the door that actually decides. The door is the
+  // Smother's mouth, which refuses anybody not lit.
+  //
+  // It is a message of its own rather than a field on the state, for two
+  // reasons. The state is consensus and is not ours to decorate; and most
+  // ticks go out as PATCHES, which are hand-rolled buffers on the path that
+  // once ran this node out of memory, so nothing new belongs in them.
+  //
+  // It changes rarely -- a torch lit, a torch burnt down, the last fire arrow
+  // spent -- so it is sent on CHANGE and costs nothing the rest of the time.
+  for (const [ws, cl] of sockets.entries()) {
+    if (ws.readyState !== 1) continue
+    try {
+      // two shapes of client: a local one carries its key in `identity`, an
+      // external window was registered with a bare `playerId`
+      const pid = cl?.identity?.playerId ?? cl?.playerId
+      const pl = pid ? state.players[pid] : null
+      if (pl) {
+        const lit = !!E.carriesLight(pl, state.tick)
+        if (ws._litWas !== lit) { ws._litWas = lit; ws.send(JSON.stringify({ type: 'lit', lit })) }
+      }
+    } catch { /* a window without light is a window that draws no glow */ }
+  }
   for (const ws of sockets.keys()) {
     if (ws.readyState !== 1) continue
     const backlog = ws.bufferedAmount ?? 0

@@ -2534,6 +2534,44 @@ export function smotherDoorOf(g) {
   _smMemo.set(k, out)
   return out
 }
+// §7dq-iv: THE TILES THAT ARE DARK, as data for a window to draw by.
+//
+// The engine says, in its own margin beside `carriesLight`, that "the cave is
+// dark, the light a citizen carries is what they see by". The world had never
+// said WHICH tiles that is: the only place light decided anything was one
+// tile, the Smother's mouth, which refuses anybody not lit. So the rule was
+// real and the dark was not drawn anywhere.
+//
+// This is the dark: the Smother's interior, every reserved tile inside its
+// closing wall, with the mouth itself left light because it is the threshold
+// you stand on to be refused.
+//
+// LIKE `elevGrid`, IT CHANGES NO TILE'S WALKABILITY and enters no geography
+// hash. It is a list of coordinates a window may draw by, and the question of
+// what a citizen may DO in the dark stays with the engine.
+const _darkMemo = new Map()
+export function darkTilesOf(g) {
+  const k = g.genesisSeed + ':' + g.worldW + 'x' + g.worldH
+  if (_darkMemo.has(k)) return _darkMemo.get(k)
+  const out = []
+  const door = smotherDoorOf(g)
+  for (const P of placeSeatsOf(g)) {
+    if (P.tag !== 'smother') continue
+    for (let ry = 0; ry < P.h; ry++) {
+      const row = P.rows[ry]; if (!row) continue
+      for (let rx = 0; rx < row.length; rx++) {
+        // '~' is a hole in the drawing: ground the place does not claim
+        if (row[rx] === '~') continue
+        const x = P.x0 + rx, y = P.y0 + ry
+        if (door && x === door.x && y === door.y) continue   // the threshold
+        out.push([x, y])
+      }
+    }
+  }
+  _darkMemo.set(k, out)
+  return out
+}
+
 export const SQUEEZE_CARRY = 3
 const _sqMemo = new Map()
 export function squeezeOf(g) {

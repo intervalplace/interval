@@ -2211,3 +2211,42 @@ test('a fire arrow burns, on the string and in the air', () => {
     'the citizen drawing is never told what is in the quiver')
   assert.match(win, /if \(o\.fireNocked\) \{/, 'a drawn bow shows no fire on the head')
 })
+
+// §7dq-iii/iv: THE DARK, AND THE LIGHT A CITIZEN CARRIES.
+//
+// The engine has said since the Smother was written that "the cave is dark,
+// the light a citizen carries is what they see by", and it was never drawn.
+// The only thing light decided anywhere was ONE tile -- the mouth, which
+// refuses anybody not lit -- so the rule was real and the dark was not in the
+// picture, and a torch's timer could only be discovered by walking to the
+// mouth and being refused.
+//
+// Both halves are TOLD, and that is what this holds. Which tiles are dark
+// comes from the pillar with the ground; whether this citizen carries light
+// comes from the node, because the rule is four things at once (a weapon that
+// burns, the siphon's fuel, fire-arrows, the torch's clock) and the engine
+// exports `carriesLight` with a note saying a window that copies them drifts
+// from the door that decides.
+test('the window is told where it is dark and whether it carries light', () => {
+  assert.match(win, /if \(m\.type === 'lit'\) \{ iCarryLight = !!m\.lit; return \}/,
+    'the window does not take the node’s answer about carried light')
+  // STRIPPED OF COMMENTS FIRST. The note explaining why the window must not
+  // copy the rule names the rule, so a plain search finds the explanation and
+  // reports it as the offence.
+  const code = win
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .split('\n').map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n')
+  assert.ok(!/carriesLight\(|crossingView\(/.test(code),
+    'the window reimplements the engine’s light rule instead of being told it')
+  assert.match(win, /_darkTold = new Set\(gd\.dark\.map/,
+    'the window does not take the dark tiles the pillar serves')
+  // a lamp, not a switch: carrying light must not simply clear the cave
+  assert.match(win, /a = d >= R \? 0\.9 : 0\.9 \* Math\.pow\(Math\.min\(1, d \/ R\), 1\.6\)/,
+    'the light must fall off with distance, or a torch is an on/off switch')
+  // and the reach is in TILES: a canvas number is half a tile on a sharp screen
+  assert.match(win, /const R = [\d.]+ \* TILE \* ZR/,
+    'the light’s reach must be measured in tiles, not in canvas pixels')
+  // the torch's own clock, which was on the wire and read nowhere
+  assert.match(win, /_meT\?\.torchUntil \?\? 0/,
+    'the torch’s remaining time is still not shown anywhere')
+})

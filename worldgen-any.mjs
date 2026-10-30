@@ -133,6 +133,16 @@ export function localesOf(genesis) {
     .map((L) => ({ name: L.name, x: L.x, y: L.y, rx: L.rx, ry: L.ry }))
 }
 
+// §7dq-iv: THE TILES A WINDOW SHOULD DRAW DARK. A generator that names none
+// has no dark, which is every generator but the seventh.
+export function darkTilesOf(genesis) {
+  const gen = generatorFor(genesis)
+  if (typeof gen.darkTilesOf !== 'function') return []
+  return gen.darkTilesOf(genesis)
+    .filter((t) => Array.isArray(t) && Number.isFinite(t[0]) && Number.isFinite(t[1]))
+    .map((t) => [t[0], t[1]])
+}
+
 export function roadDataOf(genesis) {
   const gen = generatorFor(genesis)
   if (typeof gen.roadTilesOf !== 'function') return { tiles: [], bridges: [], bends: [] }

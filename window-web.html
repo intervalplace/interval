@@ -796,6 +796,12 @@ let _biomeTold = null, _biomeKinds = null
 // can see is a name you can arrange to meet at, which is the only matchmaking
 // this world has.
 let _localesTold = null
+// §7dq-iv: the tiles the world says are dark, told by the pillar with the
+// ground. Empty until it answers, and empty for ever on a world whose
+// generator names none.
+let _darkTold = new Set()
+const isDarkAt = (x, y) => _darkTold.size > 0 && _darkTold.has(x + ',' + y)
+
 function localeToldAt(x, y) {
   if (!_localesTold) return null
   let best = null, bestArea = Infinity
@@ -839,6 +845,13 @@ function takeGroundTold(gd) {
     }
   }
   if (haveRows) { _groundTold = flat; _groundKinds = kinds }
+  // §7dq-iv: AND WHERE IT IS DARK. A set of 'x,y', because there are a
+  // hundred and fifty-one of them on this island and a lookup per drawn tile
+  // has to cost nothing. A payload without it simply leaves the world lit,
+  // which is what every world before this one was.
+  if (Array.isArray(gd.dark)) {
+    _darkTold = new Set(gd.dark.map((t) => t[0] + ',' + t[1]))
+  }
   if (Array.isArray(gd.biomes) && gd.biomes.length) {
     const bk = ['']
     const bi = new Map()
@@ -5945,6 +5958,8 @@ const MAGIC_ROCK_MINING = 70
 
 
 let myId = null, myName = '', world = null, intent = null, feedLines = []
+// §7dq-iii: told by the node, never derived. See the 'lit' message.
+let iCarryLight = false
 let _dial = null, _dialHidden = false
 ;(async () => {
   try {
@@ -7490,6 +7505,14 @@ function onMessage (ev) {
     else myId = m.playerId
     document.getElementById('gatekey').textContent = 'your key: ' + myId.slice(0, 12) + '\u2026'
   }
+  // §7dq-iii: WHETHER THIS CITIZEN CARRIES LIGHT, from the node.
+  //
+  // Not worked out here. The rule is four things at once -- a weapon that
+  // burns, the siphon's fuel, fire-arrows, and the torch's own timer -- and
+  // the engine exports `carriesLight` with a note saying a window that copies
+  // them will drift from the door that actually decides. Sent on change,
+  // because it changes rarely.
+  if (m.type === 'lit') { iCarryLight = !!m.lit; return }
   if (m.type === 'nought') { noughtPeerSaw(m.at); return }   // §0: another resident, walking
   if (m.type === 'state') { _held = m.state; _heldWorldId = m.worldId; onState(m.state, m.worldId) }
   if (m.type === 'patch') {
@@ -16119,6 +16142,61 @@ function drawScene(now) {
   }
 
   // arrows in flight: a bright line that fades as it flies (280ms)
+  // §7dq-iv: THE DARK, AND THE LIGHT A CITIZEN CARRIES.
+  //
+  // The engine has said since the Smother was written that "the cave is dark,
+  // the light a citizen carries is what they see by". It was never drawn: the
+  // only thing light decided anywhere was one tile, the mouth, which refuses
+  // anybody not lit. So the rule was real and the dark was not in the picture.
+  //
+  // Over the world and under the interface, so the pack and the chat stay
+  // readable in a cave. The tiles come from the pillar (§7ec) and whether THIS
+  // citizen carries light comes from the node (§7dq-iii) -- neither is worked
+  // out here, because both have been got wrong by being worked out here.
+  //
+  // A LAMP, NOT A SWITCH. Carrying light does not clear the cave: it clears
+  // what is near you, and the dark closes again behind. That is what a torch
+  // is for, and a flat on/off would make the item pointless the moment it was
+  // in the pack.
+  if (_darkTold.size > 0) {
+    const meD = s.players?.[myId]
+    const lp = meD ? { x: px(meD.x) + 20, y: py(meD.y) + 18 } : null
+    // IN TILES, NOT IN PIXELS. This was a flat 86, which is a canvas number:
+    // the window renders at the device ratio, so on a sharp screen the pool
+    // came out half a tile wide and lit nothing. A torch reaches about four
+    // and a half tiles, whatever the screen is made of.
+    const R = 4.5 * TILE * ZR
+    cx.save()
+    for (let ty = Math.floor(cam.y) - 1; ty < cam.y + _vh + 2; ty++) {
+      for (let tx = Math.floor(cam.x) - 1; tx < cam.x + _vw + 2; tx++) {
+        if (!isDarkAt(tx, ty)) continue
+        const X = px(tx), Y = py(ty)
+        let a = 0.9                                  // nearly black, not quite:
+                                                     // a shape you cannot name is
+                                                     // better than a void
+        if (lp && iCarryLight) {
+          const d = Math.hypot(X + 20 - lp.x, Y + 20 - lp.y)
+          // eased, so the edge of the light is a falling-off and not a disc
+          a = d >= R ? 0.9 : 0.9 * Math.pow(Math.min(1, d / R), 1.6)
+          if (a < 0.06) a = 0
+        }
+        if (a <= 0) continue
+        cx.fillStyle = 'rgba(6,5,9,' + a.toFixed(3) + ')'
+        cx.fillRect(X, Y, TILE * ZR + 1, TILE * ZR + 1)
+      }
+    }
+    // and the light itself has a colour: a torch is warm, and the warmth is
+    // how you tell a lit cave from a cave at dusk
+    if (lp && iCarryLight) {
+      const fl = 0.85 + Math.sin(now / 160) * 0.15
+      const gr = cx.createRadialGradient(lp.x, lp.y, 0, lp.x, lp.y, R * fl)
+      gr.addColorStop(0, 'rgba(255,170,70,.16)')
+      gr.addColorStop(1, 'rgba(255,170,70,0)')
+      cx.fillStyle = gr
+      cx.beginPath(); cx.arc(lp.x, lp.y, R * fl, 0, 7); cx.fill()
+    }
+    cx.restore()
+  }
   arrowShots = arrowShots.filter(a2 => now - a2.at < 280)
   for (const a2 of arrowShots) {
     const f2 = (now - a2.at) / 280, f3 = Math.max(0, f2 - 0.22)
@@ -16385,7 +16463,22 @@ function drawScene(now) {
   const phase = cyc < 0.06 ? 'dawn' : cyc < 0.44 ? 'day' : cyc < 0.56 ? 'dusk':
               cyc < 0.94 ? 'night' : 'dawn'
   cx.fillStyle = 'rgba(217,201,163,.75)'; cx.font = '10px Verdana'; cx.textAlign = 'left'
-  cx.fillText('world ' + curWorldId.slice(0, 12) + '\u2026' + ', tick ' + s.tick + ', ' + phase + ', ' + BUILD + meterText, 6, cv.height - 6)
+  // §7dq-ii: AND HOW LONG THE TORCH HAS. `torchUntil` is a persisted field of
+  // the citizen and has been on the wire the whole time; this window read it
+  // nowhere. A torch BURNS DOWN -- the engine's own note calls the timer "the
+  // whole point of the item" -- and whether it is still alight is what the
+  // Smother's mouth asks. A citizen could only find out by walking to the
+  // mouth and being refused.
+  //
+  // Drawn on this line because it is the one thing in the window that is
+  // rebuilt every frame: the side panel is signature-gated, so a clock put
+  // there would force the whole bar to be rebuilt once a second.
+  const _meT = s.players[myId]
+  const _tLeft = Math.max(0, ((_meT?.torchUntil ?? 0) - s.tick))
+  const _torch = _tLeft > 0
+    ? ', torch ' + (_tLeft >= 60 ? Math.round(_tLeft / 60) + 'm' : Math.round(_tLeft) + 's')
+    : ''
+  cx.fillText('world ' + curWorldId.slice(0, 12) + '\u2026' + ', tick ' + s.tick + ', ' + phase + _torch + ', ' + BUILD + meterText, 6, cv.height - 6)
 }
 fitCanvas()
 // §7ek: THE LOOP MUST NOT BE KILLABLE.
