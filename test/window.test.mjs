@@ -1929,8 +1929,12 @@ test('every thing the press handler answers can be right-clicked for a menu', ()
 // per-creature is forgotten on the twenty-third.
 test('a creature shows it when it is struck', () => {
   assert.match(win, /const mobHit = \{\}/, 'nothing records when a creature was hit')
-  assert.match(win, /if \(o && s\.mobs\[mid\]\.hp < o\.hp\) mobHit\[mid\] = performance\.now\(\)/,
+  // the two FACTS, not the shape they were first written in: a creature's
+  // health is compared against last tick's, and the drop marks the blow
+  assert.match(win, /if \(o && s\.mobs\[mid\]\.hp < o\.hp\)/,
     'the hp drop that marks a blow is not watched for creatures')
+  assert.match(win, /mobHit\[mid\] = performance\.now\(\)/,
+    'nothing records when the blow landed')
   // and the draw reads it, with the citizen's own 320ms
   assert.match(win, /const _mhurt = Math\.max\(0, 1 - \(now - \(mobHit\[id\] \?\? -9999\)\) \/ 320\)/,
     'the creature draw no longer reads the blow')
@@ -1939,7 +1943,7 @@ test('a creature shows it when it is struck', () => {
   // AND THE OTHER HALF: one that flinches but never strikes is being beaten
   // rather than fought, with all the motion on the citizen's side.
   assert.match(win, /const mobStruck = \{\}/, 'nothing records a blow a creature LANDS')
-  assert.match(win, /if \(s\.mobs\[mid\]\.mad === pid\) mobStruck\[mid\] = performance\.now\(\)/,
+  assert.match(win, /if \(s\.mobs\[mid\]\.mad === pid\) \{?\s*\n?\s*mobStruck\[mid\] = performance\.now\(\)/,
     'a lunge must belong to the beast that is coming for THAT citizen, not to '
     + 'every beast standing near somebody who took a wound')
   assert.match(win, /MF \* _lunge/, 'the lunge goes toward what it is fighting')
@@ -2249,4 +2253,79 @@ test('the window is told where it is dark and whether it carries light', () => {
   // the torch's own clock, which was on the wire and read nowhere
   assert.match(win, /_meT\?\.torchUntil \?\? 0/,
     'the torch’s remaining time is still not shown anywhere')
+})
+
+// §7el: SOUND. Four faults, and the first one is the shape of the rest.
+//
+// `SFX.hit` was the only combat sound this window had, and it played in
+// exactly ONE place: when your own health fell. Your blow landing on a wolf
+// was silent. Every weapon in the world hit with the same noise. A gambit --
+// four blows rolled into one exchange -- made no sound at all. Nothing in the
+// world made a sound when it hit you.
+//
+// And the ambience was one bird by day and one cricket by night, the same two
+// on every acre: the fens, the crags, the moor and the greenwood were
+// acoustically identical, on a window that has named the country under your
+// feet for a week.
+test('a blow sounds like the weapon that struck it', () => {
+  assert.match(win, /function strikeSound\(item, gambit\)/, 'there is no weapon voice')
+  // the families are the SWING's families, so a weapon cannot look like a
+  // spear and sound like a mell
+  for (const fam of ['mell', 'spear', 'chain', 'gonne', 'siphon', 'bow', 'staff'])
+    assert.ok(new RegExp("case '" + fam + "':").test(win), `no voice for a ${fam}`)
+  // quickmetal and the great arms are told apart from iron
+  assert.match(win, /const weaponMetal = \(it\) =>/, 'every weapon sounds the same metal')
+  assert.match(win, /if \(m === 'quick'\) tone/, 'quickmetal does not ring')
+  // and your own blow is played, which is the sound that did not exist
+  assert.match(win, /strikeSound\(meS\.equipment\?\.weapon\?\.item, bl\.length > 1\)/,
+    'your own blow landing still makes no sound')
+})
+
+test('a gambit does not sound like an ordinary blow', () => {
+  // told by the engine's own record, not guessed from what the window armed
+  assert.match(win, /const bl = Array\.isArray\(meS\.blows\)/,
+    'the window guesses at a gambit instead of reading the blows the engine recorded')
+  const at = win.indexOf('function strikeSound(')
+  const body = win.slice(at, win.indexOf('\n}', win.indexOf('if (g) { tone', at)))
+  assert.match(body, /if \(g\) noise/, 'a gambit has no wind-up')
+  assert.match(body, /if \(g\) \{ tone/, 'a gambit does not ring out')
+})
+
+test('every creature has a voice of its own', () => {
+  assert.match(win, /const CREATURE_VOICE = \{/, 'nothing in the world makes a sound')
+  const tbl = /const CREATURE_VOICE = \{([\s\S]*?)\n\}/.exec(win)
+  assert.ok(tbl, 'the creature voices are gone')
+  const voiced = [...tbl[1].matchAll(/^\s*'?([a-z-]+)'?:/gm)].map((m) => m[1])
+  // the ones a citizen actually fights must not fall back to a generic snarl
+  for (const beast of ['wolf', 'bear', 'boar', 'troll', 'goblin', 'dragon'])
+    assert.ok(voiced.includes(beast), `${beast} has no voice of its own`)
+  assert.ok(voiced.length >= 18,
+    `only ${voiced.length} creatures have a voice; a generic snarl for the rest `
+    + 'is a noise that carries no information')
+  // and it is played only for a blow landed on YOU
+  assert.match(win, /if \(pid === myId\) try \{ creatureVoice\(s\.mobs\[mid\]\.type\)\(\)/,
+    'every creature in the world would be heard fighting every other')
+})
+
+test('the country you stand in is what you hear', () => {
+  assert.match(win, /const AMBIENCE = \{/, 'the ambience is still one bird everywhere')
+  const af = /const AMBIENCE_FOR = \{([\s\S]*?)\}/.exec(win)
+  assert.ok(af, 'nothing maps a country to its voice')
+  const have = [...af[1].matchAll(/'([^']+)':/g)].map((m) => m[1])
+  // every country the window can NAME must have one, or the ambience falls
+  // back to the old bird and nobody finds out
+  const rn = /const REGION_NAMES = \{([\s\S]*?)\n[a-z]/.exec(win)
+  const named = [...new Set([...rn[1].matchAll(/'(the [^']+)'/g)].map((m) => m[1]))]
+  const missing = named.filter((n) => !have.includes(n))
+  assert.deepEqual(missing, [],
+    'these countries are named under the minimap and sound like nowhere:\n  '
+    + missing.join('\n  '))
+  // day and night differ in each
+  const amb = /const AMBIENCE = \{([\s\S]*?)\n\}\n/.exec(win)[1]
+  const places = [...amb.matchAll(/^  ([a-z]+): \{/gm)].map((m) => m[1])
+  for (const p of places) {
+    const blk = new RegExp('  ' + p + ': \\{([\\s\\S]*?)\\n  \\},').exec(amb)
+    assert.ok(blk && /day: \[/.test(blk[1]) && /night: \[/.test(blk[1]),
+      `${p} does not sound different at night`)
+  }
 })

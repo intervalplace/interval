@@ -17359,6 +17359,44 @@ sharp screen, which is how the first attempt lit nothing at all.
 frame, because the side panel is signature-gated and a clock there would
 rebuild the whole bar once a second.
 
+## 7el. A blow sounds like the weapon that struck it, and a place sounds like itself
+
+**The window had one combat sound and it played in one place: when your own
+health fell.** So your blow landing on a wolf was silent, every weapon in the
+world hit with the same noise, a gambit made no sound at all, and nothing in
+the world made a sound when it hit you. Ten sounds for the whole game, and
+`hit` was one of them.
+
+**The families are the SWING's families.** The arm already moves five ways --
+mell, spear, chain, blade, staff -- and the voices use that same
+classification, plus the ranged and burning arms that are not swung. One
+table, so a weapon cannot look like a spear and sound like a mell.
+
+**And what it is made of, over the top.** Quickmetal rings where iron clanks;
+the great arms land heavier. §6x's argument for quickmetal is that it should
+feel different in the hand, and one clang for all of them takes that back.
+
+**A gambit is the same blow taken further, so it is the same voice taken
+further**: wound up before, ringing after. Not a second effect, because a
+gambit is not a different act (§6af). That it WAS one is told by the engine's
+own record -- `blows` carries an entry per blow of the exchange (§36) -- and
+not guessed from what the window last armed.
+
+**Every creature has a voice**, and it is played only for a blow landed on
+YOU: a window that sounded every creature fighting every other would be a
+field of noise. A generic snarl for everything is the health-bar fault again,
+a noise that carries no information played constantly.
+
+**The country you stand in is what you hear.** The ambience was one bird by
+day and one cricket by night, identical on every acre, in a window that has
+named the country under your feet since §7ec-ii. Frogs are the fens, gulls
+are the shore, a curlew is the moor and nothing else. Every country the
+window can NAME must have a voice, or the ambience falls back to the old bird
+and nobody finds out.
+
+**The Wilds are mostly silence with one far-off howl in them.** That is the
+only way a window can say a place is dangerous without putting a label on it.
+
 ## 7h. Who Lives Here
 
 > **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:4470` by `spec-stubs.mjs`.

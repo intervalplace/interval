@@ -6682,6 +6682,41 @@ function thud(dur = 0.09, vol = 0.14, at = 0, hi = false) { // filtered noise bu
   const g = AC.createGain(); g.gain.value = vol
   n.connect(f); f.connect(g); g.connect(AC.destination); n.start(t0)
 }
+// §7el: A BAND OF NOISE, which `thud` could not give.
+//
+// `thud` is a noise burst through a filter fixed at one of two cutoffs: 420
+// low for a thump, 2400 high for a chink. Every sound in this window was
+// built from those two and a sine, which is why a sword, a maul and a fist
+// all landed with the same noise.
+//
+// Wind, a growl, a gunshot and surf are all noise at a stated band with a
+// stated shape, so that is what this takes: where the band sits, how wide it
+// is, and whether it swells or falls away. Nothing else here can make a wolf
+// sound like a wolf.
+function noise(dur, vol, o = {}) {
+  if (!AC || !soundOn) return
+  const t0 = AC.currentTime + (o.at ?? 0)
+  const n = AC.createBufferSource()
+  const buf = AC.createBuffer(1, Math.max(1, Math.floor(AC.sampleRate * dur)), AC.sampleRate)
+  const d = buf.getChannelData(0)
+  const swell = o.swell ?? 0            // 0 falls away, 1 swells and then falls
+  for (let i = 0; i < d.length; i++) {
+    const k = i / d.length
+    const env = swell ? Math.sin(Math.PI * Math.pow(k, 0.7)) : (1 - k)
+    d[i] = (Math.random() * 2 - 1) * env
+  }
+  n.buffer = buf
+  const f = AC.createBiquadFilter()
+  f.type = o.type ?? 'bandpass'
+  f.frequency.setValueAtTime(o.hz ?? 700, t0)
+  if (o.to) f.frequency.exponentialRampToValueAtTime(Math.max(40, o.to), t0 + dur)
+  f.Q.value = o.q ?? 1
+  const g = AC.createGain()
+  g.gain.setValueAtTime(vol, t0)
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur)
+  n.connect(f); f.connect(g); g.connect(AC.destination); n.start(t0)
+}
+
 const SFX = {
   logs:   () => { thud(0.08, 0.16); tone(190, 0.09, { type: 'square', vol: 0.045, glide: 120 }) },
   ore:    () => { thud(0.06, 0.13, 0, true); tone(900, 0.06, { type: 'square', vol: 0.035, glide: 500 }) },
@@ -6701,22 +6736,260 @@ const SFX = {
   },
   chat:   () => tone(700, 0.05, { type: 'sine', vol: 0.03 }),
 }
-// ambience: birds by day, crickets by night, always sparse
+// §7el: WHAT A BLOW SOUNDS LIKE, AND IT IS NOT ONE SOUND.
+//
+// `SFX.hit` was the only combat sound in the window and it played in exactly
+// one place: when YOUR health fell. So your own blow landing on a wolf was
+// silent, every weapon in the world hit with the same noise, and a gambit --
+// four blows rolled into one exchange -- sounded like nothing at all.
+//
+// The families are the SWING's families, the same five the arm already moves
+// by (see the note over the swing table), plus the ranged and burning ones
+// that are not swung. One classification, so a weapon cannot look like a
+// spear and sound like a mell.
+const weaponVoice = (it) => !it ? 'bare'
+  : /-mell$|^great-mell$/.test(it) ? 'mell'
+  : /-spear$|^bone-spear$|^barb$/.test(it) ? 'spear'
+  : /-flail$|chain$/.test(it) ? 'chain'
+  : /^handgonne$/.test(it) ? 'gonne'
+  : /^fire-siphon$/.test(it) ? 'siphon'
+  : /^torch$/.test(it) ? 'torch'
+  : /bow$/.test(it) ? 'bow'
+  : /staff$|^wand$|rod$/.test(it) ? 'staff'
+  : /hatchet$|pickaxe$/.test(it) ? 'tool'
+  : 'blade'
+
+// AND WHAT IT IS MADE OF, over the top of that. Quickmetal rings where iron
+// clanks, and the great arms land heavier than their smaller kin. This is
+// the layer that makes the rarest weapons sound rare, which is what they are
+// for: §6x's whole argument for quickmetal is that it should feel different
+// in the hand, and a window that plays one clang for all of them takes that
+// back.
+const weaponMetal = (it) => !it ? ''
+  : /^quick-/.test(it) ? 'quick'
+  : /^great-/.test(it) ? 'great'
+  : /^heartwood-|^sigil-|^dragonbow$/.test(it) ? 'fine'
+  : ''
+
+// A GAMBIT IS THE SAME BLOW TAKEN FURTHER, which is how the arm draws it, so
+// it is the same voice taken further: wound up before and ringing after. Not
+// a second sound effect -- a gambit is not a different act (§6af).
+function strikeSound(item, gambit) {
+  const v = weaponVoice(item), m = weaponMetal(item)
+  const big = m === 'great' ? 1.35 : m === 'quick' ? 1.1 : 1
+  const g = !!gambit
+  if (g) noise(0.12, 0.05, { hz: 300, to: 1500, q: 0.8, swell: 1 })   // the wind-up
+  const t = g ? 0.1 : 0
+  switch (v) {
+    case 'mell':
+      thud(0.16 * big, 0.2 * big, t)
+      tone(70, 0.22, { type: 'sawtooth', vol: 0.05 * big, glide: 38, at: t })
+      noise(0.1, 0.07, { hz: 220, to: 90, q: 0.7, at: t })
+      break
+    case 'spear':
+      noise(0.07, 0.05, { hz: 1800, to: 600, q: 1.4, at: t })          // the thrust
+      thud(0.07, 0.12, t + 0.03)
+      tone(320, 0.06, { type: 'square', vol: 0.03, glide: 180, at: t + 0.03 })
+      break
+    case 'chain':
+      // the whirl, then the links, then the weight arriving
+      noise(0.14, 0.04, { hz: 500, to: 1400, q: 0.9, swell: 1, at: t })
+      for (let i = 0; i < 3; i++)
+        tone(1500 + i * 260, 0.03, { type: 'square', vol: 0.022, at: t + 0.04 + i * 0.025 })
+      thud(0.13 * big, 0.17 * big, t + 0.1)
+      break
+    case 'gonne':
+      noise(0.26, 0.3, { hz: 900, to: 120, q: 0.5, type: 'lowpass' })
+      tone(58, 0.3, { type: 'sawtooth', vol: 0.09, glide: 30 })
+      noise(0.5, 0.05, { hz: 2600, to: 900, q: 0.4, at: 0.05 })       // the smoke
+      break
+    case 'siphon':
+      noise(0.42, 0.12, { hz: 420, to: 1500, q: 0.6, swell: 1 })      // the roar
+      for (let i = 0; i < 5; i++)
+        noise(0.05, 0.03, { hz: 2200 + Math.random() * 1600, q: 2, at: 0.08 + i * 0.06 })
+      break
+    case 'torch':
+      noise(0.2, 0.08, { hz: 700, to: 300, q: 0.7, swell: 1, at: t })
+      thud(0.08, 0.1, t + 0.06)
+      break
+    case 'bow':
+      // the string, then the shaft arriving: the two are the whole sound of
+      // archery and the window had neither
+      tone(240, 0.05, { type: 'square', vol: 0.05, glide: 90, at: t })
+      noise(0.05, 0.04, { hz: 2600, to: 1200, q: 1.2, at: t + 0.01 })
+      thud(0.07, 0.11, t + 0.16)
+      tone(m === 'fine' ? 900 : 520, 0.05, { type: 'sine', vol: 0.03, at: t + 0.17 })
+      break
+    case 'staff':
+      thud(0.1, 0.12, t)
+      tone(180, 0.14, { type: 'sine', vol: 0.05, glide: 110, at: t })
+      break
+    case 'tool':
+      thud(0.09, 0.14, t)
+      tone(700, 0.05, { type: 'square', vol: 0.035, glide: 300, at: t })
+      break
+    case 'bare':
+      thud(0.08, 0.1, t)
+      tone(150, 0.07, { type: 'sine', vol: 0.03, glide: 90, at: t })
+      break
+    default: // a blade
+      noise(0.05, 0.04, { hz: 2400, to: 1100, q: 1.6, at: t })        // the edge
+      thud(0.09 * big, 0.14 * big, t + 0.01)
+      tone(m === 'quick' ? 1600 : 900, 0.07, { type: 'square',
+        vol: (m === 'quick' ? 0.045 : 0.03) * big, glide: m === 'quick' ? 2400 : 420, at: t + 0.01 })
+  }
+  // QUICKMETAL RINGS AFTER. The one sound in the world that says you are
+  // being hit by the best thing there is.
+  if (m === 'quick') tone(2600, 0.26, { type: 'sine', vol: 0.028, glide: 3400, at: t + 0.04 })
+  if (m === 'great') tone(48, 0.34, { type: 'sine', vol: 0.05, glide: 30, at: t + 0.04 })
+  // and a gambit rings out when it is done
+  if (g) { tone(1200, 0.2, { type: 'sine', vol: 0.03, glide: 2000, at: t + 0.12 })
+           noise(0.2, 0.04, { hz: 1800, to: 500, q: 0.8, at: t + 0.14 }) }
+}
+
+// §7el: AND THE BEASTS HAVE VOICES. Nothing in the world made a sound when it
+// hit you: the only combat sound was your own health falling, one thud for a
+// wolf, a dragon and a crab alike.
+//
+// One entry a creature, because that is the point. A window that plays a
+// generic snarl for everything is the health-bar fault again: a noise that
+// carries no information, played constantly.
+const CREATURE_VOICE = {
+  wolf:    () => { noise(0.18, 0.11, { hz: 520, to: 220, q: 1.2 }); tone(220, 0.2, { type: 'sawtooth', vol: 0.05, glide: 130 }) },
+  bear:    () => { noise(0.4, 0.15, { hz: 260, to: 110, q: 0.8, swell: 1 }); tone(96, 0.42, { type: 'sawtooth', vol: 0.07, glide: 62 }) },
+  boar:    () => { for (let i = 0; i < 3; i++) { noise(0.06, 0.1, { hz: 400, to: 240, q: 1.4, at: i * 0.09 }); tone(180, 0.07, { type: 'square', vol: 0.04, glide: 120, at: i * 0.09 }) } },
+  troll:   () => { noise(0.55, 0.16, { hz: 190, to: 80, q: 0.7, swell: 1 }); tone(64, 0.6, { type: 'sawtooth', vol: 0.08, glide: 44 }) },
+  goblin:  () => { tone(620, 0.1, { type: 'square', vol: 0.05, glide: 980 }); noise(0.1, 0.06, { hz: 1500, to: 800, q: 1.4, at: 0.04 }) },
+  dragon:  () => { noise(0.8, 0.2, { hz: 300, to: 90, q: 0.5, swell: 1 }); tone(52, 0.9, { type: 'sawtooth', vol: 0.1, glide: 34 }); noise(0.6, 0.09, { hz: 2400, to: 700, q: 0.5, at: 0.2 }) },
+  'great-spider': () => { for (let i = 0; i < 6; i++) tone(2600 + i * 180, 0.02, { type: 'square', vol: 0.025, at: i * 0.035 }) },
+  'shore-crab':   () => { for (let i = 0; i < 4; i++) tone(1800, 0.025, { type: 'square', vol: 0.04, at: i * 0.055 }) },
+  'fen-adder':    () => noise(0.34, 0.07, { hz: 3200, to: 1800, q: 0.8, swell: 1 }),
+  'carrion-crow': () => { tone(900, 0.1, { type: 'sawtooth', vol: 0.05, glide: 500 }); tone(820, 0.12, { type: 'sawtooth', vol: 0.045, glide: 440, at: 0.16 }) },
+  'mountain-goat': () => { tone(380, 0.16, { type: 'sawtooth', vol: 0.045, glide: 300 }) },
+  sheep:   () => { tone(430, 0.22, { type: 'sawtooth', vol: 0.04, glide: 360 }) },
+  'skeleton-knight': () => { for (let i = 0; i < 5; i++) tone(900 + Math.random() * 900, 0.03, { type: 'square', vol: 0.03, at: i * 0.04 }) },
+  'barrow-wight':  () => { tone(140, 0.6, { type: 'sine', vol: 0.05, glide: 90 }); noise(0.5, 0.05, { hz: 600, to: 240, q: 0.7, swell: 1 }) },
+  'gibbet-dead':   () => { tone(120, 0.5, { type: 'sine', vol: 0.05, glide: 80 }) },
+  'gibbet-king':   () => { tone(100, 0.7, { type: 'sawtooth', vol: 0.07, glide: 62 }); noise(0.6, 0.07, { hz: 420, to: 160, q: 0.6, swell: 1 }) },
+  'scree-imp':     () => { tone(1500, 0.07, { type: 'square', vol: 0.04, glide: 2600 }); noise(0.08, 0.05, { hz: 2200, q: 1.6, at: 0.03 }) },
+  'mere-lamprey':  () => { noise(0.14, 0.1, { hz: 900, to: 300, q: 1.1 }); tone(160, 0.12, { type: 'sine', vol: 0.05, glide: 90, at: 0.05 }) },
+  siren:   () => { tone(660, 0.5, { type: 'sine', vol: 0.05, glide: 880 }); tone(990, 0.4, { type: 'sine', vol: 0.03, at: 0.12 }) },
+  risen:   () => { tone(150, 0.4, { type: 'sawtooth', vol: 0.05, glide: 100 }) },
+  quencher: () => noise(0.5, 0.12, { hz: 2600, to: 900, q: 0.5, swell: 1 }),
+  dummy:   () => { thud(0.1, 0.12); tone(200, 0.1, { type: 'square', vol: 0.03, glide: 140 }) },
+}
+const creatureVoice = (type) => (CREATURE_VOICE[type]
+  // anything the table has not met yet gets a plain animal noise rather than
+  // silence, and `undrawnKind`'s rule applies: it says so once.
+  ?? (() => { noise(0.16, 0.09, { hz: 480, to: 240, q: 1.1 }); tone(200, 0.16, { type: 'sawtooth', vol: 0.04, glide: 140 }) }))
+
+// §7el: THE COUNTRY YOU ARE STANDING IN IS WHAT YOU HEAR.
+//
+// This was one bird by day and one cricket by night, the same two sounds on
+// every acre of the island: the fens, the crags, the moor and the greenwood
+// were acoustically identical, and the window already knows which one you are
+// in -- `regionNameAt` has named it under the minimap, chosen the music and
+// answered the hunting question for a week (§7ec-ii).
+//
+// A sound a place does not share with anywhere else is the cheapest thing in
+// this window that says you have gone somewhere. Frogs are the fens. Gulls
+// are the shore. A curlew is the moor and nothing else.
+//
+// ALWAYS SPARSE. Ambience that arrives on a schedule stops being heard, so
+// each is a chance per wake rather than a loop, and the quiet between is the
+// point: the Wilds are mostly silence with one far-off howl in it, which is
+// the only way a window can say a place is dangerous without a label.
+const AMBIENCE = {
+  greenwood: {
+    day: [
+      () => { const b = 2000 + Math.random() * 900       // a wood pigeon, five notes
+              for (let i = 0; i < 5; i++) tone(b - i % 2 * 180, 0.08, { type: 'sine', vol: 0.016, at: i * 0.17 }) },
+      () => { for (let i = 0; i < 7; i++) tone(3000, 0.015, { type: 'square', vol: 0.012, at: i * 0.045 }) }, // woodpecker
+    ],
+    night: [() => { tone(700, 0.3, { type: 'sine', vol: 0.02, glide: 520 })            // an owl
+                    tone(620, 0.35, { type: 'sine', vol: 0.016, glide: 470, at: 0.45 }) }],
+  },
+  heartlands: {
+    day: [() => { const b = 2400 + Math.random() * 1200
+                  tone(b, 0.06, { type: 'sine', vol: 0.018, glide: b * 1.4 })
+                  tone(b * 1.2, 0.07, { type: 'sine', vol: 0.015, glide: b * 0.7, at: 0.09 }) }],
+    night: [() => { for (let i = 0; i < 4; i++) tone(4200, 0.03, { type: 'sine', vol: 0.008, at: i * 0.07 }) }],
+  },
+  downs: {
+    day: [() => { // a skylark: a long scribble of notes, which is the sound of open chalk
+            for (let i = 0; i < 14; i++)
+              tone(3200 + Math.random() * 1400, 0.025, { type: 'sine', vol: 0.009, at: i * 0.055 }) },
+          () => tone(430, 0.22, { type: 'sawtooth', vol: 0.022, glide: 360 })],   // a sheep, far off
+    night: [() => { for (let i = 0; i < 3; i++) tone(4000, 0.03, { type: 'sine', vol: 0.007, at: i * 0.08 }) }],
+  },
+  fens: {
+    day: [() => { for (let i = 0; i < 3; i++)                                   // frogs
+                    tone(260 + Math.random() * 90, 0.07, { type: 'square', vol: 0.02, glide: 180, at: i * 0.21 }) },
+          () => noise(0.7, 0.035, { hz: 900, to: 500, q: 0.5, swell: 1 })],      // reeds in the wind
+    night: [() => { for (let i = 0; i < 5; i++)
+                      tone(230 + Math.random() * 70, 0.08, { type: 'square', vol: 0.022, glide: 160, at: i * 0.19 }) }],
+  },
+  moor: {
+    day: [() => { const b = 1500                                                 // a curlew, falling
+                  tone(b, 0.5, { type: 'sine', vol: 0.02, glide: b * 2.1 }) },
+          () => noise(1.4, 0.03, { hz: 420, to: 260, q: 0.4, swell: 1 })],        // wind over heather
+    night: [() => noise(1.8, 0.035, { hz: 380, to: 220, q: 0.4, swell: 1 })],
+  },
+  crags: {
+    day: [() => { tone(900, 0.1, { type: 'sawtooth', vol: 0.03, glide: 520 })     // a raven
+                  tone(840, 0.11, { type: 'sawtooth', vol: 0.025, glide: 470, at: 0.19 }) },
+          () => { for (let i = 0; i < 5; i++)                                     // scree, settling
+                    noise(0.05, 0.03, { hz: 1400 + Math.random() * 1200, q: 2, at: i * 0.07 }) }],
+    night: [() => noise(1.5, 0.035, { hz: 500, to: 300, q: 0.4, swell: 1 })],
+  },
+  wilds: {
+    // mostly nothing, and that is the sound of it
+    day: [() => { noise(0.9, 0.025, { hz: 340, to: 200, q: 0.4, swell: 1 }) }],
+    night: [() => { tone(300, 0.7, { type: 'sine', vol: 0.03, glide: 440 })        // a wolf, a long way off
+                    tone(290, 0.8, { type: 'sine', vol: 0.022, glide: 420, at: 0.6 }) }],
+  },
+  sea: {
+    day: [() => { tone(1700, 0.12, { type: 'sawtooth', vol: 0.025, glide: 2300 })  // a gull
+                  tone(1600, 0.14, { type: 'sawtooth', vol: 0.02, glide: 2100, at: 0.22 }) },
+          () => noise(1.6, 0.04, { hz: 700, to: 300, q: 0.4, swell: 1 })],          // surf
+    night: [() => noise(1.8, 0.04, { hz: 600, to: 280, q: 0.4, swell: 1 })],
+  },
+}
+// the countries the window names, mapped onto the ones with a voice
+const AMBIENCE_FOR = {
+  'the Greenwood': 'greenwood', 'the Heartlands': 'heartlands', 'the Meadows': 'heartlands',
+  'the Downs': 'downs', 'the Fens': 'fens', 'the Moor': 'moor', 'the Crags': 'crags',
+  'the Wilds': 'wilds', 'the Sea': 'sea', 'the Shore': 'sea',
+}
 setInterval(() => {
   if (!AC || !soundOn || !entered || !curState) return
   const cyc = dayCyc(((curState.tick % 2400) / 2400))
   const isDay = cyc > 0.03 && cyc < 0.5
   if (Math.random() < (isDay ? 0.45 : 0.6)) return
-  if (isDay) { // a bird, somewhere
+  let set = null
+  try {
+    const meA = curState.players?.[myId]
+    if (meA) {
+      // the shore is not a country: it is the sea at your feet, and standing
+      // on sand is the one time you should hear gulls instead of the moor
+      const onSand = typeof terrainOf === 'function'
+        && /sand|shore|beach/.test(String(terrainOf(meA.x, meA.y) ?? ''))
+      const key = onSand ? 'sea' : AMBIENCE_FOR[regionNameAt(meA.x, meA.y)]
+      set = key ? AMBIENCE[key] : null
+    }
+  } catch (e) { /* a world that cannot say where you are keeps the old birds */ }
+  const pick = set ? (isDay ? set.day : set.night) : null
+  if (pick && pick.length) { pick[Math.floor(Math.random() * pick.length)](); return }
+  if (isDay) { // the old bird, for a world with no countries to speak of
     const base = 1800 + Math.random() * 1400
     tone(base, 0.07, { type: 'sine', vol: 0.02, glide: base * 1.3 })
     tone(base * 1.1, 0.09, { type: 'sine', vol: 0.018, glide: base * 0.8, at: 0.1 + Math.random() * 0.1 })
-  } else { // crickets
+  } else {
     for (let i = 0; i < 4; i++) tone(4200, 0.03, { type: 'sine', vol: 0.008, at: i * 0.07 })
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b79'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b80'  // stamp: if your screen says an older build, hard-refresh
 // ===========================================================================
 // WHAT A CITIZEN IS SEEN TO BE DOING
 //
@@ -9497,7 +9770,28 @@ function _onState(s, worldId, local) {
   // needed; nothing new goes on the wire.
   if (prevState) for (const mid in s.mobs) {
     const o = prevState.mobs?.[mid]
-    if (o && s.mobs[mid].hp < o.hp) mobHit[mid] = performance.now()
+    if (o && s.mobs[mid].hp < o.hp) {
+      mobHit[mid] = performance.now()
+      // §7el: AND IT MAKES A SOUND, if it was MY blow. Your own weapon
+      // landing was the one thing in a fight the window never played: the
+      // only combat sound it had went off when your OWN health fell.
+      //
+      // Whose blow it was comes from the same place the facing does -- the
+      // beast is pinned by whoever is fighting it -- so a wolf somebody else
+      // is killing across the field does not swing your sword for you.
+      try {
+        const meS = s.players[myId]
+        const mine = meS && (meS.action?.mobId === mid || s._pinnedBy?.[mid] === meS)
+        if (mine) {
+          // A GAMBIT IS A FLURRY, and the engine already says so: `blows`
+          // carries one entry per blow of the exchange and is cleared at the
+          // top of the next tick (§36). More than one is a gambit, told
+          // rather than guessed at from what this window last armed.
+          const bl = Array.isArray(meS.blows) ? meS.blows.filter((b) => b > 0) : []
+          strikeSound(meS.equipment?.weapon?.item, bl.length > 1)
+        }
+      } catch (e) { /* a fight with no sound is still a fight */ }
+    }
   }
   // §7ej: AND WHEN ONE LANDS A BLOW, which is the other half. A creature that
   // flinches but never strikes is being beaten rather than fought: all the
@@ -9511,7 +9805,14 @@ function _onState(s, worldId, local) {
   if (prevState) for (const pid in s.players) {
     const o = prevState.players[pid]
     if (!o || s.players[pid].hp >= o.hp) continue
-    for (const mid in s.mobs) if (s.mobs[mid].mad === pid) mobStruck[mid] = performance.now()
+    for (const mid in s.mobs) if (s.mobs[mid].mad === pid) {
+      mobStruck[mid] = performance.now()
+      // §7el: AND THE BEAST IS HEARD. Only for a blow landed on ME: a window
+      // that played every creature in the world fighting every other would
+      // be a field of noise, and the one this matters for is the one with
+      // its teeth in you.
+      if (pid === myId) try { creatureVoice(s.mobs[mid].type)() } catch (e) {}
+    }
   }
   const me = s.players[myId]
   // §0f: THE MOVE LOCK MUST BE RELEASED EVEN AT THE GATE.
