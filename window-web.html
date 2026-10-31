@@ -799,6 +799,8 @@ let _localesTold = null
 // §7dq-iv: the tiles the world says are dark, told by the pillar with the
 // ground. Empty until it answers, and empty for ever on a world whose
 // generator names none.
+// §7ec-iv: whether the island under you came from the world or from a guess.
+let _groundIsTold = false, _groundGaveUp = false
 let _darkTold = new Set()
 const isDarkAt = (x, y) => _darkTold.size > 0 && _darkTold.has(x + ',' + y)
 
@@ -7126,7 +7128,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b81'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b82'  // stamp: if your screen says an older build, hard-refresh
 // ===========================================================================
 // WHAT A CITIZEN IS SEEN TO BE DOING
 //
@@ -9846,12 +9848,42 @@ function _onState(s, worldId, local) {
         miniReady = false
       }
     }).catch(() => { /* offline: the derived seats stand, and may be wrong */ })
-    fetch(api('/api/ground'), { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(gd => {
-      if (takeGroundTold(gd)) {
-        buildGround()      // repaint: the surfaces are the world's now, not a guess
-        miniReady = false
-      }
-    }).catch(() => { /* offline: the derived surfaces stand, and may be wrong */ })
+    // §7ec-iv: ASK AGAIN, AND SAY SO IF IT NEVER COMES.
+    //
+    // One fetch, one catch, and a comment admitting the derived surfaces "may
+    // be wrong". They are: measured against the world, the derived path has
+    // 2,774 of 114,688 sampled tiles wrong -- roads read as heartlands, chalk
+    // as wilds, flagstones as cobble -- about eleven thousand over the whole
+    // island. A citizen on that path is walking one island and looking at
+    // another, and nothing told them.
+    //
+    // THE FIX IS NOT A BETTER COPY. Correcting the inline derivation restarts
+    // the drift clock, which is how it got here: every hand copy of this
+    // island has drifted, every time (§7ec). The answer is the one this
+    // project already reached -- be told -- so this asks again rather than
+    // settling, and when it truly cannot be told it SAYS the window is
+    // showing a guess instead of letting somebody find out by walking into a
+    // wall that is not there.
+    const askGround = (tries) => {
+      fetch(api('/api/ground'), { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(gd => {
+        if (takeGroundTold(gd)) {
+          _groundIsTold = true
+          buildGround()    // repaint: the surfaces are the world's now, not a guess
+          miniReady = false
+          return
+        }
+        throw new Error('the pillar answered without an island in it')
+      }).catch(() => {
+        if (tries > 0) { setTimeout(() => askGround(tries - 1), (4 - tries) * 2500); return }
+        if (!_groundIsTold && !_groundGaveUp) {
+          _groundGaveUp = true
+          feed('This window has not been told the island, so the ground under you is '
+             + 'a guess and some of it is wrong. The world is unaffected; what you '
+             + 'see may not be what you walk on.')
+        }
+      })
+    }
+    askGround(3)
     fetch(api('/api/roads'), { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(rd => {
       if (rd && Array.isArray(rd.tiles) && rd.tiles.length) {
         _roadSet = new Set(rd.tiles)
@@ -16932,10 +16964,14 @@ function drawScene(now) {
   // there would force the whole bar to be rebuilt once a second.
   const _meT = s.players[myId]
   const _tLeft = Math.max(0, ((_meT?.torchUntil ?? 0) - s.tick))
+  // §7ec-iv: and it stays said. A line in the feed scrolls away; a citizen
+  // who looked down at the wrong moment would never know the ground they are
+  // looking at is a guess.
+  const _guess = (_groundGaveUp && !_groundIsTold) ? ', GROUND GUESSED' : ''
   const _torch = _tLeft > 0
     ? ', torch ' + (_tLeft >= 60 ? Math.round(_tLeft / 60) + 'm' : Math.round(_tLeft) + 's')
     : ''
-  cx.fillText('world ' + curWorldId.slice(0, 12) + '\u2026' + ', tick ' + s.tick + ', ' + phase + _torch + ', ' + BUILD + meterText, 6, cv.height - 6)
+  cx.fillText('world ' + curWorldId.slice(0, 12) + '\u2026' + ', tick ' + s.tick + ', ' + phase + _torch + _guess + ', ' + BUILD + meterText, 6, cv.height - 6)
 }
 fitCanvas()
 // §7ek: THE LOOP MUST NOT BE KILLABLE.

@@ -17027,6 +17027,30 @@ served them the post was the only way the name existed in the world. Serving
 them first and cutting second is the order that matters: the other way round
 deletes the name rather than moving it. See §7ed-iii.
 
+## 7ec-iv. A window that was not told the island says so
+
+**The derived island is wrong and always will be.** Measured against the
+world: 2,774 of 114,688 sampled tiles, about eleven thousand over the whole
+map. Roads read as heartlands, chalk as wilds, flagstones as cobble. A
+citizen on that path walks one island and looks at another.
+
+**The fix is not a better copy.** Correcting the inline derivation restarts
+the drift clock, which is exactly how it got here: every hand copy of this
+island has drifted, every time (§7ec). The answer is the one this project
+already reached -- be told.
+
+**So the window asks again, and then admits it.** A single transient failure
+must not condemn a session to a guessed island, so the fetch retries with a
+widening gap. When it truly cannot be told, the window says the ground is a
+guess: once in the feed, and then permanently on the status line, because a
+feed line scrolls away and a citizen who looked down at the wrong moment
+would never know.
+
+**It says what is and is not at stake.** The world is unaffected -- the
+engine decides what a tile is and refuses a step the window thinks is open.
+What is wrong is only the picture, and that is exactly what somebody needs to
+be told before they trust it.
+
 ## 7ed. Vegetation grows in clumps, never in a sprinkle
 
 **Scenery is placed in ones and twos with open ground between, never at a flat

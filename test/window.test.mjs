@@ -2387,3 +2387,33 @@ test('a footstep sounds like the ground it lands on', () => {
   assert.ok(!/\bwalk:/.test(tbl),
     'walk has a deed sound as well, which would fire on every journey')
 })
+
+// §7ec-iv: A WINDOW THAT WAS NOT TOLD THE ISLAND SAYS SO.
+//
+// The ground fetch was one try and a catch whose comment admitted the derived
+// surfaces "may be wrong". They are. Measured against the world by
+// check-mirror-ground.mjs --derived: 2,774 of 114,688 sampled tiles wrong,
+// about eleven thousand over the whole island. Roads read as heartlands,
+// chalk as wilds, flagstones as cobble. A citizen on that path walks one
+// island and looks at another, and nothing told them.
+//
+// THE FIX IS NOT A BETTER COPY. Correcting the inline derivation restarts the
+// drift clock, which is how it got here: every hand copy of this island has
+// drifted, every time. So: ask again, and when it truly cannot be told, say
+// the ground is a guess.
+test('a window that cannot be told the island admits it', () => {
+  assert.match(win, /const askGround = \(tries\) =>/,
+    'the ground is fetched once and never asked for again')
+  assert.match(win, /setTimeout\(\(\) => askGround\(tries - 1\)/,
+    'a single transient failure condemns the whole session to a guessed island')
+  assert.match(win, /_groundIsTold = true/, 'nothing records that the island arrived')
+  // said once in the feed...
+  assert.match(win, /has not been told the island/,
+    'a window drawing a guessed island says nothing about it')
+  // ...and still said afterwards, because a feed line scrolls away
+  assert.match(win, /GROUND GUESSED/,
+    'the warning scrolls out of the feed and the citizen never knows again')
+  // and the derived path is NOT quietly corrected into looking right
+  assert.ok(!/_groundIsTold = true[\s\S]{0,400}derived/.test(win),
+    'the derived copy is being corrected, which restarts the drift clock')
+})
