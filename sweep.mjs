@@ -128,6 +128,21 @@ for (const kind of ONE_OFF) {
 }
 
 const WALKN = (() => { const i = process.argv.indexOf('--walk'); return i > 0 ? Number(process.argv[i + 1]) || 40 : 0 })()
+// §7em: --smoke, THE ONE TEST THAT RUNS THE WINDOW.
+//
+// Every test in test/window.test.mjs reads the SOURCE. Not one of them runs
+// it, and that is how two frozen windows reached interval.place in a week: a
+// const read above its own declaration, and a canvas state leaked on every
+// one of twenty-three `return` paths. Both were runtime faults, both invisible
+// to a grep, both shipped through a green suite.
+//
+// This stands the real window in a real browser, feeds it the real world, and
+// asks three questions a reading cannot: did the window report a draw error,
+// did it draw anything at all, and is it STILL drawing a moment later. The
+// third is the one that catches a window which has quietly stopped: a frozen
+// canvas is identical frame to frame, and a live one never is, because
+// something is always flickering or breathing somewhere.
+const SMOKE = process.argv.includes('--smoke')
 const LIT = process.argv.includes('--lit')
 const only = arg('--only')
 const plan = only ? shots.filter((s) => s.place === only || s.name.toLowerCase().includes(only.toLowerCase())) : shots
@@ -187,6 +202,7 @@ const AFTER = (plan, state, myId) => `<script>
   const ME = ${JSON.stringify(myId)}
   const WALKN = ${JSON.stringify(WALKN)}
   const LIT = ${JSON.stringify(LIT)}
+  const SMOKE = ${JSON.stringify(SMOKE)}
   ;(async () => {
     const say = (t) => { document.title = t }
     try {
@@ -208,6 +224,31 @@ const AFTER = (plan, state, myId) => `<script>
       if (!cv) { say('SWEEPFAIL no canvas called world'); return }
       const settle = (ms) => new Promise((r) => setTimeout(r, ms))
       const out = []
+      if (SMOKE) {
+        // somewhere with creatures in it: a field of sheep is the cheapest
+        // place in the world to put something in front of the drawing code
+        const meK = STATE.players[ME]
+        const mob = Object.values(STATE.mobs)[0]
+        if (mob) { meK.x = mob.x + 2; meK.y = mob.y }
+        STATE.tick = 600
+        feedOne({ type: 'state', state: STATE, worldId: 'sweep' })
+        await settle(500)
+        const first = cv.toDataURL('image/png')
+        // a tick later, so the world has moved and the window has had a
+        // second state to draw from, as it would in play
+        STATE.tick = 601
+        feedOne({ type: 'state', state: JSON.parse(JSON.stringify(STATE)), worldId: 'sweep' })
+        await settle(2500)
+        const later = cv.toDataURL('image/png')
+        const err = document.getElementById('frameerr')
+        const why = []
+        if (err) why.push('the window reported: ' + err.textContent.replace(/\\s+/g, ' ').slice(0, 200))
+        if (first.length < 2000) why.push('the canvas drew nothing at all')
+        if (first === later) why.push('the canvas is identical after two and a half seconds: '
+          + 'the window has stopped drawing')
+        say(why.length ? ('SWEEPFAIL ' + why.join(' | ')) : 'SMOKEOK ' + cv.width + 'x' + cv.height)
+        return
+      }
       // --walk N: a step a tick, the way a citizen actually moves, asking the
       // window after every one whether it could still draw. A sweep teleports
       // and a player walks, and the fault we are chasing only shows after a
@@ -333,6 +374,11 @@ const dom = execFileSync(CHROME, ['--headless', '--disable-gpu', '--dump-dom', '
 // success.
 const title = (/<title>([^<]*)<\/title>/.exec(dom) || [, ''])[1]
 console.log('the window says: ' + title)
+if (SMOKE) {
+  if (title.startsWith('SMOKEOK')) { console.log('the window drew, and kept drawing: ' + title); process.exit(0) }
+  console.log('SMOKE FAILED: ' + title)
+  process.exit(1)
+}
 if (!title.startsWith('SWEEPDONE')) {
   console.log('the sweep did not finish.')
   const err = dom.match(/Uncaught[^<\n]{0,200}/)

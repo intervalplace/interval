@@ -10,7 +10,7 @@ possible executions.
 
 ## Unit + property suite (`npm test`)
 
-`node --test test/*.test.mjs`, 667 tests across:
+`node --test test/*.test.mjs`, 668 tests across:
 
 - `leak.test.mjs`, §21c: no write reaches the caller's state. Exercises the
   paths where one citizen touches another (striking, being hunted, trading,
@@ -171,6 +171,16 @@ possible executions.
   that will take it, rather than inside its own town
 - `dial.test.mjs`, that `dial.mjs` duplicates the tide and ceiling arithmetic
   without drifting from it
+- `window.live.test.mjs`, the one test that RUNS the window rather than
+  reading it. Every other test of the web window reads its source, which is
+  how two frozen windows reached interval.place in a week: a const read above
+  its own declaration, and a canvas state leaked on twenty-three return paths.
+  Both runtime faults, both invisible to a grep, both shipped green. This
+  stands the real window in a real browser and asks whether it reported a draw
+  error, whether it drew anything, and whether it is STILL drawing a moment
+  later. The last one catches a window that has quietly stopped: a frozen
+  canvas is identical frame to frame and a live one never is. Verified against
+  both faults by putting each back.
 - `window.test.mjs`, the faults that hide in the web window: a retired skill
   name, a duplicate key in an object literal, a drifted threshold, the two
   tables the window has to copy because a browser file cannot import the
