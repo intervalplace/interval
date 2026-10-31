@@ -142,6 +142,18 @@ const WALKN = (() => { const i = process.argv.indexOf('--walk'); return i > 0 ? 
 // third is the one that catches a window which has quietly stopped: a frozen
 // canvas is identical frame to frame, and a live one never is, because
 // something is always flickering or breathing somewhere.
+// §7en: --meter, WHAT A FRAME COSTS.
+//
+// The window has carried a frame meter in its status line for a long time --
+// worst gap, jitter -- and nothing has ever recorded it or held it to
+// anything. Nobody knows what this window costs on a phone, in a town, at
+// night, in the rain, which is the first thing "professional grade" means.
+//
+// Timed INSIDE the page, because `performance.now()` measures real CPU even
+// under Chrome's virtual clock: only idle time is virtualised, so a tight
+// loop of draws reports honest milliseconds. Measured by hand first: a loop
+// of forty million square roots came back as 229ms rather than 0.
+const METER = process.argv.includes('--meter')
 const SMOKE = process.argv.includes('--smoke')
 const LIT = process.argv.includes('--lit')
 const only = arg('--only')
@@ -203,6 +215,7 @@ const AFTER = (plan, state, myId) => `<script>
   const WALKN = ${JSON.stringify(WALKN)}
   const LIT = ${JSON.stringify(LIT)}
   const SMOKE = ${JSON.stringify(SMOKE)}
+  const METER = ${JSON.stringify(METER)}
   ;(async () => {
     const say = (t) => { document.title = t }
     try {
@@ -224,6 +237,60 @@ const AFTER = (plan, state, myId) => `<script>
       if (!cv) { say('SWEEPFAIL no canvas called world'); return }
       const settle = (ms) => new Promise((r) => setTimeout(r, ms))
       const out = []
+      if (METER) {
+        // WHAT A FRAME COSTS, COUNTED RATHER THAN TIMED.
+        //
+        // Timing it here is not possible and pretending otherwise would be
+        // worse than not measuring. Chrome's virtual clock pauses while a
+        // task runs and advances between tasks, so performance.now() is
+        // CONSTANT inside a task: sixty draws of a 2400x1714 scene came back
+        // as 0.00ms each, and 0.00ms for twenty of them with the pixels
+        // forced out. That is not a fast window, it is a stopped clock, and
+        // a meter that reports it is the dead checker all over again.
+        //
+        // So: count the work. Every canvas call a frame makes, which is
+        // immune to the clock, deterministic run to run, and the thing that
+        // actually regresses -- somebody adds a pass over every tile and the
+        // count doubles. A millisecond figure belongs in the packaged client
+        // on real hardware (the Unreal window learned this the same way: see
+        // "the editor is not the game").
+        // STAND WHERE WE WERE ASKED TO. The first version never moved the
+        // citizen, so --only anchor and --only Bleakfell both measured the
+        // spawn and came back with the same number to the call: two readings
+        // that agree because neither was taken where it said.
+        if (SHOTS.length) { STATE.players[ME].x = SHOTS[0].x; STATE.players[ME].y = SHOTS[0].y }
+        STATE.tick = 600
+        feedOne({ type: 'state', state: STATE, worldId: 'sweep' })
+        await settle(800)
+        if (typeof drawScene !== 'function') { say('SWEEPFAIL no drawScene to time'); return }
+        if (!curState || !groundReady) {
+          say('SWEEPFAIL the meter had nothing to draw: curState=' + !!curState
+            + ' groundReady=' + (typeof groundReady === 'undefined' ? 'undefined' : groundReady)); return
+        }
+        const COUNTED = ['fillRect', 'strokeRect', 'fill', 'stroke', 'drawImage',
+          'fillText', 'strokeText', 'arc', 'ellipse', 'moveTo', 'lineTo', 'beginPath',
+          'save', 'restore', 'createRadialGradient', 'getImageData', 'putImageData']
+        let calls = 0
+        const real = {}
+        for (const k of COUNTED) {
+          if (typeof cx[k] !== 'function') continue
+          real[k] = cx[k].bind(cx)
+          cx[k] = function (...a) { calls++; return real[k](...a) }
+        }
+        // SAVE AND RESTORE ARE COUNTED SEPARATELY TOO, because an unbalanced
+        // pair is what froze this window once already: the stack grew by one
+        // per creature per frame until the context stopped drawing.
+        let saves = 0, restores = 0
+        cx.save = function (...a) { calls++; saves++; return real.save(...a) }
+        cx.restore = function (...a) { calls++; restores++; return real.restore(...a) }
+        calls = 0
+        drawScene(performance.now())
+        const one = calls, s1 = saves, r1 = restores
+        for (const k of COUNTED) if (real[k]) cx[k] = real[k]
+        say('METER calls ' + one + ' saves ' + s1 + ' restores ' + r1
+          + ' px ' + cv.width + 'x' + cv.height)
+        return
+      }
       if (SMOKE) {
         // somewhere with creatures in it: a field of sheep is the cheapest
         // place in the world to put something in front of the drawing code
@@ -374,6 +441,10 @@ const dom = execFileSync(CHROME, ['--headless', '--disable-gpu', '--dump-dom', '
 // success.
 const title = (/<title>([^<]*)<\/title>/.exec(dom) || [, ''])[1]
 console.log('the window says: ' + title)
+if (METER) {
+  console.log(title.startsWith('METER') ? title : ('METER FAILED: ' + title))
+  process.exit(title.startsWith('METER') ? 0 : 1)
+}
 if (SMOKE) {
   if (title.startsWith('SMOKEOK')) { console.log('the window drew, and kept drawing: ' + title); process.exit(0) }
   console.log('SMOKE FAILED: ' + title)

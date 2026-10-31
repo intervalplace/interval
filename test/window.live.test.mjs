@@ -68,3 +68,51 @@ test('the window draws the world, and keeps drawing', { timeout: 420000 }, (t) =
   assert.match(out, /SMOKEOK/,
     'the smoke run finished without saying the window drew:\n' + out.slice(-400))
 })
+
+// §7en: WHAT A FRAME COSTS, COUNTED RATHER THAN TIMED.
+//
+// The window has carried a frame meter in its status line for a long time and
+// nothing ever recorded it or held it to anything.
+//
+// It cannot be TIMED here, and pretending otherwise would be worse than not
+// measuring: Chrome's virtual clock pauses while a task runs, so
+// `performance.now()` is constant inside one, and sixty draws of a 2400x1714
+// scene came back as 0.00ms each -- a stopped clock reported as a fast
+// window. A millisecond figure belongs in the packaged client on real
+// hardware, which is the lesson the Unreal window learned the same way.
+//
+// So the work is COUNTED: every canvas call one frame makes. Immune to the
+// clock, deterministic run to run, and the thing that actually regresses when
+// somebody adds a pass over every tile.
+//
+// THE BALANCE IS THE IMPORTANT HALF. An unbalanced save/restore pair is what
+// froze this window on a phone: the stack grew by one per creature per frame
+// until the context stopped drawing. A static check for that exists, and this
+// is the same question asked of the RUNNING window, which is strictly better.
+test('a frame balances the canvas, and does not quietly double in cost',
+  { timeout: 420000 }, (t) => {
+  if (!fs.existsSync(CHROME)) { t.skip('no Chrome: the window cannot be stood up here'); return }
+  let out = ''
+  try {
+    out = execFileSync(process.execPath, [path.join(root, 'sweep.mjs'), '--meter', '--only', 'anchor'],
+      { cwd: root, encoding: 'utf8', timeout: 400000, maxBuffer: 256 * 1024 * 1024,
+        env: { ...process.env, SWEEP_OUT: path.join(root, '.smoke-out') } })
+  } catch (e) { out = (e.stdout ?? '') + (e.stderr ?? '') }
+  const m = /METER calls (\d+) saves (\d+) restores (\d+)/.exec(out)
+  assert.ok(m, 'the meter did not report:\n' + out.slice(-400))
+  const [, calls, saves, restores] = m.map(Number)
+  // EXACTLY equal. Not "close": one leaked state per frame is the fault that
+  // froze a real session, and it only ever leaks by small numbers at first.
+  assert.equal(saves, restores,
+    `a frame saved the canvas ${saves} times and restored it ${restores}: `
+    + 'the stack grows every frame and the window will stop drawing')
+  // and a ceiling with room in it. A town frame measured 46,061 calls; this
+  // is not a performance target, it is a guard against somebody adding a pass
+  // over every tile and nobody noticing.
+  assert.ok(calls < 90000,
+    `a town frame makes ${calls} canvas calls, up from the 46,061 measured `
+    + 'when this was written. Something has started drawing far more.')
+  assert.ok(calls > 5000,
+    `a town frame makes only ${calls} canvas calls, which means it has stopped `
+    + 'drawing most of the world rather than become fast')
+})

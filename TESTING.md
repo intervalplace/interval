@@ -10,7 +10,7 @@ possible executions.
 
 ## Unit + property suite (`npm test`)
 
-`node --test test/*.test.mjs`, 670 tests across:
+`node --test test/*.test.mjs`, 671 tests across:
 
 - `leak.test.mjs`, §21c: no write reaches the caller's state. Exercises the
   paths where one citizen touches another (striking, being hunted, trading,
@@ -171,6 +171,17 @@ possible executions.
   that will take it, rather than inside its own town
 - `dial.test.mjs`, that `dial.mjs` duplicates the tide and ceiling arithmetic
   without drifting from it
+- `window.live.test.mjs` also MEASURES a frame, by counting every canvas call
+  it makes rather than timing it. Timing is not possible there and pretending
+  otherwise would be worse than not measuring: Chrome's virtual clock pauses
+  while a task runs, so sixty draws of a 2400x1714 scene came back as 0.00ms
+  each -- a stopped clock reported as a fast window. A millisecond figure
+  belongs in the packaged client on real hardware. Measured when written: a
+  town frame is 46,061 canvas calls, open moor 34,072, and saves and restores
+  balance EXACTLY. That last is the important half: an unbalanced pair grew
+  the canvas stack by one per creature per frame until a real session froze
+  on a phone, and this asks the question of the running window rather than of
+  its source.
 - `window.live.test.mjs`, the one test that RUNS the window rather than
   reading it. Every other test of the web window reads its source, which is
   how two frozen windows reached interval.place in a week: a const read above
