@@ -2329,3 +2329,61 @@ test('the country you stand in is what you hear', () => {
       `${p} does not sound different at night`)
   }
 })
+
+// §7el-ii: A CITIZEN'S WORKING DAY IS NOT MUTE.
+//
+// Measured before this was written: the window sends seventy-seven verbs and
+// ELEVEN of them made a sound. Drinking, cooking, smelting, smithing,
+// burying, planting, sawing, fletching, grinding, brewing, wielding,
+// dropping, picking up, banking, sailing, sealing, founding, surveying --
+// silence, all of it, in a world whose standing rule is that every action
+// gets its own sound.
+//
+// This counts, because a list somebody keeps by hand drifts and a count does
+// not. A verb the window learns to send next session either gets a voice or
+// is named here as deliberately silent.
+test('every deed the window sends makes a sound, or is named as silent', () => {
+  const verbs = new Set([...win.matchAll(/send\(\{ ?do: '([a-z_]+)'/g)].map((m) => m[1]))
+  assert.ok(verbs.size > 60, `expected the window's verbs; found ${verbs.size}`)
+  const voiced = new Set([...(/const ACTION_VOICE = \{([\s\S]*?)\n\}/.exec(win) || [, ''])[1]
+    .matchAll(/([a-z_]+):/g)].map((m) => m[1]))
+  const silent = new Set([...(/const ACTION_SILENT = new Set\(\[([\s\S]*?)\]\)/.exec(win) || [, ''])[1]
+    .matchAll(/'([a-z_]+)'/g)].map((m) => m[1]))
+  const mute = [...verbs].filter((v) => !voiced.has(v) && !silent.has(v)).sort()
+  assert.deepEqual(mute, [],
+    'these deeds leave the window without a sound, and are not named as '
+    + 'deliberately silent:\n  ' + mute.join('\n  '))
+  // and the silent list is not a dumping ground: everything on it has a
+  // reason written beside it, and the combat verbs are silent HERE because
+  // they are heard off the blow landing instead
+  assert.ok(silent.size <= 12,
+    `${silent.size} verbs are marked silent; the list is becoming the answer `
+    + 'rather than the exception')
+})
+
+// §7el-ii: AND THE GROUND DECIDES A FOOTSTEP.
+//
+// A citizen crossed the whole island in silence. Walking is most of what
+// anybody does here, because the distances between places ARE the design.
+test('a footstep sounds like the ground it lands on', () => {
+  assert.match(win, /function footstep\(x, y\)/, 'walking is still silent')
+  const at = win.indexOf('function footstep(x, y)')
+  const body = win.slice(at, win.indexOf('\n}', win.indexOf('} else {', at)))
+  // five grounds at least: boards, sand, water, stone, and everything soft
+  for (const ground of ['floor|board', 'sand|shore', 'water|ford', 'chalk|stone'])
+    assert.ok(new RegExp(ground.replace('|', '\\|')).test(body),
+      `a footstep on ${ground.split('|')[0]} sounds like everywhere else`)
+  // rate-limited, or a journey is a machine gun
+  assert.match(body, /if \(now2 - _stepAt < \d+\) return/,
+    'footsteps are not paced, so a walk is a stampede')
+  // and played off having MOVED, not off a walk being sent: one input covers
+  // many tiles
+  assert.match(win, /if \(me\.x !== old\.x \|\| me\.y !== old\.y\) footstep\(me\.x, me\.y\)/,
+    'footsteps follow the input rather than the citizen')
+  // BOUNDED TO THE TABLE. A lazy `[\s\S]*?` from ACTION_VOICE still reaches a
+  // `walk:` further down the file, so the first version of this reported a
+  // deed sound on walking that does not exist.
+  const tbl = (/const ACTION_VOICE = \{([\s\S]*?)\n\}/.exec(win) || [, ''])[1]
+  assert.ok(!/\bwalk:/.test(tbl),
+    'walk has a deed sound as well, which would fire on every journey')
+})

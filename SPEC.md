@@ -17397,6 +17397,33 @@ and nobody finds out.
 **The Wilds are mostly silence with one far-off howl in them.** That is the
 only way a window can say a place is dangerous without putting a label on it.
 
+**And a citizen's working day is not mute.** Counted: the window sends
+seventy-seven verbs and ELEVEN of them made a sound. Drinking, cooking,
+smelting, smithing, burying, planting, sawing, fletching, grinding, brewing,
+wielding, dropping, picking up, banking, sailing, sealing, founding,
+surveying, ringing the bell, casting a spell -- silence, all of it.
+
+They are grouped by what the HANDS are doing, not one effect per verb:
+seventy-seven bespoke noises are seventy-seven chances to sound wrong, and a
+smith smelting and a smith forging are the same forge. What matters is that
+sawing does not sound like banking. Sorcery is the exception that gets its
+own: it is the one thing here that is not somebody's hands and a tool.
+
+**It is counted, not listed.** A verb the window learns to send either has a
+voice or is named as deliberately silent, and the silent list is capped so it
+cannot quietly become the answer. The combat verbs are on it because they are
+heard off the blow LANDING instead, which is the honest moment.
+
+**A footstep is decided by the ground.** Boards over a span, chalk on the
+downs, sand on the shore, water in a fen and a floor indoors are five
+different noises, and a window that plays one of them everywhere says the
+island is all one place. Walking is most of what anybody does here, because
+the distances between places ARE the design.
+
+It is played off the citizen having MOVED, not off a `walk` being sent: one
+input carries a citizen across many tiles, so the input is one event and the
+footfalls are many.
+
 ## 7h. Who Lives Here
 
 > **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:4470` by `spec-stubs.mjs`.
