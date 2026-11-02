@@ -7128,7 +7128,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b83'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b84'  // stamp: if your screen says an older build, hard-refresh
 // ===========================================================================
 // WHAT A CITIZEN IS SEEN TO BE DOING
 //
@@ -9537,15 +9537,40 @@ function noughtNotice(s) {
 // state this window draws, whole or patched, live or Nought, arrives through
 // onState: one place, one line each, and the window goes on saying `hp`
 // inside exactly as it does for MOB_STATS, whose fields it also renames.
+// AND EVERY TIME, NOT ONLY THE FIRST. `if (p.hp === undefined)` translated a
+// full state correctly and then never again: most ticks arrive as PATCHES,
+// which are cloned from the state already translated, so `hp` was already
+// defined and the guard skipped it -- while the patch quietly updated
+// `health` underneath. Every creature's `hp` was frozen at whatever it was
+// the first time the window saw it.
+//
+// What that cost, all of it invisible because the fixtures in this folder say
+// `hp` and a full state translates fine:
+//
+//   no creature ever showed a hit splat: the diff is `prev.hp > now.hp`
+//   nothing flinched and no beast made a sound when struck: `mobHit` is set
+//     off the same diff
+//   a wounded creature never showed a health bar, for the same reason
+//   `m.hp <= 0` was never true, so a felled beast went on being drawn alive
+//
+// Found by Mats fighting a skeleton knight: no splats, and it died anyway.
+//
+// `health` is the engine's word and is authoritative whenever it is present.
+// `hp` is kept as the fallback because a checkpoint written before the rename
+// says `hp` and nothing else, and Nought builds its own states locally.
 function intervalOwnWords(s) {
   if (!s) return s
   for (const p of Object.values(s.players ?? {})) {
-    if (p && p.hp === undefined) p.hp = p.health ?? 0
-    if (p && p.maxHp === undefined) p.maxHp = maxHpOf(p)
+    if (!p) continue
+    if (p.health !== undefined) p.hp = p.health
+    else if (p.hp === undefined) p.hp = 0
+    p.maxHp = maxHpOf(p)
   }
   for (const m of Object.values(s.mobs ?? {})) {
-    if (m && m.hp === undefined) m.hp = m.health ?? 0
-    if (m && m.maxHp === undefined) m.maxHp = MOB_STATS[m.type]?.maxHp ?? 1
+    if (!m) continue
+    if (m.health !== undefined) m.hp = m.health
+    else if (m.hp === undefined) m.hp = 0
+    m.maxHp = MOB_STATS[m.type]?.maxHp ?? m.maxHp ?? 1
   }
   return s
 }
@@ -19024,6 +19049,24 @@ function worldPress(e, asLeft) {
   }
   if (best?.kind === 'mob') {
     const { id, m } = best
+    // §7ei: A BEAST STANDING ON A PILE HIDES IT. The creature is found before
+    // the ground is looked at and returns, so what a wolf drops and then
+    // stands over cannot be reached at all: right-clicking the bones struck
+    // the skeleton again. The left button is right to attack -- that is the
+    // default act -- but the right button exists to say what ELSE is here.
+    if (rightPress) {
+      const pile = Object.entries(world.ground ?? {}).filter(([, g3]) => g3.x === m.x && g3.y === m.y)
+      if (pile.length) {
+        const say1g = (w) => String(w ?? '').replace(/-/g, ' ')
+        chooseAction([
+          { label: 'attack the ' + say1g(m.type), act: () => worldPress(e, true) },
+          ...pile.slice(0, 5).map(([gid, g3]) => ({ label: 'take the ' + say1g(g3.item),
+            act: () => { send({ do: 'pickup', groundId: gid, confirm: false })
+              feed('You pick up the ' + say1g(g3.item) + '.') } })),
+        ])
+        return
+      }
+    }
     flashClick(m.x, m.y, true)
     // §7cq: an armed spell lands on a beast too. Three of the four barrow
     // spells work on anything with hitpoints, and the gibbet-dead behind its
@@ -19285,15 +19328,43 @@ function worldPress(e, asLeft) {
         // appearance was a menu setting; it is a journey now.
         const meG = world.players[myId]
         const adjG = Math.abs(meG.x - n.x) + Math.abs(meG.y - n.y) === 1
-        if (!adjG) { feed('A tall glass, clouded at the edges. You would have to stand at it.'); return }
-        // step to the next face and send it. The gate's picker is a preview
-        // screen and does not exist once you are in the world; standing at the
-        // glass, a click IS the change.
-        pickLook = (pickLook + 1) & 255
-        send({ do: 'set_look', look: pickLook })
-        lookSent = pickLook
-        feed('You look at yourself in the glass, and something about you settles differently.')
-        flashClick(n.x, n.y, false)
+        // §7ei: AND IT WALKS YOU THERE, like everything else in the world.
+        // This said "you would have to stand at it" and then did nothing: no
+        // intent, no step. Every other thing here sets a walk when you are
+        // not beside it, so clicking the glass from two tiles away looked
+        // like a thing that does not work at all.
+        if (!adjG) {
+          intent = { kind: 'walk', x: n.x, y: n.y + 1 }
+          feed('A tall glass, clouded at the edges. You make for it.')
+          nudgeIntent()
+          return
+        }
+        // AND IT OPENS A LIST. Standing at the glass, a click used to step the
+        // face on by one with no way to go back and no way to say what you
+        // wanted -- a menu setting turned into a slot machine.
+        //
+        // The faces cannot be offered feature by feature, and that is the
+        // encoding's doing rather than a choice: a look is ONE byte and the
+        // fields overlap -- tunic is bits two to four, skin is nought to two,
+        // hair is three to five -- so changing a coat changes a face. What
+        // can honestly be offered is faces, and the three a person actually
+        // wants: the next one, a stranger, and the one they started with.
+        const setLook = (v) => {
+          pickLook = v & 255
+          send({ do: 'set_look', look: pickLook })
+          lookSent = pickLook
+          flashClick(n.x, n.y, false)
+        }
+        chooseAction([
+          { label: 'the next face', act: () => { setLook(pickLook + 1)
+              feed('Something about you settles differently.') } },
+          { label: 'a face at random', act: () => { setLook(Math.floor(Math.random() * 256))
+              feed('A stranger looks back, and it is you.') } },
+          { label: 'the face you were born with', act: () => { setLook(w_hash32(String(myId)) & 255)
+              feed('You put your own face back on.') } },
+          { label: 'just look', act: () => feed('A tall glass, clouded at the edges. '
+              + 'Appearance ' + ((pickLook & 255) + 1) + ' of 256.') },
+        ])
         return
       }
       if (n.type === 'tollgate') {

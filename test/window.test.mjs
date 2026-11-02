@@ -2477,3 +2477,58 @@ test('a citizen can cook at a hearth, because the engine says a hearth is a fire
       `the engine lets a citizen cook at a ${f} and the window never offers it`)
   }
 })
+
+// §7f-x: THE ENGINE'S WORD IS TRANSLATED ON EVERY STATE, NOT ONLY THE FIRST.
+//
+// The engine calls it `health`; this window says `hp` throughout, and
+// translates at the door. The guard was `if (m.hp === undefined)`, which
+// translates a FULL state correctly and then never again: most ticks arrive
+// as patches, cloned from the state already translated, so `hp` was already
+// defined and the guard skipped it while the patch updated `health`
+// underneath. Every creature's `hp` froze at whatever it was the first time
+// the window saw it.
+//
+// What that cost: no creature ever showed a hit splat, nothing flinched,
+// nothing made a sound when struck, no wounded creature showed a bar, and
+// `m.hp <= 0` was never true -- so a felled beast stayed clickable and the
+// window went on aiming at a corpse while a live one stood on the same tile.
+// Found by Mats killing a skeleton knight and then being unable to attack the
+// next one.
+test('health is translated on every state, not only the first', () => {
+  const m = /function intervalOwnWords\(s\) \{([\s\S]*?)\n\}/.exec(win)
+  assert.ok(m, 'the window no longer translates the engine’s word')
+  const body = m[1]
+  assert.ok(!/if \(\w+ && \w+\.hp === undefined\) \w+\.hp = \w+\.health/.test(body),
+    'hp is only filled when undefined, so a patch leaves it frozen')
+  assert.match(body, /if \(p\.health !== undefined\) p\.hp = p\.health/,
+    'a citizen’s health is not taken from the engine’s field every time')
+  assert.match(body, /if \(m\.health !== undefined\) m\.hp = m\.health/,
+    'a creature’s health is not taken from the engine’s field every time')
+  // and the engine really does call it health, or this translation is noise
+  const eng = fs.readFileSync(path.join(root, 'engine.js'), 'utf8')
+  assert.match(eng, /health: p\.health \?\? p\.hp/,
+    'the engine no longer renames hp to health; this translation may be stale')
+})
+
+// §7ei: AND THE THINGS A RIGHT-CLICK COULD NOT REACH.
+test('a right-click reaches what is under a creature, and the glass opens a list', () => {
+  const press = win.indexOf('function worldPress(')
+  const handler = win.slice(press)
+  // a beast standing on a pile hid it: the creature is found before the
+  // ground is looked at, and returned
+  const mobAt = handler.indexOf("if (best?.kind === 'mob') {")
+  assert.ok(mobAt > 0, 'the creature branch has moved')
+  const mobBody = handler.slice(mobAt, mobAt + 1600)
+  assert.match(mobBody, /if \(rightPress\) \{/,
+    'a creature standing on a pile still hides it from the right button')
+  assert.match(mobBody, /take the/, 'the pile under a creature cannot be taken')
+  // the looking glass walked you nowhere and cycled your face with no way back
+  const glass = handler.indexOf("if (n.type === 'looking-glass') {")
+  assert.ok(glass > 0, 'the looking-glass branch has moved')
+  const gb = handler.slice(glass, glass + 2600)
+  assert.match(gb, /intent = \{ kind: 'walk'/,
+    'the glass tells you to stand at it and does not walk you there')
+  assert.match(gb, /chooseAction\(\[/, 'the glass still changes your face with no choice')
+  assert.match(gb, /the face you were born with/,
+    'there is no way back to the face you started with')
+})
