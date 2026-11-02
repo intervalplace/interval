@@ -1625,6 +1625,37 @@ test('the window draws the ground the world lays (check-mirror-ground.mjs)', () 
   assert.equal(r.status, 0, '\n' + r.stdout + r.stderr)
 })
 
+// §7ek: AND IS EVERY DEED THE WORLD OFFERS REACHABLE IN THE WINDOW.
+//
+// This is the question no source check could answer, and the three checks that
+// looked like they were asking it were all reading the ACT LADDER -- which
+// carries `swear`, `teach` and `part` and has carried them since §5w, with
+// nothing anywhere that sends any of the three. So swearing a calling, the
+// centre of this world, could not be done from the window almost everybody
+// will ever use, and a green check said otherwise.
+//
+// check-window-reach.mjs stands the real window up with a fake document and a
+// fake audio graph, presses every one of the sixty-six kinds of thing on the
+// island and every one of the hundred and twenty-nine things a citizen can
+// hold, and reads what comes back. What it found on its first run: four items
+// whose menu threw a ReferenceError, a house that threw one on every press, a
+// stall gated on the wrong two goods, thirty-one kinds of thing with no menu
+// at all, and six deeds the rules allow and the window could not file.
+test('every deed the world offers is reachable in the window (check-window-reach.mjs)', () => {
+  const r = spawnSync(process.execPath, [path.join(root, 'check-window-reach.mjs')],
+    { cwd: root, encoding: 'utf8' })
+  assert.equal(r.status, 0, '\n' + r.stdout + r.stderr)
+})
+
+// AND THE FRAME SURVIVES, which is a different question and has its own
+// harness. It was dead: `URLSearchParams` was missing from the fake window, so
+// it threw at `nodeCandidates` before a single assertion ran.
+test('the panel and the scene survive a frame (check-window-panel.mjs)', () => {
+  const r = spawnSync(process.execPath, [path.join(root, 'check-window-panel.mjs')],
+    { cwd: root, encoding: 'utf8' })
+  assert.equal(r.status, 0, '\n' + r.stdout + r.stderr)
+})
+
 // AND THE PILLAR CAN STILL ANSWER.
 test('the pillar serves the ground it founded', () => {
   const serve = fs.readFileSync(path.join(root, 'serve.mjs'), 'utf8')

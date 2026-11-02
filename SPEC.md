@@ -17374,6 +17374,86 @@ body hanging in the wind, and that belongs to the frame clock.
 **The training pell is the one thing allowed to stand still**, because that is
 what it does. It flinches when struck like everything else.
 
+## 7ek. Every deed the rules allow is reachable in the window
+
+**A verb the engine accepts and the main window has no button for is, for
+practical purposes, a rule that does not exist.** window-web is the window
+almost everybody will ever use. Measured by pressing every kind of thing on
+the island rather than by reading the source, six deeds the rules allow could
+not be filed from it at all: `swear`, `teach`, `part`, `grave`, `setbuck` and
+`sapling`. Swearing a calling is the centre of this world -- one mastery to a
+citizen -- and the bar stopped at fifty, the skill guide said "until you
+swear", and there was no way to swear.
+
+**Three checks looked like they were asking this and none of them was.** Each
+read the ACT LADDER, which has carried `swear`, `teach` and `part` since §5w,
+and a grep of the ladder passes whether or not anything sends the word. That
+is the same trap as a fallback that draws a real thing (§7f-ix) and a margin
+note that says "generated" (§7f-viii): the evidence looked like the fact.
+
+**So the question is asked of the HANDLER.** `check-window-reach.mjs` stands
+the real window up with a fake document and a fake audio graph, presses every
+one of the sixty-six node types and every one of the hundred and twenty-nine
+things a citizen can hold, and reads what comes back. It asks four things:
+
+1. every input type the engine has a schema for is either sent by the window
+   or named as something no citizen presses, with the reason;
+2. every node type answers the right button with a menu that SAYS WHAT IT IS
+   and offers more than one thing;
+3. every item answers both buttons: a left click does the first thing on the
+   list, a right click shows the list;
+4. every verb that goes out has a noise and a posture, or is named as
+   deliberately silent or deliberately instant.
+
+**A right press must never do the left press's work.** Thirty-one node types
+had no entry in §7ei's table and no branch of their own, so they fell through
+everything to the gathering fallback: right-clicking a tree swung the axe, and
+pressing a FENCE sent the engine `gather` on a fence, which it refuses in
+silence. A cold furnace was lit on either button and a stranger's stall was
+bought from on either button.
+
+**A menu says what it is about.** Every menu over the world is headed with the
+thing's own name and carries a way to ask what it is, written in
+`chooseAction` for the same reason `walk here` is written there: one list
+either way, or thirty option lists drift into offering different things. What
+a look says is NAMES AND LEVELS, never yields, odds or tactics, by the rule
+the skill guide already follows (§6bv).
+
+**The pack had the two buttons the wrong way round.** A left click built the
+menu and the right button called the same function, so the one place a citizen
+spends most of their clicks taught the opposite of §5t. `invOptions` is now the
+only place an item's verbs are written down and the first option in the list is
+what a left click does: the obvious single act where there is one, and a look
+where there are several real uses that cannot be ranked, because a left click
+must not spend a thing on a guess.
+
+**A window may not guess a constitutional number.** The stall-raising option
+counted sixteen `logs` and eight `ore` against an engine that asks for ten
+`planks` and two `iron-ore`, and printed a third pair of numbers on the
+button: three copies and no two agreeing, with no door to compare against. The
+house's brewpot option read a variable that was never declared, so standing
+beside a house and pressing it threw, every time, and a brewpot could not be
+built from this window at all. `MARKET_PLANKS`, `MARKET_ORE`, `MARKET_OWNED`,
+`GROVE_PLANT_LEVEL`, `GROVE_SPECIES`, `BUCKS_AT`, `SMOKE_TICKS`,
+`SMOKE_WINDOW`, `GRAVABLE` and `SWEAR_COUNTRIES` are exported and served with
+the rest at `/api/tables`.
+
+**And where the water is, which no window knew.** `groundKindAt` answers null
+on a water tile on purpose, because water is not a surface you walk on, so
+once the ground was served (§7ec) the flat window had no way to tell a wet
+tile from a dry one: its `blockedAt` knows only nodes. The engine asks for
+water BESIDE you before a willow buck may be set. `isWater` is in the
+geography hash, so the water is told with the ground, run-length encoded by
+row, and a window may only read it.
+
+**A deed that is not mimed is named.** `DOING_ANIM` was a list of what IS
+drawn, so a verb wired this session was silent and still and nothing noticed.
+`ACTION_STILL` is the other half, each group with its reason, and a verb in
+neither table is a gap the check reports. Burying was filed under the posture
+for stirring a pot: a two pixel lean and an empty hand, which is why it was
+reported as having no animation at all. A spade is its own posture and the
+drawing already existed.
+
 ## 7dq-iv. The cave is dark, and the light a citizen carries is what they see by
 
 **The engine has said this since the Smother was written and no window drew

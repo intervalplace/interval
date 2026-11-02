@@ -51,9 +51,14 @@ const ctx = {
   fetch: () => new Promise(noop), WebSocket: function () { return el() },
   localStorage: { getItem: () => null, setItem: noop }, location: { href: '', search: '' },
   navigator: { userAgent: 'node' }, crypto: globalThis.crypto, performance: { now: () => 0 },
+  innerWidth: 960, innerHeight: 720, devicePixelRatio: 1,
   addEventListener: noop, Image: function () { return el() },
   matchMedia: () => ({ matches: false, addEventListener: noop }),
-  URL, TextEncoder, TextDecoder,
+  // §6dj: AND THE HARNESS HAS TO CARRY WHAT THE WINDOW ACTUALLY ASKS FOR.
+  // `URLSearchParams` was missing, so this check died at `nodeCandidates` --
+  // line 5553, before a single assertion ran -- and reported nothing at all
+  // for however long it has been there. A dead checker reads as a live one.
+  URL, URLSearchParams, TextEncoder, TextDecoder,
 }
 ctx.window = ctx
 vm.createContext(ctx)
@@ -124,14 +129,17 @@ console.log('\n--- the bar shows what you are standing next to ---')
 // did not mention stalls -- so the stock pane could not appear when you walked
 // up to one. It renders into an element, so the check has to READ that element.
 {
-  const s7 = fresh()
-  s7.nodes['stall-1'].kind = 'lumber'
-  s7.players[me.playerId].gold = 100
-  ctx.__test(s7, me.playerId)
-  ctx.panel(s7)
-  const html = String(bars.sellbar ?? '')
-  ok(/data-buy="iron-hatchet"/.test(html), 'the axe man offers a hatchet')
-  ok(/THE AXE MAN SELLS/.test(html), 'and is named')
+  // §5t-iv/§7ek: THE SHOP IS AT THE SHOP NOW, so this no longer reads a pane.
+  //
+  // What was here asserted that `panel()` wrote `data-buy="iron-hatchet"` and
+  // "THE AXE MAN SELLS" into the `sellbar`. That pane was deliberately
+  // removed: a row of buttons above the pack, at the other end of the screen
+  // from the stall you had just touched, was the fault, and the stall opens a
+  // menu AT THE STALL instead. So both assertions had been failing against
+  // the window working as intended, which is a test that is wrong rather than
+  // a window that is. The stall is pressed in check-window-reach.mjs, which
+  // reads the menu it opens; `sellbar` is the COUNTER now and is read below.
+  const html = ''
   const s8 = fresh()
   s8.players[me.playerId].consignment = { from: 'store-1', route: ['store-1'], leg: 0,
     items: [{ item: 'logs', qty: 3 }, ...Array(27).fill(null)] }

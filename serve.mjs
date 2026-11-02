@@ -236,7 +236,7 @@ function carriedThroughRenames(list) {
 import { IntervalNode } from './node.mjs'
 import { DEFAULT_STARTUP_VERIFY_RECENT_N } from './errors.mjs'
 import { IntervalClient } from './sdk.mjs'
-import { buildWorld, foundGenesis, roadDataOf, groundKindOf, biomeOf, localesOf, darkTilesOf, seatsImports } from './worldgen-any.mjs'
+import { buildWorld, foundGenesis, roadDataOf, groundKindOf, biomeOf, waterOf, localesOf, darkTilesOf, seatsImports } from './worldgen-any.mjs'
 import { readFounding, writeFounding } from './worldcache.mjs'
 import { carry, provenance } from './crossing.mjs'
 import { IncomingTree } from './incoming.mjs'
@@ -1284,6 +1284,23 @@ const server = http.createServer((req, res) => {
           }
           // and the countries, in the same shape and the same fetch: 6KB
           // gzipped, and the window had them wrong on three land tiles in five
+          // §7ek: and the water, in the same shape and the same fetch. See the
+          // note beside waterOf: a window that cannot see water cannot offer
+          // the one deed that asks for it.
+          const wetAt = waterOf(gg)
+          const wRows = []
+          for (let y = 0; y < gg.worldH; y++) {
+            const runs = []
+            let cur = false, start = 0
+            for (let x = 0; x <= gg.worldW; x++) {
+              const k = x < gg.worldW ? wetAt(x, y) : false
+              if (k !== cur) {
+                if (cur) runs.push([start, x - start])
+                cur = k; start = x
+              }
+            }
+            if (runs.length) wRows.push([y, runs])
+          }
           const biomeAt = biomeOf(gg)
           const bRows = []
           for (let y = 0; y < gg.worldH; y++) {
@@ -1301,7 +1318,7 @@ const server = http.createServer((req, res) => {
           _groundCache = { w: gg.worldW, h: gg.worldH, rows, biomes: bRows,
             // §7dq-iv: and where it is dark, so a window draws by the light a
             // citizen carries rather than guessing which places are caves
-            locales: localesOf(gg), dark: darkTilesOf(gg) }
+            locales: localesOf(gg), dark: darkTilesOf(gg), water: wRows }
         } catch (e) { _groundCache = { w: 0, h: 0, rows: [], error: e.message } }
       }
       return json(_groundCache)
@@ -1711,6 +1728,8 @@ const server = http.createServer((req, res) => {
         // §7f-ix: and the words a landmark may be, so a window can be held to
         // the whole list rather than to whatever the island happened to grow
         landmarkKinds: [...(E.LANDMARK_KINDS || [])],
+        // §7ek: and which of them will take a name cut into it
+        gravable: [...(E.GRAVABLE || [])],
         keeperKinds: E.KEEPER_KINDS, stalls: E.STALL_SELLS,
         // §the callings: which trades a skill opens, what they are called, the
         // level they want, and the ceiling. A window may not invent a calling.
@@ -1718,6 +1737,9 @@ const server = http.createServer((req, res) => {
         // craft words, which no citizen can be called any more; `sworn` is
         // what a page wants and always was.
         sworn: E.SWORN, swearLevel: E.SWEAR_LEVEL, mastery: E.MASTERY,
+        // §7ek: and the travel the oath wants, which is not a level and so had
+        // nowhere else to be read from
+        swearCountries: E.SWEAR_COUNTRIES,
         // §5k: what a citizen may not become. Unsworn nothing passes the first;
         // sworn, your own trade has no ceiling and every other stops at the second.
         capUnsworn: E.CAP_UNSWORN, capOther: E.CAP_OTHER,
@@ -1730,6 +1752,14 @@ const server = http.createServer((req, res) => {
         masterYield: E.MASTER_YIELD, gatherCalling: E.GATHER_CALLING,
         // §6dj: what a seam wants of you, and what it gives back
         nodeGate: E.NODE_GATE, nodeYield: E.NODE_YIELD, gatherTools: tools,
+        // §7ek: what a stall costs to raise. A window that guesses offers the
+        // option to citizens who cannot take it and hides it from the ones who
+        // can; see the note beside the export.
+        marketPlanks: E.MARKET_PLANKS, marketOre: E.MARKET_ORE, marketOwned: E.MARKET_OWNED,
+        // §7ek: the three deferred works. See the note beside the exports.
+        grovePlantLevel: E.GROVE_PLANT_LEVEL, groveSpecies: E.GROVE_SPECIES,
+        bucksAt: E.BUCKS_AT, buckFill: E.BUCK_FILL_TICKS, buckSpoils: E.BUCK_SPOILS_AFTER,
+        smokeTicks: E.SMOKE_TICKS, smokeWindow: E.SMOKE_WINDOW,
         xpTable: E.XP_TABLE, mastery: E.MASTERY
       })
     }

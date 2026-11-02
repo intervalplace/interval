@@ -18614,6 +18614,24 @@ module.exports = {
   // what it teaches. Without them a window can only tell somebody to go and
   // read the engine, which is not a thing a window should ever have to say.
   NODE_GATE, NODE_YIELD, GATHER_TOOLS, STALL_SELLS, CAP_UNSWORN, CAP_OTHER,
+  // §7ek: WHAT A STALL COSTS, exported because a window was guessing it.
+  // window-web counted sixteen logs and eight ore against an engine that asks
+  // for ten planks and two iron-ore, and printed a third pair of numbers on
+  // the button. Three copies, no two agreeing, and nothing could have caught
+  // it because there was no door to compare against.
+  MARKET_PLANKS, MARKET_ORE, MARKET_OWNED,
+  // §7ek: and the three deferred works, for the same reason. A grove plot, a
+  // willow buck and a smokerack are the only three kinds of thing on this
+  // island a citizen could not reach from the main window at all, and the
+  // reason each was unreachable is that nothing told the window what they
+  // want. BUCKS_AT is the ladder `bucksAllowed` walks, served so a window can
+  // say "four at seventy-five" rather than only "not yet".
+  GROVE_PLANT_LEVEL, GROVE_SPECIES, BUCKS_AT, SMOKE_TICKS, SMOKE_WINDOW,
+  // §7ek: WHICH STONES TAKE A NAME. `grave` is the one deed in this world
+  // that puts a citizen's name on the island for good, and window-web could
+  // not file it, because nothing told the window which of the ninety-seven
+  // landmark kinds will take a chisel.
+  GRAVABLE,
   MASTER_YIELD, MASTER_REC_NUM, MASTER_REC_DEN, masterOf, GATHER_CALLING, APPRENTICE_SLOTS, APPRENTICE_LAPSE, gradeOf,
   APPRENTICE_MILESTONES, slotsFor, isProven,
   // §5k: a window wants to say "you cannot pass seventy here" without knowing

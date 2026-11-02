@@ -803,6 +803,22 @@ let _localesTold = null
 let _groundIsTold = false, _groundGaveUp = false
 let _darkTold = new Set()
 const isDarkAt = (x, y) => _darkTold.size > 0 && _darkTold.has(x + ',' + y)
+// §7ek: AND WHERE THE WATER IS, told.
+//
+// `groundKindAt` answers null on water on purpose -- water is not a surface
+// you walk on -- so once the surfaces were served this window had no way at
+// all to tell a wet tile from a dry one: `blockedAt` here knows only nodes.
+// The engine asks for water BESIDE you before a willow buck may be set, and a
+// window that cannot see water can only offer that deed everywhere and let it
+// fail in silence, which is worse than not offering it.
+//
+// A bitmap, not a set: there are thousands of water tiles, unlike the hundred
+// and fifty-one dark ones.
+let _waterTold = null
+const isWetAt = (x, y) => !!_waterTold && x >= 0 && y >= 0 && x < W && y < H
+  && _waterTold[y * W + x] === 1
+const nextToWater = (x, y) => isWetAt(x + 1, y) || isWetAt(x - 1, y)
+  || isWetAt(x, y + 1) || isWetAt(x, y - 1)
 
 function localeToldAt(x, y) {
   if (!_localesTold) return null
@@ -853,6 +869,17 @@ function takeGroundTold(gd) {
   // which is what every world before this one was.
   if (Array.isArray(gd.dark)) {
     _darkTold = new Set(gd.dark.map((t) => t[0] + ',' + t[1]))
+  }
+  if (Array.isArray(gd.water) && gd.water.length) {
+    const wf = new Uint8Array(W * H)
+    for (const [y, runs] of gd.water) {
+      if (y < 0 || y >= H) continue
+      for (const [x0, len] of runs) {
+        const end = Math.min(W, x0 + len)
+        for (let x = Math.max(0, x0); x < end; x++) wf[y * W + x] = 1
+      }
+    }
+    _waterTold = wf
   }
   if (Array.isArray(gd.biomes) && gd.biomes.length) {
     const bk = ['']
@@ -5258,6 +5285,9 @@ const SKILL_UNLOCKS = {
 // what a mastery is worth. Fetched once; every one of these has a stale
 // hand-copy below it that this replaces.
 let SWORN_T = null, SWEAR_LEVEL = 50, CAP_UNSWORN = 50, CAP_OTHER = 70
+// §5r-iv: how much of the island a citizen must have seen before they may
+// swear. Travel rather than a level, and the engine's own number.
+let SWEAR_COUNTRIES_W = 5
 let MASTERY_T = 100, APPR_SLOTS = 3, APPR_LAPSE = 43200, APPR_MILES = [100, 105, 110]
 ;(async () => {
   try {
@@ -5279,6 +5309,7 @@ let MASTERY_T = 100, APPR_SLOTS = 3, APPR_LAPSE = 43200, APPR_MILES = [100, 105,
       for (const [name, c] of Object.entries(t.sworn))
         (CALLINGS_OF[c.skill] ??= []).push(name) }
     if (t.swearLevel) SWEAR_LEVEL = t.swearLevel
+    if (t.swearCountries) SWEAR_COUNTRIES_W = t.swearCountries
     if (t.capUnsworn) CAP_UNSWORN = t.capUnsworn
     if (t.capOther) CAP_OTHER = t.capOther
     if (t.mastery) MASTERY_T = t.mastery
@@ -5314,6 +5345,18 @@ let MASTERY_T = 100, APPR_SLOTS = 3, APPR_LAPSE = 43200, APPR_MILES = [100, 105,
       into.clear()
       for (const w of from) into.add(w)
     }
+    swap(NODE_GATE, t.nodeGate)
+    if (t.marketPlanks) MARKET_PLANKS = t.marketPlanks
+    if (t.marketOre) MARKET_ORE = t.marketOre
+    if (t.marketOwned) MARKET_OWNED = t.marketOwned
+    if (t.grovePlantLevel) GROVE_PLANT_LEVEL = t.grovePlantLevel
+    if (t.groveSpecies && Object.keys(t.groveSpecies).length) GROVE_SPECIES = t.groveSpecies
+    if (Array.isArray(t.bucksAt) && t.bucksAt.length) BUCKS_AT = t.bucksAt
+    if (t.buckFill) BUCK_FILL = t.buckFill
+    if (t.buckSpoils) BUCK_SPOILS = t.buckSpoils
+    if (t.smokeTicks) SMOKE_TICKS = t.smokeTicks
+    if (t.smokeWindow) SMOKE_WINDOW = t.smokeWindow
+    swapSet(GRAVABLE, t.gravable)
     swap(FORGE, t.recipes); swap(FORGE_REQ, t.smithReqs)
     swap(PRICES, t.prices); swap(STALL_SELLS, t.stalls)
     swapSet(SMELTED, t.smelted); swapSet(EQUIPPABLE, t.equippable)
@@ -5810,6 +5853,54 @@ const NODE_NAME = {
   'fishing-spot': 'fish', 'eel-spot': 'eels', 'deep-fish-spot': 'deep fish',
   'gibbet-shoal': 'the shoal, deep fish, two to a cast', 'salt-pan': 'salt pans',
 }
+// §7ek: WHAT A SEAM WANTS, which the pillar has served since §7f-viii and this
+// window never read. Gates only: a level and a trade. NOT yields, odds or
+// multipliers, by the same rule the skill guide follows -- what a seam gives
+// is for a citizen to find out by working it.
+//
+// Generated from engine.js NODE_GATE and replaced wholesale by /api/tables.
+const NODE_GATE = {
+  'oak-tree': { skill: 'woodcraft', level: 20 },
+  'ironbark-tree': { skill: 'woodcraft', level: 45 },
+  'heartwood-tree': { skill: 'woodcraft', level: 78 },
+  'gallows-oak': { skill: 'woodcraft', level: 92 },
+  'coal-rock': { skill: 'earthcraft', level: 20 },
+  'brimstone-vent': { skill: 'earthcraft', level: 70 },
+  'muck-heap': { skill: 'hearthcraft', level: 25 },
+  'quick-rock': { skill: 'earthcraft', level: 78 },
+  'gold-rock': { skill: 'earthcraft', level: 85 },
+  'mother-lode': { skill: 'earthcraft', level: 92 },
+  'eel-spot': { skill: 'shorecraft', level: 20 },
+  'deep-fish-spot': { skill: 'shorecraft', level: 78 },
+  'gibbet-shoal': { skill: 'shorecraft', level: 92 },
+}
+// §7ek: WHAT A STALL COSTS TO RAISE. The window counted sixteen LOGS and eight
+// ORE and said "32 planks, 8 iron-ore" on the button: three numbers and two
+// words, all of them wrong, against an engine that asks for ten PLANKS and two
+// IRON-ORE. So the one option was offered to citizens who could not raise a
+// stall and hidden from the ones who could. Taken from the pillar now, with
+// the engine's current numbers as the fallback.
+let MARKET_PLANKS = 10, MARKET_ORE = 2, MARKET_OWNED = 1
+// §7ek: THE THREE DEFERRED WORKS, which this window could not reach at all.
+//
+// A grove plot, a willow buck and a smokerack are things you set going and
+// come back to, and all three of them fell past every branch in `worldPress`
+// to the gathering fallback: pressing one sent the engine `gather` on a thing
+// that is not gathered, which it refuses in silence. So `sapling`, `setbuck`
+// and `lift` were three deeds the rules allow and the main window could not
+// file, and nothing said so because the act ladder carries all three and a
+// grep of the ladder passes.
+//
+// Generated from engine.js and replaced by /api/tables.
+// §7ek: which stones will take a name cut into them. Generated from engine.js
+// GRAVABLE and replaced by /api/tables.
+const GRAVABLE = new Set(['standing-stone', 'milestone', 'boundary-stone', 'cairn',
+  'sentinel', 'broken-tower', 'drowned-bell', 'shipwreck', 'elder-tree', 'glass-stone'])
+let GROVE_PLANT_LEVEL = 45
+let GROVE_SPECIES = { oak: 'oak-tree', ironbark: 'ironbark-tree' }
+let BUCKS_AT = [[20, 1], [40, 2], [60, 3], [75, 4], [88, 5], [96, 6]]
+let BUCK_FILL = 1800, BUCK_SPOILS = 86400, SMOKE_TICKS = 4500, SMOKE_WINDOW = 3000
+const bucksAllowedW = (lv) => { let n = 0; for (const [at, k] of BUCKS_AT) if (lv >= at) n = k; return n }
 const NAME_RANGE = 7   // as far as you could read a thing by looking at it
 // §5i: mirrors engine WALK_MAX_STEPS. The engine refuses anything longer, so a
 // window that planned further would simply have its journeys rejected.
@@ -6955,6 +7046,11 @@ const ACTION_VOICE = {
   befriend: soft, unfriend: soft, follow: soft, unfollow: soft,
   name: soft, stint: soft, attend: soft, release: soft,
   charter: pageTurn, survey: pageTurn,
+  // §7ek: the seven deeds wired in §7ek, each given the voice of the thing it
+  // actually is: an oath and a parting are spoken, a chisel is steel on stone,
+  // a sapling is a spade, and a buck is willow going into water.
+  swear: resonant, teach: soft, part: soft, grave: steelOn,
+  sapling: spade, setbuck: water, lift: water,
   invoke: resonant, dedicate: resonant, seal: resonant, found: resonant,
   spawn: resonant,
   // fire, and the things that feed it
@@ -7128,7 +7224,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b84'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b85'  // stamp: if your screen says an older build, hard-refresh
 // ===========================================================================
 // WHAT A CITIZEN IS SEEN TO BE DOING
 //
@@ -7179,21 +7275,72 @@ let _doing = null, _doingAt = 0
 // The world's own verb on the left; nothing here invents a word.
 const DOING_ANIM = {
   // at a bench, a forge, an anvil: both hands, short and repeated
-  smith: 'craft', mendp: 'craft', unmake: 'craft', transmute: 'craft',
+  // mendp is NOT here: it is a mending sent on a wand, which is sorcery and
+  // not a bench, and it was written in both groups. A duplicate key in an
+  // object literal is silent and the later one wins, so the drawing was
+  // already the one below; this is the table agreeing with the drawing.
+  smith: 'craft', unmake: 'craft', transmute: 'craft',
   fletch: 'craft', nock: 'craft', saw: 'craft', grave: 'craft',
   seal: 'craft', char: 'craft', dismantle: 'craft', build_brewpot: 'craft',
   // over a fire or a pot: stooped, one hand working
   cook: 'tend', brew: 'tend', smelt: 'tend', grind: 'tend', kindle: 'tend',
-  light: 'tend', stoke: 'tend', bury: 'tend', rot: 'tend',
-  // down at the ground
-  plant: 'kneel', sapling: 'kneel', harvest: 'kneel', lay: 'kneel',
-  setbuck: 'kneel', collect: 'kneel', survey: 'kneel', stamp: 'kneel',
+  light: 'tend', stoke: 'tend',
+  // §7ek: A SPADE IS ITS OWN POSTURE, and it was the one missing.
+  //
+  // `bury` was filed under `tend`, which is a hand stirring a pot: a two
+  // pixel lean and an arm rocking through a quarter turn with NOTHING in the
+  // hand. Burying a set of bones therefore looked exactly like standing
+  // still, which is how it was reported: "no animation at all". These are the
+  // same verbs `ACTION_VOICE` already answers with the spade, so the window
+  // was already saying spade and drawing nothing.
+  //
+  // The drawing it wants exists: `gather` with a spade in hand has had a
+  // haft, a blade and the earth on it since the muck heap was fixed (§7an).
+  // So this posture reuses it rather than inventing a second spade.
+  bury: 'dig', plant: 'dig', sapling: 'dig', harvest: 'dig', lay: 'dig',
+  setbuck: 'dig', settle: 'dig',
+  // down at the ground, with the hands
+  collect: 'kneel', survey: 'kneel', stamp: 'kneel',
   // arms up
   cast: 'cast', invoke: 'cast', swear: 'cast', dedicate: 'cast',
   sound: 'cast', teach: 'cast', found: 'cast',
+  // §7ek: AND THE SPELLS, which were not here. `rot` was filed under `tend` --
+  // a hand stirring a pot -- and the other four barrow words had no posture at
+  // all, so speaking the rot looked like cooking and speaking the taking
+  // looked like standing still. They are sorcery: the one thing in this world
+  // that is not hands and a tool.
+  rot: 'cast', taking: 'cast', withering: 'cast', waking: 'cast',
+  still: 'cast', turn: 'cast', mendp: 'cast', part: 'cast',
   // carrying
   haul: 'haul', unload: 'haul', consign: 'haul', deliver: 'haul', stock_market: 'haul',
+  // and reaching into a run for a trap
+  lift: 'kneel', rifle: 'kneel',
 }
+// §7ek: AND THE DEEDS THAT ARE NOT MIMED, SAID OUT LOUD.
+//
+// `DOING_ANIM` was a list of what IS drawn, so a verb wired next session was
+// silent and still and nothing anywhere noticed. This is the other half: the
+// verbs that are deliberately instant, each in a group with its reason. A
+// verb in neither table is a gap, and check-window-reach.mjs says so.
+const ACTION_STILL = new Set([
+  // the window's own movement, sent on every tile of every journey: a posture
+  // on these is a posture on walking
+  'move', 'walk', 'stop', 'chat',
+  // the engine sets an ONGOING action for these and the window reads it back
+  // off the state, which is the honest source: `fight` and `gather` are drawn
+  // from `p.action`, not from what was just sent
+  'gather', 'prowess', 'attackp', 'gambit',
+  // a hand to the pack and back: too short to read at twenty pixels a tile,
+  // and each already answers with its own noise
+  'eat', 'drink', 'drop', 'pickup', 'wield', 'unwield', 'unequip', 'nock',
+  // a counter, a table or a vault: standing at it is the posture
+  'buy', 'pay', 'trade', 'untrade', 'deposit', 'deposit_all', 'withdraw',
+  'offer', 'release', 'price_market', 'take_market', 'dismantle_market',
+  'raise_market', 'charter',
+  // and the things that are a decision rather than a movement
+  'befriend', 'unfriend', 'follow', 'unfollow', 'name', 'stint', 'attend',
+  'spawn', 'sail', 'set_look', 'alch',
+])
 // What the window calls a verb on its way out, where that differs from the
 // engine's word. BRIDGE_TO_INPUT is the one place that knows, so this is read
 // off the action AFTER translation wherever it can be.
@@ -8549,6 +8696,25 @@ let _pressAt = null
 // one press and cleared after, so a menu raised by the pack never grows a
 // `walk here` for a tile nobody pressed.
 let _pressTile = null
+// §7ek: AND WHAT IT WAS YOU PRESSED, which is the question a menu is usually
+// asked.
+//
+// Every menu over the world read the same two lines -- "look at it" and "walk
+// here" -- so right-clicking a thing to find out what it is answered with two
+// words that are true of a tree, a troll, a tollgate and a patch of grass
+// alike. A person right-clicking is asking WHAT IS THAT, and the window knew
+// the answer at the moment the press landed and threw it away.
+//
+// A heading, not a relabelling of every option: `floatMenu` has carried a
+// `head` row since the stalls were given one, and a name above the list reads
+// on every option at once rather than being pasted into twenty labels. Set at
+// the few places `worldPress` decides what was hit, and cleared with
+// `_pressTile`.
+let _pressName = null
+// and how to answer "what is it", set beside the name and read in the same
+// place. A closure rather than the thing itself, because what is being looked
+// at is a node, a creature, a citizen or a pile, and each has its own answer.
+let _pressLook = null
 // `closest` is an ELEMENT method and a pointer event does not always carry
 // one: a synthetic event, or one that lands on the document or the window
 // itself, has a target with no such function and the handler throws. Both
@@ -8585,6 +8751,19 @@ function undrawnKind(kind) {
 const say1 = (w) => String(w ?? '').replace(/-/g, ' ')
 const cap1 = (t) => String(t ?? '').charAt(0).toUpperCase() + String(t ?? '').slice(1)
 function chooseAction(opts, at) {
+  // §7ek: and it says what it is about, unless the list already says so. A
+  // stall writes its own heading and must not be given a second one.
+  if (_pressName && !opts.some((o) => o && o.head)) opts = [{ head: _pressName }, ...opts]
+  // §7ek: AND EVERY MENU OVER THE WORLD CAN BE ASKED WHAT THE THING IS.
+  //
+  // Written here for the reason `walk here` is written here: one list either
+  // way, or thirty option lists drift into offering different things. Skipped
+  // where the list already offers a look or a read, which is what the things
+  // that are only ever read already do.
+  if (_pressLook && !opts.some((o) => o && o.label && /^(look|read|listen)\b/.test(o.label))) {
+    const lk = _pressLook
+    opts = [...opts, { label: 'look at the ' + (_pressName ?? 'it'), act: lk }]
+  }
   // §7ei: and every menu raised over the world carries `walk here`.
   if (_pressTile) {
     const wt = _pressTile
@@ -8603,6 +8782,14 @@ function chooseAction(opts, at) {
   })()
   bar.innerHTML = ''
   for (const o of opts) {
+    // a heading is not a choice: the bar says it as a word, not a button
+    if (o.head) {
+      const h = document.createElement('span')
+      h.textContent = o.head
+      h.style.cssText = 'align-self:center;color:#c9a86a;font-size:10px;letter-spacing:1.4px;'
+        + 'text-transform:uppercase;padding:0 4px'
+      bar.appendChild(h); continue
+    }
     const b = document.createElement('button')
     b.textContent = o.label
     b.style.cssText = 'flex:1;background:#3a3126;color:#e8d9a0;border:1px solid #6e5433;padding:4px;font-family:inherit;font-size:11px;cursor:pointer'
@@ -11460,7 +11647,7 @@ function drawCitizen(X, Y, o) {
   // A STOOP, because an arm alone does not read as work. Kneeling drops the
   // whole body; tending and crafting lean it; hauling settles it under the
   // weight. Nothing here moves the feet, so it composes with the walk.
-  const STOOP = { kneel: 5.5, tend: 2.2, craft: 1.4, haul: 1.8 }[o.anim] ?? 0
+  const STOOP = { kneel: 5.5, dig: 6.5, tend: 2.2, craft: 1.4, haul: 1.8 }[o.anim] ?? 0
   const step = o.anim === 'walk' ? Math.sin(now / 110) : 0
   const hurt = (o.now - (hitFlash[o.pid] ?? -9999)) < 320
   const recoil = hurt ? (1 - (o.now - (hitFlash[o.pid] ?? 0)) / 320) : 0
@@ -11745,6 +11932,12 @@ function drawCitizen(X, Y, o) {
     kneel:  [  0.15,  0.95,  420 ],   // reaching down to the ground
     cast:   [ -1.35, -1.05,  900 ],   // arms up, barely moving
     haul:   [  0.55,  0.62,  800 ],   // holding a load against the body
+    // §7ek: a dig is DOWN. The first arc swung the arm out to the side --
+    // the rotation is measured from straight down, so a wide arc raises the
+    // hand to chest height, which reads as pointing rather than digging.
+    // Photographed with sweep.mjs --doing bury and narrowed until the hand
+    // stayed at the ground.
+    dig:    [ -0.10,  0.55,  280 ],   // a spade into the ground and out again
   }[o.anim]
   const workSwing = WORK
     ? WORK[0] + (WORK[1] - WORK[0]) * (0.5 + 0.5 * Math.sin(o.now / WORK[2]))
@@ -11781,14 +11974,14 @@ function drawCitizen(X, Y, o) {
     cx.fillStyle = '#5c4023'; cx.fillRect(-1, 8, 2, 10)
     cx.strokeStyle = metal; cx.lineWidth = 3
     cx.beginPath(); cx.arc(0, 17, 5, F > 0 ? -0.6 : 2.5, F > 0 ? 0.6 : 3.7); cx.stroke()
-  } else if (o.anim === 'gather' && o.tool === 'spade') {
+  } else if ((o.anim === 'dig' || o.anim === 'gather') && o.tool === 'spade') {
     // §7an: a long haft, a broad blade, and a low steady lift -- nothing like
     // the chop of a hatchet or the overhand of a pick.
     cx.rotate(F * 0.35)
     cx.fillStyle = '#6b5334'; cx.fillRect(-1, 6, 2, 13)
     cx.fillStyle = '#9aa2ae'; cx.fillRect(-3.5, 18, 7, 6)
     cx.fillStyle = 'rgba(70,58,42,.7)'; cx.fillRect(-3.5, 22, 7, 2)   // the earth on it
-  } else if (o.anim === 'gather' && o.tool === 'hands') {
+  } else if ((o.anim === 'dig' || o.anim === 'gather') && o.tool === 'hands') {
     // bare hands: no haft at all, just a low reach and a scoop
     cx.rotate(F * 0.5)
     cx.fillStyle = '#e8d9a0'
@@ -11829,7 +12022,11 @@ function drawCitizen(X, Y, o) {
   }
 
   cx.restore()
-  if (o.wepItem && o.anim !== 'fight' && !(o.anim === 'gather' && o.ironTool)) {
+  // §7ek: and whatever is already in the fist does not also hang at the hip. A
+  // citizen wielding a spade and digging with it was drawn carrying two.
+  const inHand9 = (o.anim === 'dig' || o.anim === 'gather') && o.tool === 'spade'
+  if (o.wepItem && o.anim !== 'fight' && !(o.anim === 'gather' && o.ironTool)
+      && !(inHand9 && o.wepItem === 'spade')) {
     // whatever you wield rides at the hip, for all to see
     cx.save(); cx.translate(X + (F > 0 ? 13 : 27), Y + 24); cx.rotate(F * 0.7)
     heldWeapon(cx, o.wepItem, F, now)
@@ -16157,7 +16354,15 @@ function drawScene(now) {
     // swinging an axe -- the fallback -- so the one trade that pays a farmer
     // looked exactly like felling a tree, and the spade that pays STRENGTH
     // looked like nothing at all.
-    const tool = famOf(workNode?.type) === 'fishing-spot' ? 'rod':
+    // §7ek: and a citizen digging holds a spade only if they HAVE one. The
+    // engine asks for no tool to bury, so drawing one in an empty hand would
+    // be the window telling a citizen they own something they do not. Hands
+    // then, which has its own drawing: a low reach and a scoop.
+    const hasSpade = anim === 'dig'
+      && (p.equipment?.weapon?.item === 'spade'
+        || (p.inventory ?? []).some((sl) => sl?.item === 'spade'))
+    const tool = anim === 'dig' ? (hasSpade ? 'spade' : 'hands'):
+               famOf(workNode?.type) === 'fishing-spot' ? 'rod':
                workNode?.type === 'muck-heap' || workNode?.type === 'rockfall'
                  ? (p.equipment?.weapon?.item === 'spade' ? 'spade' : 'hands'):
                (famOf(workNode?.type) === 'rock' || famOf(workNode?.type) === 'quick-rock') ? 'pick' : 'axe'
@@ -17542,10 +17747,80 @@ function openSkillGuide(skill) {
     + 'Gates only. What a seam YIELDS, how often the rare thing answers, what a '
     + 'blow is worth: those are not here, and they are not hidden either. '
     + 'Stand at a tree and count.</div>'
+  // §7ek: AND THE OATH, WHICH COULD NOT BE SWORN FROM THIS WINDOW AT ALL.
+  //
+  // One mastery to a citizen is the centre of this world, and `swear` has sat
+  // in the act ladder since §5w with nothing anywhere that sends it. So the
+  // bar stopped at fifty, the guide said "until you swear", and there was no
+  // way to swear: a citizen read that line and concluded the world was
+  // broken. A check for this passed the whole time, because what it checked
+  // was that the LADDER carried the word.
+  //
+  // It belongs in the guide, because the guide is where a trade's callings are
+  // already named and where the ceiling is already explained. The engine wants
+  // the level, and it wants the citizen to have SEEN something of the island
+  // first -- five countries walked, which is travel and not a level.
+  const callings = CALLINGS_OF[skill] ?? []
+  if (callings.length && meNow9()) {
+    const m9 = meNow9()
+    const walked = (m9.walked?.length ?? 0)
+    const sworn = typeof m9.calling === 'string'
+    {
+      let h2 = '<div style="border-top:1px solid #3a3126;margin-top:10px;padding-top:8px">'
+        + '<div style="color:#e2b63e;font-size:10px;letter-spacing:1.4px;margin-bottom:4px">'
+        + 'THE OATH</div>'
+      if (sworn) {
+        h2 += '<div style="color:#8a7f68;font-size:10px;line-height:1.5">You are sworn '
+          + say1(m9.calling) + '. One mastery to a citizen, and it is said once.</div>'
+      } else if (lvl < SWEAR_LEVEL) {
+        h2 += '<div style="color:#8a7f68;font-size:10px;line-height:1.5">'
+          + say1(skill) + ' ' + SWEAR_LEVEL + ' opens '
+          + callings.join(', ') + '. You have ' + lvl + '.</div>'
+      } else if (walked < SWEAR_COUNTRIES_W) {
+        h2 += '<div style="color:#8a7f68;font-size:10px;line-height:1.5">'
+          + 'You have the trade for ' + callings.join(', ') + '. Before you may swear it you '
+          + 'have to have seen something of the island: ' + SWEAR_COUNTRIES_W
+          + ' countries walked, and you have walked ' + walked + '.</div>'
+      } else {
+        h2 += '<div style="color:#a89a7c;font-size:10px;line-height:1.5;margin-bottom:5px">'
+          + 'Said once, and never again. Your own trade loses its ceiling; every other '
+          + 'trade stops at ' + CAP_OTHER + ' for the rest of your life.</div>'
+          + callings.map((c) => '<button data-swear="' + c + '" style="' + BTN
+            + 'margin:2px 4px 2px 0">swear ' + say1(c) + '</button>').join('')
+      }
+      html += h2 + '</div>'
+    }
+  }
   box.innerHTML = html
   document.getElementById('view')?.parentNode?.appendChild(box) ?? document.body.appendChild(box)
   box.querySelector('#skgx').onclick = () => box.remove()
+  // §5w: AN ATTESTED SWEARING, where there is somebody to attest it. A citizen
+  // may name the master who took them on and the mark goes into the record for
+  // ever; unattested swearing stays legal, because the first forester has
+  // nobody. So the window asks only when the answer could be yes.
+  for (const b of box.querySelectorAll('[data-swear]')) b.onclick = () => {
+    const c = b.dataset.swear
+    const m9 = meNow9()
+    const master = Object.entries(world?.players ?? {}).find(([pid2, q]) =>
+      pid2 !== myId && typeof q.calling === 'string'
+      && Object.prototype.hasOwnProperty.call(q.apprentices ?? {}, myId))
+    box.remove()
+    chooseAction([
+      { head: 'swear ' + say1(c) + ', once and for ever' },
+      ...(master ? [{ label: 'swear it, and name ' + (master[1].name ?? 'your master')
+          + ' as the one who taught you',
+        act: () => { send({ do: 'swear', calling: c, attester: master[0] })
+          feed('You swear ' + say1(c) + ', attested. The mark is in the record for good.') } }] : []),
+      { label: master ? 'swear it unattested' : 'swear it',
+        act: () => { send({ do: 'swear', calling: c })
+          feed('You swear ' + say1(c) + '. It is said once.') } },
+      { label: 'not yet', act: () => {} },
+    ])
+  }
 }
+// the citizen, where the guide needs them: written as a call so the guide can
+// be opened before a state has arrived without throwing
+const meNow9 = () => world?.players?.[myId] ?? null
 
 // §5c-ii: SITTING DOWN WITH SOMEBODY.
 //
@@ -18424,6 +18699,49 @@ function socialOpts(pid, p, me) {
       send({ do: 'follow', targetId: pid })
       feed('You fall in behind ' + nm + '. Your feet, not your sword: what they strike is still yours to strike.') } })
   }
+  // §7ek: AN APPRENTICESHIP, WHICH NO CITIZEN COULD EVER BEGIN HERE.
+  //
+  // `teach` and `part` have been in the act ladder since §5w and nothing in
+  // this window ever sent either of them, so taking somebody on and letting
+  // them go were two rules of this world that existed only in the engine and
+  // the SDK. A check for them passed the whole time, because what it checked
+  // was that the LADDER carried the word.
+  //
+  // It belongs here: an apprenticeship is between two citizens standing
+  // together, which is exactly what this menu is for. The engine wants them
+  // adjacent, so does this.
+  {
+    const mineAp = me.apprentices ?? {}
+    const theirAp = p.apprentices ?? {}
+    const iTeachThem = Object.prototype.hasOwnProperty.call(mineAp, pid)
+    const theyTeachMe = Object.prototype.hasOwnProperty.call(theirAp, myId)
+    if (iTeachThem || theyTeachMe) {
+      out.push({ label: iTeachThem ? 'let ' + nm + ' go' : 'leave ' + nm + '\u2019s teaching',
+        act: () => { send({ do: 'part', who: pid })
+          feed(iTeachThem ? 'You let ' + nm + ' go. What they learned is theirs.'
+            : 'You leave off. ' + nm + ' taught you what they taught you.') } })
+    } else {
+      const myCall = typeof me.calling === 'string' ? me.calling : null
+      const myTrade = myCall && SWORN_T && SWORN_T[myCall] ? SWORN_T[myCall].skill : null
+      const myLevel = myTrade ? XP_TO_LVL(me.skills?.[myTrade] ?? 0) : 0
+      const live = Object.values(mineAp)
+        .filter((at) => (world?.tick ?? 0) - at <= APPR_LAPSE).length
+      const adjAp = Math.abs(me.x - p.x) + Math.abs(me.y - p.y) === 1
+      const can = !!myTrade && myLevel >= MASTERY_T && p.calling === undefined
+        && live < APPR_SLOTS && adjAp
+      out.push(can
+        ? { label: 'take ' + nm + ' on as an apprentice', act: () => {
+            send({ do: 'teach', to: pid })
+            feed('You take ' + nm + ' on. What they learn at your trade, they learn faster.') } }
+        : { label: 'take ' + nm + ' on as an apprentice', dim: true, act: () => feed(
+            !myCall ? 'Only the sworn may teach, and you have sworn nothing.'
+            : myLevel < MASTERY_T ? 'Only a master may teach: ' + say1(myTrade) + ' '
+              + MASTERY_T + ', and you have ' + myLevel + '.'
+            : p.calling !== undefined ? nm + ' is sworn already. There is nothing to teach them.'
+            : live >= APPR_SLOTS ? 'You have ' + live + ' apprentices, which is all you may hold.'
+            : 'Stand beside them. An apprenticeship is taken on face to face.') })
+    }
+  }
   return out
 }
 // §7cq: THE SPELLBOOK, because there was not one.
@@ -18536,6 +18854,143 @@ function castArmed(tid, t) {
 // citizen still has to go to the furnace to learn who works the furnace, and
 // still has to find them themselves. What it ends is a specialist being
 // invisible, which is the thing that stops the trade happening at all.
+// §7ek: CUTTING SOMEBODY'S NAME INTO A STONE. See the note at the gate that
+// calls this. Everything it asks is the engine's own list of conditions, in
+// the engine's own order, so a dimmed row says the true reason.
+function graveOpts(n, id) {
+  if (n.type !== 'landmark' || !GRAVABLE.has(n.kind)) return []
+  const meG = world?.players?.[myId]
+  if (!meG) return []
+  const chisel = (meG.inventory ?? []).some((sl) => sl?.item === 'graver')
+  if (!chisel) return []                       // no chisel, no offer: it is not a choice
+  if (n.name) return [{ label: 'it is named already', dim: true,
+    act: () => feed('It is called ' + n.name + ', and a stone takes one name.') }]
+  const near = Object.entries(world.players ?? {}).filter(([pid2, q]) =>
+    pid2 !== myId && Math.max(Math.abs(q.x - n.x), Math.abs(q.y - n.y)) <= 1)
+  if (!near.length) return [{ label: 'cut a name into it', dim: true,
+    act: () => feed('A name is cut for somebody, and they have to be standing here. '
+      + 'Bring them to the stone.') }]
+  return near.slice(0, 6).map(([pid2, q]) => ({
+    label: 'cut ' + (q.name ?? pid2.slice(0, 6)) + '\u2019s name into it',
+    act: () => { send({ do: 'grave', nodeId: id, target: pid2 })
+      feed('You cut it in. It is on the island for as long as the island is.') } }))
+}
+// §7ek: WHAT A THING STANDING IN THE WORLD IS.
+//
+// Sixty-six kinds of thing stand on this island and about a third of them
+// could not be asked. A right press either did the one thing they do or fed a
+// sentence about why it could not be done, and neither answers "what am I
+// looking at", which is the question somebody right-clicking is asking.
+//
+// NAMES AND LEVELS, NEVER YIELDS. The same rule the skill guide follows: the
+// gate is a fact a citizen cannot discover by working (they just fail), and
+// what a seam GIVES is the thing they are meant to find out by working it.
+// `NODE_GATE` comes from the pillar, so no number here is a copy.
+const NODE_LOOK = {
+  landmark: 'Something somebody put here.',
+  keeper: 'Somebody who lives here and has a trade.',
+  guard: 'A guard. The roads are watched.',
+  smith: 'The smith. The anvil is theirs to stand at and anybody may use it.',
+  crier: 'A crier, saying the town’s business out loud.',
+  fence: 'A split-rail fence.', hedge: 'A laid hedge.',
+  railing: 'An iron railing.', banner: 'A banner in the town’s colours.',
+  wall: 'A town wall, old and going nowhere.',
+  palisade: 'Oak stakes, split and driven, the tops cut to a point.',
+  tree: 'An ordinary tree. Any axe takes it.',
+  'oak-tree': 'An oak. Heavier timber than a plain tree.',
+  'ironbark-tree': 'An ironbark. The haft of anything that has to last.',
+  'heartwood-tree': 'A heartwood. The best timber on the island.',
+  'gallows-oak': 'A gallows oak. There are very few, and they are not replanted.',
+  rock: 'A seam of plain stone.',
+  'iron-rock': 'An iron seam.', 'coal-rock': 'A coal seam.',
+  'gold-rock': 'Gold in the rock.', 'quick-rock': 'A magic stone, humming.',
+  'mother-lode': 'The mother lode. There is one, and this is it.',
+  'brimstone-vent': 'A brimstone vent, smoking.',
+  'muck-heap': 'A muck heap. A spade turns it and it pays a farmer.',
+  'salt-pan': 'Salt pans, raked flat and drying.',
+  rockfall: 'A rockfall. Loose stone, no seam.',
+  'fishing-spot': 'A place to cast from.', 'eel-spot': 'An eel run.',
+  'deep-fish-spot': 'Deep water, and something in it.',
+  'gibbet-shoal': 'The shoal under the gibbet. Two to a cast, and deep.',
+  plot: 'Tilled ground. Each row is sown and pulled by whoever sowed it.',
+  'grove-plot': 'A grove plot, waiting for a sapling of its own kind.',
+  'eel-buck': 'A willow buck set in a run. Whoever set it comes back for it.',
+  smokerack: 'A rack over a slow fire. It holds a catch and hands it back changed.',
+  hoard: 'A barrow hoard. One reach into one of these, once in a life.',
+  ossuary: 'Consecrated ground. Bones laid here are worth a quarter more.',
+  vault: 'A vault. What goes in here cannot be taken from you.',
+  anvil: 'The anvil. There is one on the island.',
+  furnace: 'A furnace. Ore and coal go in and bars come out.',
+  sawpit: 'A sawpit. Logs go in and planks come out.',
+  stamp: 'A crushing floor: a weighted beam under a roof.',
+  altar: 'An altar. Three magic stones become a sigil here.',
+  campfire: 'A fire somebody lit. You can cook at it.',
+  fire: 'A fire. You can cook at it.',
+  hearth: 'A hearth. A fire you can cook at, and the one place a brewpot stands.',
+  watchfire: 'A watchfire. The whole country can see this burning.',
+  brewpot: 'A brewpot. Grain makes ale, fish makes broth, and it takes its time.',
+  house: 'A house. Somebody lives here.',
+  store: 'A counter. A consignment is taken up here and discharged here.',
+  stall: 'A trade stall. There are seven on the island, one of each kind.',
+  market: 'A citizen’s own stall. One kind of good, at whatever they ask.',
+  well: 'A well. You can drink from it.',
+  fountain: 'A fountain.',
+  signpost: 'A signpost.', waystone: 'A waystone, cut with the road.',
+  tollgate: 'A tollgate. The road through costs.',
+  ferry: 'A quay, and a boat at it.',
+  spanwork: 'A span part built: a pool of planks standing in the water.',
+  span: 'A finished span. You cross it by walking.',
+  bellwork: 'The bellwork. It wants hands on the rope.',
+  bell: 'The town bell.',
+  dummy: 'A pell. It never hits back and it never falls.',
+  butt: 'An archery butt. Straw and canvas.',
+  'looking-glass': 'A tall glass, clouded at the edges. You can change your look at it.',
+  cart: 'A cart.', dedication: 'A dedication. Somebody paid for this to stand.',
+}
+function lookAtNode(n) {
+  if (!n) return
+  const nm = NODE_NAME[n.type] ?? say1(n.type)
+  const said = NODE_LOOK[n.type] ?? ('The ' + nm + '. It stands.')
+  const g = NODE_GATE[n.type]
+  const mine = n.by && n.by === myId
+  feed(said
+    + (g ? ' It wants ' + g.skill + ' ' + g.level + '.' : '')
+    + (mine ? ' It is yours.' : '')
+    + (n.name ? ' It is called ' + n.name + '.' : ''))
+}
+// §7ek: AND WHO SOMEBODY IS. Nothing here is anything the window was not
+// already drawing over their head or in the column beside it: a name, a
+// calling, a mark, and whether they are carrying. No position, no holdings,
+// nothing a citizen would have to go and find out for themselves.
+function lookAtCitizen(pid, p) {
+  if (!p) return
+  const nm = p.name ?? 'a stranger'
+  const bits = []
+  bits.push(p.calling ? 'sworn ' + say1(p.calling) : 'unsworn')
+  if (p.consignment) bits.push('carrying a consignment')
+  if ((p.brandedUntil ?? 0) > (world?.tick ?? 0)) bits.push('marked: no keeper will deal with them')
+  if ((p.stilledUntil ?? 0) > (world?.tick ?? 0)) bits.push('stilled')
+  feed(nm + ': ' + bits.join(', ') + '.')
+}
+// §7ek: WHAT A CREATURE IS, ASKED OF THE CREATURE.
+//
+// Right-clicking a beast gave you one line, "attack", so the only way to find
+// out whether the thing in front of you hits for one or for sixteen was to
+// let it. Everything said here is already in `MOB_STATS`, which is the
+// engine's own table (§7f), so this invents no numbers.
+function lookAtMob(m) {
+  const st = MOB_STATS[m.type] ?? {}
+  const bits = []
+  if (st.maxHp) bits.push(st.maxHp + ' hitpoints')
+  if (st.maxHit) bits.push('hits for up to ' + st.maxHit)
+  if (st.every && st.every > 1) bits.push('strikes every ' + st.every + ' intervals')
+  if (st.reach && st.reach > 1) bits.push('reaches ' + st.reach + ' tiles')
+  feed('A ' + say1(m.type) + '. ' + (bits.length ? bits.join(', ') + '. ' : '')
+    + (st.dummy ? 'It is a pell: it does not strike back and it does not die.'
+      : st.harmless ? 'It will not come for you.'
+      : st.aggro ? 'It comes for anybody within ' + st.aggro + ' tiles.'
+      : 'It fights back, but it will not start.'))
+}
 function whoWorksHere(n) {
   const w = (n.worked ?? []).filter((e) => e.who !== myId)
   if (!w.length) return
@@ -18548,7 +19003,389 @@ function whoWorksHere(n) {
   const names = w.map((e) => (world.players[e.who]?.name ?? e.who.slice(0, 6)) + ' (' + ago(e.at) + ')')
   feed('Hands that have been here: ' + names.join(', ') + '.')
 }
-function invClick(i) {
+// §7ek: WHAT A THING IS, ASKED OF THE THING.
+//
+// "look at it" was the one option almost every menu in this window could
+// offer, and on an item it did not exist at all: the pack named what you
+// tapped in a line under it and that was the whole of it. A person right
+// clicking is asking what they are holding, so the answer has to be a
+// sentence rather than a label.
+//
+// Everything said here comes out of a table the window already carries and
+// already checks against the engine (§7f): `WORN_STATS`, `PRICES`, `HEALS`,
+// `FEED_RATE`, `EQUIPPABLE`, `TWO_HANDED`. Nothing is invented and nothing is
+// a second copy.
+function lookAtItem(item) {
+  if (!item) return
+  const w = say1(item)
+  const st = WORN_STATS[item] ?? {}
+  const bits = []
+  if (st.hit) bits.push('+' + st.hit + ' damage')
+  if (st.acc) bits.push((st.acc > 0 ? '+' : '') + st.acc + ' accuracy')
+  if (st.armour) bits.push('+' + st.armour + ' armour')
+  if (st.every) bits.push('swings every ' + st.every + (st.every === 1 ? ' interval' : ' intervals'))
+  if (st.reach && st.reach > 1) bits.push('reaches ' + st.reach + ' tiles')
+  if (st.pierces) bits.push('goes round armour')
+  const say = ['A ' + w + '.']
+  if (bits.length) say.push(bits.join(', ') + '.')
+  if (HEALS[item]) say.push('Eaten, it gives back ' + HEALS[item]
+    + ' at ' + FEED_RATE(item) + ' an interval.')
+  else if (isRawFoodW(item)) say.push('Raw. It wants a fire.')
+  if (EQUIPPABLE.has(item)) say.push(TWO_HANDED.has(item)
+    ? 'Two hands: nothing else may be held with it.' : 'It can be worn.')
+  const pr = PRICES[item]
+  say.push(pr ? 'A keeper would give ' + pr + ' for it.' : 'No keeper has a price for it.')
+  feed(say.join(' '))
+}
+// §7ek: HOW GOOD YOU ARE AT SOMETHING, and it was not defined anywhere.
+//
+// `invClick` called `lvl('sorcery')`, `lvl('woodcraft')` and `lvl('earthcraft')`
+// and there was no `lvl` in scope: the three `const lvl` in this window are a
+// boolean in one function and a number in two others, none of them reachable
+// from the pack. So right-clicking a sigil, dragon bones or lamprey spit threw
+// a ReferenceError and the menu never opened, and LIGHTING A FIRE from the
+// pack fed "[err] lighting: lvl is not defined" -- the one catch that was
+// there to stop a throw eating the menu for ever was reporting it, in words,
+// and nobody read the feed.
+//
+// Found by pressing every item in the pack rather than by reading the source:
+// see check-window-reach.mjs.
+const lvlOf = (skill) => XP_TO_LVL(world?.players?.[myId]?.skills?.[skill] ?? 0)
+// §7ek: ONE LIST FOR THE PACK, AND THE RIGHT BUTTON IS WHAT OPENS IT.
+//
+// The pack had it the wrong way round. A LEFT click built a menu -- for logs,
+// bones, a sigil, a chart, and for everything the window had no other use for
+// -- while the right button called the same function and so opened the same
+// menu. So the two buttons did one thing in the pack and two things in the
+// world, and the one place a citizen spends most of their clicks taught the
+// opposite of the model everything else follows (§5t: left does the default
+// act, right offers every option).
+//
+// `invOptions` is now the only place an item's verbs are written down, which
+// is the rule `chooseAction` already states for the world: one list either
+// way, or the two buttons drift into offering different things. The first
+// option in the list is what a left click does.
+//
+// WHAT GOES FIRST. The obvious single act, where there is one: eat the food,
+// wield the sword, cook the raw fish, bury the bones, put the arrows on the
+// string. Where an item has several real uses that cannot be ranked -- logs,
+// a sigil, dragon bones -- the first option is "look at it", because a left
+// click must not spend a thing on a guess. Beside a vault a plain good
+// deposits, which is the banker's old convenience and the reason anybody
+// stands at a vault at all.
+function invOptions(i) {
+  const meNow = world.players[myId]
+  const it = meNow?.inventory[i]
+  if (!it) return { name: '', opts: [] }
+  const name = say1(it.item)
+  const look = { label: 'look at the ' + name, act: () => lookAtItem(it.item) }
+  const drop = { label: 'drop the ' + name, act: () => { send({ do: 'drop', slot: +i })
+    feed('You drop the ' + name + '.') } }
+  const nearVault = Object.values(world.nodes).some(n => n.type === 'vault'
+    && Math.abs(meNow.x - n.x) + Math.abs(meNow.y - n.y) === 1)
+  const bankOpt = nearVault ? [{ label: 'deposit in the vault', act: () => {
+    send({ do: 'deposit', slot: +i }); feed('You deposit the ' + name + '.') } }] : []
+  // TRANSMUTE: any priced good, anywhere, from the first log. The question is
+  // whether a thing HAS a price, not what that price comes to -- an arrow pays
+  // nothing and is still unmade, for the practice.
+  const alchPay = (PRICES[it.item] ?? 0) ? Math.min(4, Math.max(0, PRICES[it.item] - 1)) : null
+  const alchOpt = alchPay === null ? [] : [{
+    label: alchPay > 0 ? 'transmute (' + alchPay + ' gold)' : 'transmute (for the practice)',
+    act: () => { send({ do: 'alch', slot: +i })
+      feed('It comes apart' + (alchPay > 0 ? ' for ' + alchPay + ' gold.' : '.') + ' A keeper would have paid more.') },
+  }]
+  const tail = [...bankOpt, ...alchOpt, drop]
+
+  // §7cz: rubble is marl, and a citizen holding it should be told what it is for
+  if (it.item === 'rubble') return { name, opts: [
+    { label: 'look at the rubble', act: () => feed('Broken stone. Spread two on a row when you sow and '
+      + 'the crop comes on in two thirds the time: it drains the ground and warms it. It is the only '
+      + 'thing a miner makes that a farmer wants.') },
+    ...tail,
+  ] }
+
+  if (it.item === 'chart') {
+    // 6ci: a chart is a GOOD now, not a key. It attunes nothing and opens no
+    // stone -- the stones are gone (6ch). It is what a master surveyor brings
+    // home to sell, and the only thing in this world made by walking.
+    const master = XP_TO_LVL(meNow.skills?.wayfaring ?? 0) >= 90   // §5p: exploration is wayfaring
+    return { name, opts: [
+      { label: 'look at the chart', act: () => feed('A surveyed chart. Worth something to somebody who '
+        + 'would rather not walk it themselves.' + (master ? '' : ' Wayfaring 90 draws one up as a charter.')) },
+      ...(master ? [{ label: 'draw it up as a charter (for the boat to the Lists)', act: () => {
+        send({ do: 'charter', slot: Number(i) })
+        feed('You draw the crossing up. Somebody may sail who could not, and pay you for it.') } }] : []),
+      ...tail,
+    ] }
+  }
+
+  // §7bs: NOCK A QUIVER TO SHOOT FROM IT. An archer carrying both kinds shoots
+  // whatever ammoOf prefers, and there is no way to reorder a pack in this
+  // world -- so the choice has to be an act.
+  if (it.item === 'arrows' || it.item === 'fire-arrows') {
+    const on = (meNow.nocked ?? 'arrows') === it.item
+    const nock = { label: 'put the ' + name + ' on the string', act: () => {
+      send({ do: 'nock', slot: Number(i) })
+      feed(it.item === 'fire-arrows'
+        ? 'You set a fire arrow on the string. It flies shorter, and it will not touch plate.':
+        'You set an ordinary shaft on the string.') } }
+    const say = { label: 'look at the ' + name, act: () => feed('Arrows fly on their own: wield a bow and a '
+      + 'quiver and they go. ' + (it.qty ?? 1) + ' in the pack'
+      + (on ? ', and these are the ones on the string.' : '.')) }
+    return { name, opts: on ? [say, nock, ...tail] : [nock, say, ...tail] }
+  }
+
+  if (it.item === 'quick-stone') {
+    const count = (meNow.inventory ?? []).filter(sl => sl?.item === 'quick-stone').length
+    const invoke = { label: 'press the stones into a sigil (' + count + '/3)', act: () => {
+      if (count < 3) { feed('Three stones make a sigil. You carry ' + count + '.'); return }
+      send({ do: 'invoke' })
+      feed('You press the stones together. They remember being one.') } }
+    const say = { label: 'look at the magic stone', act: () => feed('A stone with the quick in it. '
+      + 'Three pressed together make a sigil. You carry ' + count + '.') }
+    return { name, opts: count >= 3 ? [invoke, say, ...tail] : [say, invoke, ...tail] }
+  }
+
+  if (it.item === 'sigil') {
+    // the three things a sigil is spent on are opposed and one of them moves
+    // you across the island, so none of them is a left click
+    const opts = [{ label: 'look at the sigil',
+      act: () => feed('A compressed piece of night. It hums faintly. Spent, it speaks one word of sorcery.') }]
+    if (lvlOf('sorcery') >= 85 && (meNow.inventory ?? []).filter(sl => sl?.item === 'sigil').length >= 3
+      && !((world.players?.[myId]?.stillCdUntil ?? 0) > (world?.tick ?? 0)))
+      opts.push({ label: 'cast: THE STILLING (3 sigils)', act: () => {
+        window.__stillArm = true
+        feed('You hold the truce unspoken. Tap whom to still , beast or citizen, within six tiles.')
+      } })
+    if (lvlOf('sorcery') >= 20) opts.push({ label: 'cast: mend (heal)', act: () => {
+      send({ do: 'cast', spell: 'mend' })
+      feed('You spend the sigil to knit yourself whole.')
+      tone(520, 0.18, { type: 'sine', vol: 0.05 }); tone(780, 0.22, { type: 'sine', vol: 0.045, at: 0.08 })
+    } })
+    opts.push({ label: 'cast: return to Anchor', act: () => {
+      send({ do: 'cast', spell: 'anchor' })
+      feed('You speak the founding moment aloud. The world agrees you were always here.')
+      tone(700, 0.4, { type: 'sine', vol: 0.05 }); tone(1050, 0.5, { type: 'sine', vol: 0.04, at: 0.1 })
+    } })
+    return { name, opts: [...opts, ...tail] }
+  }
+
+  // §7cm: DRAGON BONES ASK A QUESTION, and the window has to put it.
+  //
+  // The two options are opposed and the labels say how: prayer's reward is
+  // PRAYER_KEEP, "the dearest priced thing you carry survives your death", and
+  // `snaps` is not death. Bury these and keep your things when you fall; haft
+  // them and carry the one object in the world prayer cannot save. Because
+  // they are opposed, neither is what a left click does.
+  if (it.item === 'dragon-bones') {
+    const have = (meNow.inventory ?? []).filter(x => x?.item === 'dragon-bones').length
+    const bark = (meNow.inventory ?? []).filter(x => x?.item === 'ironbark').length
+    const fl = lvlOf('woodcraft')
+    const canHaft = have >= 2 && bark >= 1 && fl >= 55
+    return { name, opts: [
+      { label: 'look at the dragon bones', act: () => feed('Five hundred at a counter, and a keeper who does not '
+        + 'know what else they are for. Buried they are the fastest prayer on the island. Hafted they are a spear '
+        + 'that grows as you fail, and prayer will not save a thing that breaks in your hand.') },
+      { label: 'bury them (prayer, and the dearest road there is)', act: () => buryFrom(i, 'dragon') },
+      { label: canHaft ? 'haft a BONE SPEAR (2 bones + 1 ironbark)':
+                       'haft a bone spear, ' + (fl < 55 ? 'fletching 55 (you have ' + fl + ')':
+                         have < 2 ? 'you have ' + have + ' of 2 bones':
+                         'you need an ironbark haft'),
+        act: () => {
+          if (!canHaft) { feed('Not yet. A bone spear is two dragon-bones, an ironbark haft and fletching 55.'); return }
+          send({ do: 'smith', recipe: 'bone-spear' })
+          feed('You lash the rib to the haft. It is nothing at all until you are nearly dead, '
+             + 'and then it is the largest blow in the world. It will snap, and there is no mending it.') } },
+      ...tail,
+    ] }
+  }
+
+  // §7cn: WHAT A LAMPREY LEAVES, and how much of it there will ever be.
+  if (it.item === 'lamprey-spit') {
+    const sp = (meNow.inventory ?? []).filter(x => x?.item === 'lamprey-spit').length
+    const st = (meNow.inventory ?? []).filter(x => x?.item === 'steel').length
+    const sm = lvlOf('earthcraft')
+    const canMake = sp >= 2 && st >= 1 && sm >= 40
+    const alive = Object.values(world?.mobs ?? {})
+      .filter(x => x.type === 'mere-lamprey' && (x.spent ?? 0) === 0).length
+    return { name, opts: [
+      { label: 'look at the lamprey spit', act: () => feed(alive > 0
+        ? alive + (alive === 1 ? ' lamprey is left in the world.' : ' lampreys are left in the world.')
+          + ' When they are gone there is no more spit, and no more barbs than the ones that exist.':
+        'The meres are empty. Every barb that will ever exist already exists.') },
+      { label: canMake ? 'set a BARB (2 spit + 1 steel)':
+                       'set a barb, ' + (sm < 40 ? 'earthcraft 40 (you have ' + sm + ')':
+                         sp < 2 ? 'you have ' + sp + ' of 2 spit' : 'you need a bar of steel'),
+        act: () => {
+          if (!canMake) { feed('A barb is two measures of spit, one bar of steel and earthcraft 40.'); return }
+          send({ do: 'smith', recipe: 'barb' })
+          feed('You work the spit into the ring. It bites all round: every beast within reach, '
+             + 'one swing. Worthless in a duel; the only answer anybody has to a crowd.') } },
+      ...tail,
+    ] }
+  }
+
+  if (it.item === 'bones') return { name, opts: [
+    { label: 'bury the bones', act: () => buryFrom(i, 'plain') },
+    { label: 'fletch arrows', act: () => send({ do: 'fletch', slot: +i, make: 'arrows' }) },
+    look,
+    ...tail,
+  ] }
+
+  if (it.item === 'logs') {
+    const wt = world?.genesis?.watch
+    const logs = (meNow.inventory ?? []).filter(sl => sl?.item === 'logs').length
+    const owned = Object.values(world?.nodes ?? {}).filter(n => n.type === 'watchfire' && n.by === myId).length
+    const canWatch = wt && lvlOf('woodcraft') >= wt.level && logs >= wt.kindleLogs && owned < wt.maxOwned
+    const opts = [
+      look,
+      { label: 'light a fire', act: () => {
+        intent = null // stop walking: the retry loop yields to intents, and a lingering walk was eating the flint
+        send({ do: 'light', slot: +i }); feed('You attempt to light a fire…')
+        pendingLight = { slot: +i, tick: world?.tick ?? 0 } } },
+      ...(canWatch ? [{ label: 'kindle a watchfire (' + wt.kindleLogs + ' logs)', act: () => {
+        send({ do: 'kindle' }); feed('You build the wood high and set it alight. The country will see this.')
+        tone(140, 0.5, { type: 'sawtooth', vol: 0.05 }); tone(220, 0.6, { type: 'sine', vol: 0.04, at: 0.12 })
+      } }] : []),
+      { label: 'fletch a bow', act: () => send({ do: 'fletch', slot: +i, make: 'bow' }) },
+      { label: 'fletch a staff', act: () => send({ do: 'fletch', slot: +i, make: 'staff' }) },
+      { label: 'fletch a wand', act: () => send({ do: 'fletch', slot: +i, make: 'wand' }) },
+    ]
+    // §7ek: AND A WILLOW BUCK, which was the one deed in the rules this
+    // window could not file from anywhere. A buck is one log set in a run:
+    // the log is in the pack, so the option is on the log. "Any log is willow
+    // enough" is the engine's own note.
+    {
+      const sc = lvlOf('shorecraft')
+      const allowed = bucksAllowedW(sc)
+      const out = Object.values(world?.nodes ?? {})
+        .filter((nn) => nn.type === 'eel-buck' && nn.by === myId).length
+      const wet = nextToWater(meNow.x, meNow.y)
+      const onNode = Object.values(world?.nodes ?? {})
+        .some((nn) => nn.x === meNow.x && nn.y === meNow.y)
+      const ok9 = allowed >= 1 && out < allowed && wet && !onNode
+      opts.push(ok9
+        ? { label: 'set an eel buck here (' + (out + 1) + ' of ' + allowed + ')', act: () => {
+            send({ do: 'setbuck' })
+            feed('You weave the log into a buck and set it in the run. '
+              + Math.round(BUCK_FILL / 60) + ' minutes to fill, and anybody may lift it.') } }
+        : { label: 'set an eel buck here', dim: true, act: () => feed(
+            allowed < 1 ? 'Setting a buck wants shorecraft 20. You have ' + sc + '.'
+            : out >= allowed ? 'You have ' + out + ' bucks out, which is all shorecraft '
+              + sc + ' allows. The next comes at '
+              + ((BUCKS_AT.find(([at]) => at > sc) ?? [])[0] ?? 'nothing higher') + '.'
+            : onNode ? 'Something already stands on this tile.'
+            : 'A buck is set in a run. Stand beside water.') })
+    }
+    // §6al: raising a stall, asked of the timber it is made of
+    const logs2 = (meNow.inventory ?? []).filter(x => x && (x.item === 'logs' || x.item === 'heartwood')).length
+    const ore2 = (meNow.inventory ?? []).filter(x => x?.item === 'ore').length
+    const already = Object.values(world.nodes).some(n => n.type === 'market' && n.by === myId)
+    if (already) opts.push({ label: 'raise a stall (you have one)', act: () => feed('One stall to a citizen.') })
+    else if (logs2 < 16 || ore2 < 8)
+      opts.push({ label: 'raise a stall (needs 32 planks, 8 iron-ore)',
+                  act: () => feed('You have ' + logs2 + ' logs and ' + ore2 + ' ore.') })
+    else opts.push({ label: 'raise a stall here (32 planks, 8 iron-ore)', act: () => { send({ do: 'raise_market' })
+      feed('You begin raising a stall. Twenty intervals, and do not move.') } })
+    return { name, opts: [...opts, ...tail] }
+  }
+
+  if (EQUIPPABLE.has(it.item)) return { name, opts: [
+    { label: 'wield the ' + name, act: () => wieldFrom(i, it) },
+    look,
+    ...tail,
+  ] }
+
+  // §6m-viii: AND THE OTHER SEVEN FOODS.
+  //
+  // This was three words -- cooked-fish, ale, broth -- and the engine's larder
+  // has TEN. `HEALS` is the engine's own table now (it was a ternary chain,
+  // which cannot answer "what IS food"), so this asks the larder instead of
+  // carrying a list.
+  if (HEALS[it.item]) return { name, opts: [
+    { label: 'eat the ' + name, act: () => {
+      const foe = onACreature(meNow.action) ? meNow.action.mobId : null
+      send({ do: 'eat', slot: +i })
+      if (foe) { intent = { kind: 'prowess', id: foe }; feed('You get it down and fight on.') }
+      else feed('You eat the ' + name + '. ' + HEALS[it.item] + ' back, '
+        + FEED_RATE(it.item) + ' an interval.') } },
+    look,
+    ...tail,
+  ] }
+
+  if (isRawFoodW(it.item)) return { name, opts: [
+    { label: 'cook the ' + name, act: () => { send({ do: 'cook', slot: +i }); feed('You attempt to cook…') } },
+    look,
+    ...tail,
+  ] }
+
+  // EVERYTHING ELSE: ore, wool, crab shell, grain, heartwood, the deep fish.
+  // The old fallback on a single click was a DROP, which is a strange thing to
+  // do by accident, and it is also exactly the set of goods a citizen would
+  // transmute. Beside a vault the first option is the deposit, which is the
+  // whole reason to stand at one.
+  return { name, opts: nearVault ? [...bankOpt, look, ...alchOpt, drop]
+                                 : [look, ...alchOpt, drop] }
+}
+// §7cm: burying, said once. Both sets of bones reach it and consecrated ground
+// pays a quarter more, so the window says which ground you are standing on.
+function buryFrom(i, which) {
+  const meNow = world.players[myId]
+  send({ do: 'bury', slot: +i })
+  const oss = Object.values(world.nodes).some(n => n.type === 'ossuary'
+    && Math.abs(meNow.x - n.x) <= 1 && Math.abs(meNow.y - n.y) <= 1)
+  if (which === 'dragon') feed(oss ? 'You lay the dragon in the ossuary. The ground here is consecrated.':
+    'You bury the dragon. The earth takes it as it takes everything.')
+  else feed(oss ? 'You lay the bones in the ossuary. The ground here is consecrated.':
+    'You bury the bones. The earth accepts them.')
+}
+// §6bz: ONE PAIR OF HANDS, AND THE WINDOW SAYS THE TWO INPUTS.
+//
+// The engine REFUSES a wield that would silently displace -- a shield beside a
+// haft, or a haft beside a shield -- and it is right to: an executor that
+// guessed wrong should be told, not quietly disarmed. But a refusal with
+// nothing said is how a bow simply did nothing when clicked, over and over,
+// with no way to find out why.
+//
+// So the window does what §6bz says a citizen should do: it says so in two
+// inputs. It takes off what is in the way, then wields. If the pack has no
+// room for what comes off, nothing is sent and the reason is said out loud,
+// because a full pack is a thing a citizen can go and fix.
+function wieldFrom(i, it) {
+  const meW = world?.players?.[myId]
+  const wornWeapon = meW?.equipment?.weapon?.item ?? null
+  const wornOff = meW?.equipment?.offhand?.item ?? null
+  const takingUpTwoHander = TWO_HANDED.has(it.item)
+  const raisingShieldOverHaft = EQUIP_SLOT_OF(it.item) === 'offhand' && TWO_HANDED.has(wornWeapon)
+  const inTheWay = takingUpTwoHander ? (wornOff ? ['offhand'] : []) : raisingShieldOverHaft ? ['weapon'] : []
+  if (inTheWay.length) {
+    const free = (meW?.inventory ?? []).filter(sl => !sl).length
+    if (free < inTheWay.length) {
+      feed('Your hands are full and so is your pack: there is no room to set down the '
+        + say1(wornOff ?? wornWeapon ?? 'gear') + ' first.')
+      return
+    }
+    // §6bz: TWO INPUTS MEANS TWO INTERVALS.
+    //
+    // The engine takes ONE input per key per interval, so sending the unwield
+    // and the wield together threw the second away -- the feed said both had
+    // happened and only the first did. That is worse than the silent refusal
+    // it replaced: it lied.
+    //
+    // So the unwield goes now and the wield is remembered, to be sent on the
+    // next interval that has a free slot.
+    for (const gear of inTheWay) {
+      send({ do: 'unwield', gear })
+      feed('You lower the ' + say1(meW.equipment[gear]?.item ?? gear) + '.')
+    }
+    pendingWield = { slot: +i, item: it.item }
+    return
+  }
+  send({ do: 'wield', slot: +i }); feed('You wield the ' + say1(it.item) + '.')
+}
+// §7ek: and the two buttons. A left click does the first thing on the list; a
+// right click shows the list, headed with what you are holding.
+function invClick(i, asMenu) {
   if (i === undefined || !world) return
   const meNow = world.players[myId]
   const it = meNow?.inventory[i]
@@ -18559,305 +19396,17 @@ function invClick(i) {
   // so the table borrows it rather than drawing a second pack inside itself
   // on a phone that has no room for one. Tapping again takes it back.
   if (meNow.trade && tableToggle(i)) return
-  // §7bs: TAP A QUIVER TO NOCK IT. An archer carrying both kinds shoots
-  // whatever ammoOf prefers, and there is no way to reorder a pack in this
-  // world -- so the choice has to be an act. Tapping arrows puts them on the
-  // string, and the pack shows which are nocked.
-  // §7cv: a master explorer's chart can be drawn up as a charter
-  // §7cz: rubble is marl, and a citizen holding it should be told what it is for
-  if (it.item === 'rubble') {
-    feed('Broken stone. Spread two on a row when you sow and the crop comes on in '
-      + 'two thirds the time: it drains the ground and warms it. It is the only '
-      + 'thing a miner makes that a farmer wants.')
+  const { name, opts } = invOptions(i)
+  if (!opts.length) return
+  if (asMenu) {
+    _pressName = name; _pressLook = null
+    try { chooseAction(opts) } finally { _pressName = null }
     return
   }
-  if (it.item === 'chart' && XP_TO_LVL(meNow.skills?.wayfaring ?? 0) >= 90) {   // §5p: exploration is wayfaring
-    chooseAction([
-      { label: 'draw it up as a charter (for the boat to the Lists)', act: () => {
-        send({ do: 'charter', slot: Number(i) })
-        feed('You draw the crossing up. Somebody may sail who could not, and pay you for it.') } },
-      { label: 'keep the chart', act: () => feed('A chart. It opens no doors; it says where a thing is.') },
-    ])
-    return
-  }
-  if (it.item === 'arrows' || it.item === 'fire-arrows') {
-    if ((meNow.nocked ?? 'arrows') !== it.item) {
-      send({ do: 'nock', slot: Number(i) })
-      feed(it.item === 'fire-arrows'
-        ? 'You set a fire arrow on the string. It flies shorter, and it will not touch plate.':
-        'You set an ordinary shaft on the string.')
-      return
-    }
-  }
-  const nearVault = Object.values(world.nodes).some(n => n.type === 'vault'
-    && Math.abs(meNow.x - n.x) + Math.abs(meNow.y - n.y) === 1)
-  // items with MENUS keep their menus even beside the bank (Anchor's
-  // bank stands by the store: the old blanket deposit-on-click made
-  // every log click a silent deposit and the menu seemed to die).
-  // Their menus gain a deposit option instead; plain goods still
-  // deposit in one click, the banker's old convenience.
-  const MENU_ITEMS = new Set(['logs', 'bones', 'sigil', 'quick-stone', 'arrows', 'ale'])
-  const hasMenu = MENU_ITEMS.has(it.item) || it.item === 'chart' // v0.80: a merge left CHART_PREFIX undeclared here, and a bare undefined identifier THROWS: every inventory click died on it
-  if (nearVault && !hasMenu) { send({ do: 'deposit', slot: +i }); feed('You deposit the ' + it.item.replace(/-/g, ' ') + '.'); return }
-  const bankOpt = nearVault ? [{ label: 'deposit in bank', act: () => { send({ do: 'deposit', slot: +i }); feed('You deposit the ' + it.item.replace(/-/g, ' ') + '.') } }] : []
-  // TRANSMUTE: any priced good, anywhere, from the first log. The question is
-  // whether a thing HAS a price, not what that price comes to -- an arrow pays
-  // nothing and is still unmade, for the practice.
-  const alchPay = (PRICES[it.item] ?? 0) ? Math.min(4, Math.max(0, PRICES[it.item] - 1)) : null
-  const alchOpt = alchPay === null ? [] : [{
-    label: alchPay > 0 ? 'transmute (' + alchPay + ' gold)' : 'transmute (for the practice)',
-    act: () => { send({ do: 'alch', slot: +i })
-      feed('It comes apart' + (alchPay > 0 ? ' for ' + alchPay + ' gold.' : '.') + ' A keeper would have paid more.') },
-  }]
-  if (it.item === 'quick-stone') {
-    const count = me.inventory.filter(sl => sl?.item === 'quick-stone').length
-    chooseAction([
-      { label: 'invoke sigil (' + count + '/3 stones)', act: () => {
-        if (count < 3) { feed('Three stones make a sigil. You carry ' + count + '.'); return }
-        send({ do: 'invoke' })
-        feed('You press the stones together. They remember being one.')
-      } },
-      ...alchOpt,
-      { label: 'drop', act: () => { send({ do: 'drop', slot: +i }); feed('You drop the magic stone.') } },
-    ]); return
-  }
-  if (it.item === 'chart') {
-    // 6ci: a chart is a GOOD now, not a key. It attunes nothing and opens no
-    // stone -- the stones are gone (6ch). It is what a master surveyor brings
-    // home to sell, and the only thing in this world made by walking.
-    chooseAction([
-      { label: 'keep', act: () => feed('A surveyed chart. Worth something to somebody who would rather not walk it themselves.') },
-      { label: 'drop', act: () => { send({ do: 'drop', slot: +i }); feed('You let the chart go.') } },
-    ]); return
-  }
-  if (it.item === 'sigil') {
-    const opts = []
-    if (lvl('sorcery') >= 85 && me.inventory.filter(sl => sl?.item === 'sigil').length >= 3
-      && !((world.players?.[myId]?.stillCdUntil ?? 0) > (world?.tick ?? 0)))
-      opts.push({ label: 'cast: THE STILLING (3 sigils)', act: () => {
-        window.__stillArm = true
-        feed('You hold the truce unspoken. Tap whom to still , beast or citizen, within six tiles.')
-      } })
-    if (lvl('sorcery') >= 20) opts.push({ label: 'cast: mend (heal)', act: () => {
-      send({ do: 'cast', spell: 'mend' })
-      feed('You spend the sigil to knit yourself whole.')
-      tone(520, 0.18, { type: 'sine', vol: 0.05 }); tone(780, 0.22, { type: 'sine', vol: 0.045, at: 0.08 })
-    } })
-    opts.push({ label: 'cast: return to Anchor', act: () => {
-      send({ do: 'cast', spell: 'anchor' })
-      feed('You speak the founding moment aloud. The world agrees you were always here.')
-      tone(700, 0.4, { type: 'sine', vol: 0.05 }); tone(1050, 0.5, { type: 'sine', vol: 0.04, at: 0.1 })
-    } })
-    opts.push({ label: 'keep', act: () => feed('A compressed piece of night. It hums faintly.') })
-    chooseAction(opts); return
-  }
-  if (it.item === 'arrows') {
-    chooseAction([
-      { label: 'no wielding needed (' + it.qty + ' in the pack)', act: () => feed('Arrows fly on their own: wield a bow and attack anything within four tiles.') },
-      ...bankOpt, ...alchOpt,
-      { label: 'drop', act: () => { send({ do: 'drop', slot: +i }); feed('You drop the arrows.') } },
-    ]); return
-  }
-  // §7cm: DRAGON BONES ASK A QUESTION NOW, and the window has to put it.
-  //
-  // They had no menu of their own at all -- they fell through to the generic
-  // rows, so the one thing they were FOR (burying, at XP_BURY_DRAGON, on the
-  // longest road in the world) had no button and the new thing they are for
-  // had nowhere to appear.
-  //
-  // The two options are opposed and the labels say how: prayer's reward is
-  // PRAYER_KEEP, "the dearest priced thing you carry survives your death", and
-  // `snaps` is not death. Bury these and keep your things when you fall; haft
-  // them and carry the one object in the world prayer cannot save.
-  if (it.item === 'dragon-bones') {
-    const have = (me.inventory ?? []).filter(x => x?.item === 'dragon-bones').length
-    const bark = (me.inventory ?? []).filter(x => x?.item === 'ironbark').length
-    const fl = lvl('woodcraft')
-    const canHaft = have >= 2 && bark >= 1 && fl >= 55
-    chooseAction([
-      { label: 'bury (prayer, and the dearest road there is)', act: () => {
-        send({ do: 'bury', slot: +i })
-        const oss = Object.values(world.nodes).some(n => n.type === 'ossuary'
-          && Math.abs(meNow.x - n.x) <= 1 && Math.abs(meNow.y - n.y) <= 1)
-        feed(oss ? 'You lay the dragon in the ossuary. The ground here is consecrated.':
-                 'You bury the dragon. The earth takes it as it takes everything.') } },
-      { label: canHaft ? 'haft a BONE SPEAR (2 bones + 1 ironbark)':
-                       'haft a bone spear, ' + (fl < 55 ? 'fletching 55 (you have ' + fl + ')':
-                         have < 2 ? 'you have ' + have + ' of 2 bones':
-                         'you need an ironbark haft'),
-        act: () => {
-          if (!canHaft) { feed('Not yet. A bone spear is two dragon-bones, an ironbark haft and fletching 55.'); return }
-          send({ do: 'smith', recipe: 'bone-spear' })
-          feed('You lash the rib to the haft. It is nothing at all until you are nearly dead, '
-             + 'and then it is the largest blow in the world. It will snap, and there is no mending it.') } },
-      { label: 'what are these worth?', act: () => feed('Five hundred at a counter, and a keeper who does not '
-        + 'know what else they are for. Buried they are the fastest prayer on the island. Hafted they are a spear '
-        + 'that grows as you fail, and prayer will not save a thing that breaks in your hand.') },
-      ...bankOpt, ...alchOpt,
-      { label: 'drop', act: () => { send({ do: 'drop', slot: +i }); feed('You set the dragon down.') } },
-    ]); return
-  }
-  // §7cn: WHAT A LAMPREY LEAVES, and how much of it there will ever be.
-  if (it.item === 'lamprey-spit') {
-    const sp = (me.inventory ?? []).filter(x => x?.item === 'lamprey-spit').length
-    const st = (me.inventory ?? []).filter(x => x?.item === 'steel').length
-    const sm = lvl('earthcraft')
-    const canMake = sp >= 2 && st >= 1 && sm >= 40
-    const alive = Object.values(world?.mobs ?? {})
-      .filter(x => x.type === 'mere-lamprey' && (x.spent ?? 0) === 0).length
-    chooseAction([
-      { label: canMake ? 'set a BARB (2 spit + 1 steel)':
-                       'set a barb, ' + (sm < 40 ? 'earthcraft 40 (you have ' + sm + ')':
-                         sp < 2 ? 'you have ' + sp + ' of 2 spit' : 'you need a bar of steel'),
-        act: () => {
-          if (!canMake) { feed('A barb is two measures of spit, one bar of steel and earthcraft 40.'); return }
-          send({ do: 'smith', recipe: 'barb' })
-          feed('You work the spit into the ring. It bites all round: every beast within reach, '
-             + 'one swing. Worthless in a duel; the only answer anybody has to a crowd.') } },
-      { label: 'how much is left?', act: () => feed(alive > 0
-        ? alive + (alive === 1 ? ' lamprey is left in the world.' : ' lampreys are left in the world.')
-          + ' When they are gone there is no more spit, and no more barbs than the ones that exist.':
-        'The meres are empty. Every barb that will ever exist already exists.') },
-      ...bankOpt, ...alchOpt,
-      { label: 'drop', act: () => { send({ do: 'drop', slot: +i }); feed('You set the horn down. There is not much of this.') } },
-    ]); return
-  }
-  if (it.item === 'bones') {
-    chooseAction([
-      { label: 'bury', act: () => { send({ do: 'bury', slot: +i })
-        // consecrated ground pays a quarter more, and says so
-        const oss = Object.values(world.nodes).some(n => n.type === 'ossuary'
-          && Math.abs(meNow.x - n.x) <= 1 && Math.abs(meNow.y - n.y) <= 1)
-        feed(oss ? 'You lay the bones in the ossuary. The ground here is consecrated.':
-                 'You bury the bones. The earth accepts them.') } },
-      { label: 'fletch arrows', act: () => send({ do: 'fletch', slot: +i, make: 'arrows' }) },
-      ...bankOpt, ...alchOpt,
-    ]); return
-  }
-  if (it.item === 'logs' && !window.__logsChoice) {
-    chooseAction([
-      { label: 'light fire', act: () => {
-        intent = null // stop walking: the retry loop yields to intents, and a lingering walk was eating the flint
-        window.__logsChoice = true
-        try { invClick(i) } catch (e) { feed('[err] lighting: ' + e.message) } // a throw here once ate the menu FOREVER
-        finally { window.__logsChoice = false }
-        pendingLight = { slot: +i, tick: world?.tick ?? 0 } } },
-      { label: 'fletch bow', act: () => send({ do: 'fletch', slot: +i, make: 'bow' }) },
-      { label: 'fletch staff', act: () => send({ do: 'fletch', slot: +i, make: 'staff' }) },
-      ...(() => {
-        // §6al: raising a stall, asked of the timber it is made of
-        const logs2 = (me.inventory ?? []).filter(x => x && (x.item === 'logs' || x.item === 'heartwood')).length
-        const ore2 = (me.inventory ?? []).filter(x => x?.item === 'ore').length
-        const already = Object.values(world.nodes).some(n => n.type === 'market' && n.by === myId)
-        if (already) return [{ label: 'raise a stall (you have one)', act: () => feed('One stall to a citizen.') }]
-        if (logs2 < 16 || ore2 < 8)
-          return [{ label: 'raise a stall (needs 32 planks, 8 iron-ore)',
-                    act: () => feed('You have ' + logs2 + ' logs and ' + ore2 + ' ore.') }]
-        return [{ label: 'raise a stall here (32 planks, 8 iron-ore)', act: () => { send({ do: 'raise_market' })
-          feed('You begin raising a stall. Twenty intervals, and do not move.') } }]
-      })(),
-      { label: 'fletch wand', act: () => send({ do: 'fletch', slot: +i, make: 'wand' }) },
-      ...bankOpt, ...alchOpt,
-    ]); return
-  }
-  if (it.item === 'logs') {
-    const wt = world?.genesis?.watch
-    const logs = meNow.inventory.filter(sl => sl?.item === 'logs').length
-    const owned = Object.values(world?.nodes ?? {}).filter(n => n.type === 'watchfire' && n.by === myId).length
-    if (wt && lvl('woodcraft') >= wt.level && logs >= wt.kindleLogs && owned < wt.maxOwned) {
-      chooseAction([
-        { label: 'kindle a watchfire (' + wt.kindleLogs + ' logs)', act: () => {
-          send({ do: 'kindle' }); feed('You build the wood high and set it alight. The country will see this.')
-          tone(140, 0.5, { type: 'sawtooth', vol: 0.05 }); tone(220, 0.6, { type: 'sine', vol: 0.04, at: 0.12 })
-        } },
-        { label: 'light a small fire', act: () => { send({ do: 'light', slot: +i }); feed('You attempt to light a fire\u2026') } },
-      ]); return
-    }
-    send({ do: 'light', slot: +i }); feed('You attempt to light a fire\u2026'); return
-  }
-  if (EQUIPPABLE.has(it.item)) {
-    // §6bz: ONE PAIR OF HANDS, AND THE WINDOW SAYS THE TWO INPUTS.
-    //
-    // The engine REFUSES a wield that would silently displace -- a shield
-    // beside a haft, or a haft beside a shield -- and it is right to: an
-    // executor that guessed wrong should be told, not quietly disarmed. But a
-    // refusal with nothing said is how a bow simply did nothing when clicked,
-    // over and over, with no way to find out why.
-    //
-    // So the window does what §6bz says a citizen should do: it says so in two
-    // inputs. It takes off what is in the way, then wields. If the pack has no
-    // room for what comes off, nothing is sent and the reason is said out loud,
-    // because a full pack is a thing a citizen can go and fix.
-    const meW = world?.players?.[myId]
-    const wornWeapon = meW?.equipment?.weapon?.item ?? null
-    const wornOff = meW?.equipment?.offhand?.item ?? null
-    const takingUpTwoHander = TWO_HANDED.has(it.item)
-    const raisingShieldOverHaft = EQUIP_SLOT_OF(it.item) === 'offhand' && TWO_HANDED.has(wornWeapon)
-    const inTheWay = takingUpTwoHander ? (wornOff ? ['offhand'] : []) : raisingShieldOverHaft ? ['weapon'] : []
-    if (inTheWay.length) {
-      const free = (meW?.inventory ?? []).filter(sl => !sl).length
-      if (free < inTheWay.length) {
-        feed('Your hands are full and so is your pack: there is no room to set down the '
-          + (wornOff ?? wornWeapon ?? 'gear').replace(/-/g, ' ') + ' first.')
-        return
-      }
-      // §6bz: TWO INPUTS MEANS TWO INTERVALS.
-      //
-      // The engine takes ONE input per key per interval, so sending the
-      // unwield and the wield together threw the second away -- the feed said
-      // both had happened and only the first did. That is worse than the
-      // silent refusal it replaced: it lied.
-      //
-      // So the unwield goes now and the wield is remembered, to be sent on the
-      // next interval that has a free slot. The feed says the first line only;
-      // the second is said when the hand is actually full.
-      for (const gear of inTheWay) {
-        send({ do: 'unwield', gear })
-        feed('You lower the ' + (meW.equipment[gear]?.item ?? gear).replace(/-/g, ' ') + '.')
-      }
-      pendingWield = { slot: +i, item: it.item }
-      return
-    }
-    send({ do: 'wield', slot: +i }); feed('You wield the ' + it.item.replace(/-/g, ' ') + '.')
-  }
-  // §6m-viii: AND THE OTHER SEVEN FOODS.
-  //
-  // This was three words -- cooked-fish, ale, broth -- and the engine's larder
-  // has TEN. A citizen carrying bread, a salted fish, a salted deep fish, a
-  // smoked eel, a cooked eel, a cooked deep fish or a deep broth fell through
-  // to the generic rows at the bottom, where the only things on offer were
-  // transmuting it and dropping it. The capstone of shorecraft could not be
-  // eaten in the window most citizens play in.
-  //
-  // `HEALS` is the engine's own table now (it was a ternary chain, which
-  // cannot answer "what IS food"), so this asks the larder instead of
-  // carrying a list.
-  else if (HEALS[it?.item]) {
-    const foe = onACreature(meNow.action) ? meNow.action.mobId : null
-    send({ do: 'eat', slot: +i })
-    if (foe) { intent = { kind: 'prowess', id: foe }; feed('You get it down and fight on.') }
-    else feed('You eat the ' + say1(it.item) + '. ' + HEALS[it.item] + ' back, '
-      + FEED_RATE(it.item) + ' an interval.')
-  }
-  else if (isRawFoodW(it?.item)) { send({ do: 'cook', slot: +i }); feed('You attempt to cook\u2026') }
-  else if (it) {
-    // THE FALLBACK WAS A DROP, WHICH IS A STRANGE THING TO DO ON ONE CLICK.
-    //
-    // Everything with no other use landed here -- ore, wool, crab-shell,
-    // grain, heartwood, the deep fish -- and a single click threw it on the
-    // floor. It is also exactly the set of goods a citizen would transmute,
-    // and transmute was reachable on four items out of thirty-eight.
-    //
-    // A menu instead: unmake it, vault it if a vault is at your elbow, or drop
-    // it on purpose.
-    chooseAction([
-      ...alchOpt, ...bankOpt,
-      { label: 'drop', act: () => { send({ do: 'drop', slot: +i })
-        feed('You drop the ' + it.item.replace(/-/g, ' ') + '.') } },
-    ])
-  }
+  opts[0].act()
 }
-// Right-click a slot: the same verbs the tap gives, at the pointer.
+// §7ek: THE RIGHT BUTTON OPENS THE LIST. The left one does the first thing on
+// it, which is the model the rest of the window follows.
 document.getElementById('inv').addEventListener('contextmenu', (e) => {
   const slotEl = e.target.closest('.slot')
   if (!slotEl) return
@@ -18865,9 +19414,43 @@ document.getElementById('inv').addEventListener('contextmenu', (e) => {
   const me2 = world?.players?.[myId]
   _namedItem = me2?.inventory?.[Number(slotEl.dataset.i)]?.item ?? ''
   _menuAt = { x: e.clientX, y: e.clientY }
-  try { invClick(slotEl.dataset.i) } finally { _menuAt = null }
+  try { invClick(slotEl.dataset.i, true) } finally { _menuAt = null }
 })
+// §7ei/§7ek: HOW LONG A LONG PRESS IS. Declared here because the pack reaches
+// it before the world does, and a `const` read above its own declaration
+// throws -- which is how this window went down once already.
+const LONG_PRESS_MS = 450, LONG_PRESS_SLOP = 10
+// §7ek: AND A FINGER HAS NO RIGHT BUTTON, so a long press on a slot is one.
+// The pack is where a phone spends most of its taps, and before this the only
+// way to reach a thing's other verbs there was a mouse.
+let _ilpTimer = null, _ilpFrom = null, _ilpFired = false
+const _ilpStop = () => { if (_ilpTimer) { clearTimeout(_ilpTimer); _ilpTimer = null } _ilpFrom = null }
+document.getElementById('inv').addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'mouse') return
+  const slotEl = e.target.closest?.('.slot')
+  if (!slotEl) return
+  _ilpStop(); _ilpFired = false
+  _ilpFrom = { x: e.clientX, y: e.clientY }
+  const slot = slotEl.dataset.i
+  _ilpTimer = setTimeout(() => {
+    _ilpTimer = null; _ilpFired = true
+    const me2 = world?.players?.[myId]
+    _namedItem = me2?.inventory?.[Number(slot)]?.item ?? ''
+    _menuAt = { x: e.clientX, y: e.clientY }
+    try { invClick(slot, true) } finally { _menuAt = null }
+  }, LONG_PRESS_MS)
+})
+document.getElementById('inv').addEventListener('pointermove', (e) => {
+  if (!_ilpFrom) return
+  if (Math.abs(e.clientX - _ilpFrom.x) > LONG_PRESS_SLOP
+   || Math.abs(e.clientY - _ilpFrom.y) > LONG_PRESS_SLOP) _ilpStop()
+})
+for (const ev of ['pointerup', 'pointercancel', 'pointerleave'])
+  document.getElementById('inv').addEventListener(ev, _ilpStop)
 document.getElementById('inv').addEventListener('click', (e) => {
+  // the long press already answered this press: a click must not answer it
+  // again, or a menu would open and its first option fire underneath
+  if (_ilpFired) { _ilpFired = false; return }
   const slotEl = e.target.closest('.slot')
   // §5t: name the thing under the pack as well as acting on it, so a tap
   // answers "what IS this" and not only "use it".
@@ -18875,7 +19458,7 @@ document.getElementById('inv').addEventListener('click', (e) => {
     const me2 = world?.players?.[myId]
     _namedItem = me2?.inventory?.[Number(slotEl.dataset.i)]?.item ?? ''
   }
-  invClick(slotEl?.dataset.i)
+  invClick(slotEl?.dataset.i, false)
 })
 // §5t: and the worn slots name themselves too. Tapping what you are wearing is
 // how you find out what it is doing for you.
@@ -18967,6 +19550,45 @@ const ONE_ACTION = {
   // search for branches that act.
   bell: 'ring the bell', butt: 'shoot the butt', crier: 'listen',
   signpost: 'read it', palisade: 'look at it', wall: 'look at it',
+  // §7ek: AND THE TWENTY-ONE THINGS A CITIZEN SPENDS MOST OF THEIR LIFE ON.
+  //
+  // Every tree, every seam, every fishing spot and the four worked grounds
+  // were missing, so the right button on them did not offer the deed, it DID
+  // the deed: right-clicking a tree swung the axe, exactly the fault this
+  // table was written to end. They were invisible to the search that built
+  // the list above because they have no branch of their own at all -- they
+  // fall through everything to the gathering fallback at the bottom, which is
+  // why a fence used to send the engine a `gather` on a fence.
+  //
+  // Each verb is the plain one for what that ground gives. The names come
+  // from NODE_NAME, which is the table the ground labels already use, so a
+  // seam is called the same thing in the menu as on the grass.
+  tree: 'chop it', 'oak-tree': 'chop the oak', 'ironbark-tree': 'chop the ironbark',
+  'heartwood-tree': 'chop the heartwood', 'gallows-oak': 'chop the gallows oak',
+  rock: 'mine it', 'iron-rock': 'mine the iron', 'coal-rock': 'mine the coal',
+  'gold-rock': 'mine the gold', 'quick-rock': 'mine the magic stone',
+  'mother-lode': 'mine the lode', 'brimstone-vent': 'cut brimstone',
+  'muck-heap': 'dig the muck heap', 'salt-pan': 'rake the salt',
+  'fishing-spot': 'fish here', 'eel-spot': 'fish for eels',
+  'deep-fish-spot': 'fish the deep water', 'gibbet-shoal': 'fish the shoal',
+  // and the things that are scenery and nothing else. They had no verb
+  // because they have none; what they lacked was a way to be ASKED.
+  fence: 'look at it', hedge: 'look at it', railing: 'look at it',
+  banner: 'look at it', span: 'look at it',
+}
+// §7ek: A FENCE IS NOT A SEAM.
+//
+// Six kinds of thing on this island are scenery, and not one of them had a
+// branch: they fell past every `n.type ===` down to the gathering fallback,
+// so pressing a fence sent the engine `gather` on a fence. The engine refuses
+// it, the citizen gets nothing, and nothing anywhere says why. A span is in
+// here because crossing one is WALKING over it, not pressing it.
+const SCENERY = {
+  fence: 'A split-rail fence. It says where one holding ends and the next begins.',
+  hedge: 'A hedge, grown thick and laid over. Older than the fence beside it.',
+  railing: 'An iron railing. Whatever stands behind it is meant to stay behind it.',
+  banner: 'A banner on a pole, in the colours of the town.',
+  span: 'The span, finished. You cross it by walking.',
 }
 
 function worldPress(e, asLeft) {
@@ -19008,6 +19630,7 @@ function worldPress(e, asLeft) {
   // a right-click again or the menu would reopen itself for ever.
   const rightPress = !asLeft && e.type === 'contextmenu'
   _pressTile = { x, y }
+  _pressName = null; _pressLook = null
 
   // a new order interrupts the old work by REPLACING it: the engine
   // honors the latest input natively. (An explicit stop sent alongside
@@ -19049,23 +19672,30 @@ function worldPress(e, asLeft) {
   }
   if (best?.kind === 'mob') {
     const { id, m } = best
+    _pressName = say1(m.type)
+    _pressLook = () => lookAtMob(m)
     // §7ei: A BEAST STANDING ON A PILE HIDES IT. The creature is found before
     // the ground is looked at and returns, so what a wolf drops and then
     // stands over cannot be reached at all: right-clicking the bones struck
     // the skeleton again. The left button is right to attack -- that is the
     // default act -- but the right button exists to say what ELSE is here.
+    //
+    // §7ek: AND IT OPENS WHETHER OR NOT ANYTHING WAS DROPPED. This only built
+    // a list when a pile shared the tile, so right-clicking a creature
+    // standing on bare ground -- which is almost every creature -- simply
+    // attacked it, silently, the same as the left button. The right button
+    // must never do the left button's work without saying so.
     if (rightPress) {
       const pile = Object.entries(world.ground ?? {}).filter(([, g3]) => g3.x === m.x && g3.y === m.y)
-      if (pile.length) {
-        const say1g = (w) => String(w ?? '').replace(/-/g, ' ')
-        chooseAction([
-          { label: 'attack the ' + say1g(m.type), act: () => worldPress(e, true) },
-          ...pile.slice(0, 5).map(([gid, g3]) => ({ label: 'take the ' + say1g(g3.item),
-            act: () => { send({ do: 'pickup', groundId: gid, confirm: false })
-              feed('You pick up the ' + say1g(g3.item) + '.') } })),
-        ])
-        return
-      }
+      const st9 = MOB_STATS[m.type] ?? {}
+      chooseAction([
+        { label: 'attack the ' + say1(m.type), act: () => worldPress(e, true) },
+        ...pile.slice(0, 5).map(([gid, g3]) => ({ label: 'take the ' + say1(g3.item),
+          act: () => { send({ do: 'pickup', groundId: gid, confirm: false })
+            feed('You pick up the ' + say1(g3.item) + '.') } })),
+        { label: 'look at the ' + say1(m.type), act: () => lookAtMob(m) },
+      ])
+      return
     }
     flashClick(m.x, m.y, true)
     // §7cq: an armed spell lands on a beast too. Three of the four barrow
@@ -19079,6 +19709,8 @@ function worldPress(e, asLeft) {
   }
   if (best?.kind === 'citizen') {
     const { id: pid, p } = best
+    _pressName = p.name ?? 'a stranger'
+    _pressLook = () => lookAtCitizen(pid, p)
     if (gambitArmed && GAMBIT_OF[me.equipment?.weapon?.item]) {
       gambitArmed = false
       send({ do: 'gambit', targetId: pid })
@@ -19151,6 +19783,9 @@ function worldPress(e, asLeft) {
       .filter(([, g2]) => g2.x === x && g2.y === y)
       .sort((A, B) => worthRank(B[1].item) - worthRank(A[1].item) || (A[0] < B[0] ? -1 : 1))
     if (here.length > 1) {
+      _pressName = here.length + ' things on the ground'
+      _pressLook = () => feed('On the ground: '
+        + here.map(([, g4]) => say1(g4.item) + ((g4.qty ?? 1) > 1 ? ' \u00d7' + g4.qty : '')).join(', ') + '.')
       // A SCRIPT MAY NAME ANY OF THEM, SO A PERSON MUST BE ABLE TO REACH ANY
       // OF THEM. This took here[0] and nothing else -- the dearest thing, with
       // no way to choose -- while an automated citizen could lift the
@@ -19190,6 +19825,8 @@ function worldPress(e, asLeft) {
     }
     if (here.length) {
       const [gid, g2] = here[0]
+      _pressName = say1(g2.item) + ((g2.qty ?? 1) > 1 ? ' (' + g2.qty + ')' : '')
+      _pressLook = () => lookAtItem(g2.item)
       // §6aj/§6bn: a goo staff and a sigil reach it where it lies, five tiles
       // off. TWO verbs now come out of that one staff and they are opposites,
       // so a single click may no longer pick one.
@@ -19215,6 +19852,20 @@ function worldPress(e, asLeft) {
               feed('You unmake the ' + g2.item.replace(/-/g, ' ')
                  + ' where it lies. Nobody will have it now.') } },
           { label: 'leave it', act: () => {} },
+        ])
+        return
+      }
+      // §7ek: AND THE RIGHT BUTTON OFFERS IT RATHER THAN DOING IT. A single
+      // pile was lifted outright on either button, so right-clicking the
+      // bones a skeleton had just dropped picked them up with no menu and no
+      // name -- and if the skeleton was still standing on them, the creature
+      // above answered first and the pile could not be reached at all.
+      if (rightPress) {
+        chooseAction([
+          { label: 'take the ' + say1(g2.item), act: () => {
+            if (!me.inventory.some(sl => sl === null)) { feed('Your pack is full: no room to pick that up.'); return }
+            intent = { kind: 'pickup', id: gid } } },
+          { label: 'look at the ' + say1(g2.item), act: () => lookAtItem(g2.item) },
         ])
         return
       }
@@ -19249,6 +19900,8 @@ function worldPress(e, asLeft) {
   }
   for (const [id, n] of Object.entries(world.nodes))
     if (n.type === 'plot' && n.x === x && n.y === y) {
+      _pressName = 'farm row'
+      _pressLook = () => lookAtNode(n)
       // §7ei: AND THE RIGHT BUTTON REACHES IT. The plot has a loop of its
       // own, ABOVE the one every other thing is answered in, so the
       // right-click branch down there never saw it: right-clicking a row did
@@ -19293,6 +19946,13 @@ function worldPress(e, asLeft) {
     }
   for (const [id, n] of Object.entries(world.nodes))
     if (n.x === x && n.y === y) {
+      // §7ek: and the menu is headed with the thing's own name. `NODE_NAME`
+      // is the table the ground labels already read, so a rock that is called
+      // "iron" on the grass is called "iron" in the menu; everything else is
+      // its own word with the hyphens taken out, which is what the world
+      // calls it (§5s).
+      _pressName = NODE_NAME[n.type] ?? say1(n.type)
+      _pressLook = () => lookAtNode(n)
       if (me.action?.nodeId === id) return                     // already working it: silent
       // §7ei: a thing with ONE action offers it rather than doing it, when it
       // is the right button being pressed. `chooseAction` adds `walk here`,
@@ -19302,7 +19962,21 @@ function worldPress(e, asLeft) {
         // the callback runs long after this press is over, so it owns the
         // tile for its own run and clears it again
         chooseAction([{ label: ONE_ACTION[n.type],
-          act: () => { try { worldPress(e, true) } finally { _pressTile = null } } }])
+          act: () => { try { worldPress(e, true) } finally { _pressTile = null; _pressName = null; _pressLook = null } } },
+          // §7ek: AND A STONE THAT WILL TAKE A NAME SAYS SO HERE.
+          //
+          // This gate answers the right button INSTEAD of the type's own
+          // branch, which is right for a thing with one deed and wrong for
+          // the one landmark deed that has a state to it. `grave` is the only
+          // way a citizen's name goes onto this island for good and window-web
+          // could not file it from anywhere.
+          //
+          // Four things, and the fourth is the point (§6br): a graver in the
+          // pack, a stone that will take a name and has none, the citizen it
+          // is FOR standing here with you, and that citizen is not you. So a
+          // name never appears on the island without its owner having walked
+          // to the spot.
+          ...graveOpts(n, id)])
         return
       }
       // §6dd: A DRY WELL IS NOT AN EXHAUSTED SEAM. This guard was written when
@@ -19486,6 +20160,35 @@ function worldPress(e, asLeft) {
           ])
           return
         }
+        // §7ek: SOMEBODY ELSE'S STALL. A right press BOUGHT from it, with no
+        // menu and no price shown first, and an empty or unpriced stall fed
+        // one sentence and offered nothing at all. Buying is a decision; it
+        // belongs on a list with the price on it.
+        if (rightPress) {
+          const purseM = meS.gold ?? 0
+          const brandM = (meS.brandedUntil ?? 0) > world.tick
+          chooseAction([
+            { head: 'a stall · ' + (good ? qty + ' × ' + say1(good) : 'empty')
+              + (n.ask > 0 ? ' at ' + n.ask + 'g' : ', unpriced') + ' · you have ' + purseM + 'g' },
+            ...(good && n.ask > 0
+              ? [{ label: 'buy the ' + say1(good) + ' (' + n.ask + 'g)',
+                  dim: brandM || purseM < n.ask || !adj,
+                  act: () => {
+                    if (brandM) { feed('No keeper will take your money while the mark is on you.'); return }
+                    if (purseM < n.ask) { feed('It is ' + n.ask + ' gold and you have ' + purseM + '.'); return }
+                    if (!adj) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }
+                      feed('You make for the stall.'); return }
+                    send({ do: 'buy', item: good })
+                    feed('You buy the ' + say1(good) + ' for ' + n.ask + ' gold.') } }]
+              : [{ label: good ? 'nothing is for sale: it is unpriced' : 'there is nothing on it',
+                  dim: true, act: () => feed(good
+                    ? 'A stall with no price on it hands its stock out for nothing, so the world '
+                      + 'refuses to sell from it at all.'
+                    : 'A stall, and nothing on it. Whoever raised it has not stocked it.') }]),
+            { label: 'look at the stall', act: () => lookAtNode(n) },
+          ])
+          return
+        }
         if (!good) { feed('A stall, and nothing on it.'); return }
         if (!(n.ask > 0)) { feed('A stall of ' + qty + ' ' + good.replace(/-/g,' ') + ', unpriced. Nothing is for sale.'); return }
         if (!adj) { feed(qty + ' ' + good.replace(/-/g,' ') + ' at ' + n.ask + ' gold. Walk to it to buy.'); return }
@@ -19591,14 +20294,23 @@ function worldPress(e, asLeft) {
           feed('A barrow hoard. Whatever is in it, you may take from it once in your life.')
           return
         }
-        if (me.barrowed === true) { feed('You have had your one reach into a barrow. There is not a second.'); return }
+        // §7ek: and it opens a list whatever state it is in. A spent barrow
+        // and an empty one each fed one sentence and offered nothing, so the
+        // right button on the rarest thing in the world said less than the
+        // right button on a fence.
         const shelf = Object.entries(n.shelf ?? {}).filter(([, q]) => q > 0)
-        if (!shelf.length) { feed('The hoard is empty. Somebody was here first.'); return }
+        const spent = me.barrowed === true
         chooseAction([
-          ...shelf.map(([item, q]) => ({ label: 'take the ' + item.replace(/-/g, ' ') + ' (' + q + ')',
-            act: () => { send({ do: 'rifle', nodeId: id, item })
-              feed('You take the ' + item.replace(/-/g, ' ') + '. The barrow is shut to you for good.') } })),
-          { label: 'leave it', act: () => feed('You leave the hoard where it is. It keeps.') },
+          ...(spent
+            ? [{ label: 'reach in', dim: true, act: () => feed('You have had your one reach into a '
+                + 'barrow. There is not a second.') }]
+            : !shelf.length
+              ? [{ label: 'reach in', dim: true, act: () => feed('The hoard is empty. Somebody was '
+                  + 'here first, and your one reach is still yours.') }]
+              : shelf.map(([item, q]) => ({ label: 'take the ' + say1(item) + ' (' + q + ')',
+                  act: () => { send({ do: 'rifle', nodeId: id, item })
+                    feed('You take the ' + say1(item) + '. The barrow is shut to you for good.') } }))),
+          { label: 'look at the hoard', act: () => lookAtNode(n) },
         ])
         return
       }
@@ -19615,15 +20327,17 @@ function worldPress(e, asLeft) {
         if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }
           feed('The span, unbuilt: a pool of planks standing in the water.'); return }
         const planks = me.inventory.filter((sl) => sl?.item === 'planks').length
-        if (!planks) { feed('The work wants planks and you have none. A plank banked is a plank kept.'); return }
         const rate = Math.min(planks, PER_LAY)
         chooseAction([
-          { label: 'lay ' + rate + ' plank' + (rate === 1 ? '' : 's'),
-            act: () => { send({ do: 'lay', nodeId: id, n: rate })
-              feed('You vault ' + rate + ' onto the work. Nothing takes them off it again.') } },
+          ...(planks
+            ? [{ label: 'lay ' + rate + ' plank' + (rate === 1 ? '' : 's'),
+                act: () => { send({ do: 'lay', nodeId: id, n: rate })
+                  feed('You vault ' + rate + ' onto the work. Nothing takes them off it again.') } }]
+            : [{ label: 'lay planks', dim: true, act: () => feed('The work wants planks and you have '
+                + 'none. A plank banked is a plank kept.') }]),
           ...(rate > 1 ? [{ label: 'lay one', act: () => { send({ do: 'lay', nodeId: id, n: 1 })
               feed('One plank onto the work.') } }] : []),
-          { label: 'not now', act: () => {} },
+          { label: 'look at the work', act: () => lookAtNode(n) },
         ])
         return
       }
@@ -19674,6 +20388,37 @@ function worldPress(e, asLeft) {
           feed('The bloomery. Ore and coal go in; iron comes out.'); return }
         const lit = (n.fuelUntil ?? 0) > (world?.tick ?? 0)
         const ci = (meF.inventory || []).findIndex(sl => sl?.item === 'coal' || sl?.item === 'charcoal')
+        // §7ek: AND THE RIGHT BUTTON NEVER LIGHTS IT OR RUNS IT. A cold
+        // furnace was stoked outright on either button, and a lit one with
+        // exactly one possible smelt SMELTED on either button: the right
+        // button was doing the left button's work on the two states a citizen
+        // meets most. With nothing to burn at all it fed one sentence and
+        // offered nothing.
+        if (rightPress) {
+          const haveR = (it) => (meF.inventory || [])
+            .reduce((t, sl) => t + (sl?.item === it ? (sl.qty ?? 1) : 0), 0)
+          const smeltsR = [...SMELTED].filter((r) => FORGE[r])
+          const canR = smeltsR.filter((r) => Object.entries(FORGE[r])
+            .every(([it, q]) => haveR(it) >= q))
+          chooseAction([
+            ...(lit
+              ? canR.map((r) => ({ label: 'smelt ' + say1(r),
+                  act: () => { send({ do: 'smelt', recipe: r }); feed('The fire takes it.')
+                    flashClick(n.x, n.y, false) } }))
+              : []),
+            ...(lit && !canR.length
+              ? [{ label: 'smelt', dim: true, act: () => feed('The fire is in, and you carry nothing '
+                  + 'it can run down.') }] : []),
+            ...(ci !== -1
+              ? [{ label: lit ? 'feed the fire' : 'light the fire',
+                  act: () => { send({ do: 'stoke', nodeId: id, slot: ci })
+                    feed(lit ? 'You feed the fire.' : 'The bloom catches.') } }]
+              : [{ label: lit ? 'feed the fire' : 'light the fire', dim: true,
+                  act: () => feed('It burns coal or charcoal, and you have neither.') }]),
+            { label: 'look at the furnace', act: () => lookAtNode(n) },
+          ])
+          return
+        }
         if (!lit) {
           if (ci === -1) { feed('The furnace is cold, and you have no coal to light it.'); return }
           // §7dc: and say which fuel is which, since they are no longer the same
@@ -19916,11 +20661,30 @@ function worldPress(e, asLeft) {
         const optsH = []
         if (rawH !== -1) optsH.push({ label: 'cook your catch',
           act: () => { intent = { kind: 'cookall' }; feed('You start cooking your catch\u2026'); nudgeIntent() } })
-        optsH.push({ label: 'look at the hearth', act: () => {
-          feed('A town hearth. Bones burn hotter here, and a brewpot may be raised beside it.') } })
-        // one option is worse than the option (§7y): with nothing to cook,
-        // the hearth simply says what it is, as it always did
-        if (optsH.length === 1) { optsH[0].act(); return }
+        // §7ek: and a brewpot is raised beside a HEARTH, which is the thing
+        // the engine actually asks for. The house offered it and the hearth
+        // did not, so the one option was on the wrong building.
+        const bcH = world?.genesis?.brew
+        if (bcH) {
+          const pl = me.inventory.filter(sl => sl?.item === 'planks').length
+          const ir = me.inventory.filter(sl => sl?.item === 'iron-ore').length
+          const ownedH = Object.values(world.nodes)
+            .filter(nn => nn.type === 'brewpot' && nn.by === myId).length
+          const wantH = bcH.buildPlanks + ' planks and ' + bcH.buildOre + ' iron-ore'
+          const canH = ownedH < bcH.potCap && pl >= bcH.buildPlanks && ir >= bcH.buildOre
+          optsH.push(canH
+            ? { label: 'raise a brewpot (' + wantH + ')', act: () => { send({ do: 'build_brewpot' })
+                feed('You set the pot on the hearth. It is yours while it stands.') } }
+            : { label: 'raise a brewpot (' + wantH + ')', dim: true, act: () => feed(
+                ownedH >= bcH.potCap ? 'You already run ' + bcH.potCap + ' brewpots.'
+                : 'A brewpot needs ' + wantH + '. You carry ' + pl + ' and ' + ir + '.') })
+        }
+        optsH.push({ label: 'look at the hearth', act: () => lookAtNode(n) })
+        // §7y: one option is worse than the option, so a LEFT press with
+        // nothing to cook still simply says what the hearth is. The right
+        // button opens the list either way, because the right button's whole
+        // job is to say what a thing is and what could be done with it.
+        if (optsH.length === 1 && !rightPress) { optsH[0].act(); return }
         chooseAction(optsH)
         return
       }
@@ -20099,14 +20863,36 @@ function worldPress(e, asLeft) {
         if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }; feed('You approach the house.'); return }
         const bc = world?.genesis?.brew
         const owned = Object.values(world.nodes).filter(nn => nn.type === 'brewpot' && nn.by === myId).length
-        const logs = me.inventory.filter(s => s?.item === 'logs').length, ore = me.inventory.filter(s => s?.item === 'ore').length
-        if (bc && owned < bc.potCap && planks >= bc.buildPlanks && ore >= bc.buildOre) {
-          chooseAction([
-            { label: 'build brewpot (' + bc.buildPlanks + ' logs, ' + bc.buildOre + ' ore)', act: () => { send({ do: 'build_brewpot' }); feed('You raise a brewpot by the house. A brewhouse begins.') } },
-            { label: 'never mind', act: () => {} },
-          ]); return
-        }
-        feed(bc && owned >= bc.potCap ? 'You already run ' + bc.potCap + ' brewpots.' : 'A brewpot needs ' + (bc?.buildPlanks ?? 8) + ' planks and ' + (bc?.buildOre ?? 2) + ' iron-ore, raised beside a house.')
+        // §7ek: PLANKS, IRON-ORE, AND A HEARTH, which is what the engine asks.
+        //
+        // This read `planks >= bc.buildPlanks` and there was no `planks` in
+        // scope, so standing beside a house and pressing it threw a
+        // ReferenceError every time: a brewpot could not be built from this
+        // window at all, and the press died where it stood. The two counts
+        // beside it were wrong as well -- `logs` where the engine wants
+        // `planks`, `ore` where it wants `iron-ore`, four different goods --
+        // and the button said "logs" and "ore" to match. The engine also
+        // wants an adjacent HEARTH rather than the house, which is a thing a
+        // citizen has to be told, because the hearth is inside.
+        const planks = me.inventory.filter(sl => sl?.item === 'planks').length
+        const iron = me.inventory.filter(sl => sl?.item === 'iron-ore').length
+        const hearthBy = Object.values(world.nodes).some(nn => nn.type === 'hearth'
+          && Math.abs(me.x - nn.x) + Math.abs(me.y - nn.y) === 1)
+        const want = (bc?.buildPlanks ?? 8) + ' planks and ' + (bc?.buildOre ?? 2) + ' iron-ore'
+        const canPot = !!bc && owned < bc.potCap && planks >= bc.buildPlanks
+          && iron >= bc.buildOre && hearthBy
+        chooseAction([
+          canPot
+            ? { label: 'build a brewpot (' + want + ')', act: () => {
+                send({ do: 'build_brewpot' })
+                feed('You set the pot on the hearth. It is yours while it stands.') } }
+            : { label: 'build a brewpot (' + want + ')', dim: true, act: () => feed(
+                !bc ? 'This founding has no brewing in it.'
+                : owned >= bc.potCap ? 'You already run ' + bc.potCap + ' brewpots.'
+                : !hearthBy ? 'A brewpot is raised beside a HEARTH, not beside the house. '
+                  + 'Stand at the hearth inside.'
+                : 'A brewpot needs ' + want + '. You carry ' + planks + ' and ' + iron + '.') },
+        ])
         return
       }
       if (n.type === 'keeper') {
@@ -20178,6 +20964,83 @@ function worldPress(e, asLeft) {
         flashClick(n.x, n.y, false)
         return
       }
+      // §7ek: THE GROVE PLOT. The plot decides the species, not the sapling:
+      // each of the two stands is a place for ONE kind of tree, which is why
+      // the stands are where they are.
+      if (n.type === 'grove-plot') {
+        const sp = GROVE_SPECIES[n.species] ? say1(GROVE_SPECIES[n.species]) : 'a tree'
+        const sapI = me.inventory.findIndex(sl => sl?.item === 'sapling')
+        const hc = XP_TO_LVL(me.skills?.hearthcraft ?? 0)
+        const sown = !!n.sownAt
+        chooseAction([
+          sown
+            ? { label: 'it is sown', dim: true, act: () => feed('Sown already. It comes on in its own '
+                + 'time and stands up as ' + sp + '.') }
+            : sapI === -1 || hc < GROVE_PLANT_LEVEL
+              ? { label: 'plant a sapling', dim: true, act: () => feed(hc < GROVE_PLANT_LEVEL
+                  ? 'Planting a grove wants hearthcraft ' + GROVE_PLANT_LEVEL + ' and you have ' + hc + '.'
+                  : 'You carry no sapling. This plot wants one, and it will stand up as ' + sp + '.') }
+              : { label: 'plant a sapling (it will be ' + sp + ')', act: () => {
+                  send({ do: 'sapling', nodeId: id })
+                  feed('You set the sapling in. It comes on slowly, and it will be ' + sp + '.') } },
+          { label: 'look at the plot', act: () => lookAtNode(n) },
+        ])
+        return
+      }
+      // §7ek: THE WILLOW BUCK. Anybody may lift one: a trap left in the fen is
+      // in the fen, and the citizen who set it has a claim of habit and not of
+      // law (§7dz). So this says WHOSE it is and offers the lift anyway.
+      if (n.type === 'eel-buck') {
+        const age = (world.tick ?? 0) - (n.setAt ?? 0)
+        const ripe = age >= BUCK_FILL
+        const spoiled = age > BUCK_SPOILS
+        const whose = n.by === myId ? 'yours' : 'somebody else\u2019s'
+        chooseAction([
+          ripe
+            ? { label: spoiled ? 'lift the buck (it has stood too long)' : 'lift the buck',
+                act: () => { send({ do: 'lift', nodeId: id })
+                  feed(spoiled ? 'You lift it. An eel dead in a trap for a day is not supper.'
+                    : 'You lift the buck.') } }
+            : { label: 'lift the buck', dim: true, act: () => feed('Not yet. A buck wants '
+                + Math.ceil((BUCK_FILL - age) / 60) + ' more minutes in the run.') },
+          { label: 'look at the buck', act: () => feed('A willow buck set in a run, ' + whose + '. '
+            + (ripe ? 'It is full.' : 'It is still filling.')) },
+        ])
+        return
+      }
+      // §7ek: THE SMOKERACK, which answers `brew` and `collect` -- the same two
+      // verbs a brewpot does, because both mean "put this in and let the world
+      // do the waiting" (§7dg). Where you are standing is the whole difference.
+      if (n.type === 'smokerack') {
+        const eelI = me.inventory.findIndex(sl => sl?.item === 'eel')
+        const hung = n.readyAt !== undefined
+        const mineR = n.by === myId
+        const doneAt = n.readyAt ?? 0
+        const ready = hung && (world.tick ?? 0) >= doneAt
+        const gone = hung && (world.tick ?? 0) > doneAt + SMOKE_WINDOW
+        chooseAction([
+          ...(hung
+            ? [ready && mineR && !gone
+                ? { label: 'take the smoked eel', act: () => { send({ do: 'collect', nodeId: id })
+                    feed('You take it off the rack. Smoked, it keeps.') } }
+                : { label: 'take the smoked eel', dim: true, act: () => feed(
+                    !mineR ? 'Somebody else\u2019s catch is on this rack.'
+                    : gone ? 'It has hung too long. The smoke took it.'
+                    : 'Not yet. It wants ' + Math.ceil((doneAt - (world.tick ?? 0)) / 60)
+                      + ' more minutes over the fire.') }]
+            : [eelI === -1
+                ? { label: 'hang an eel', dim: true, act: () => feed('The rack is empty and so are '
+                    + 'you. It takes one eel at a time.') }
+                : { label: 'hang an eel', act: () => { send({ do: 'brew', nodeId: id, slot: eelI })
+                    feed('You hang the eel over the slow fire. '
+                      + Math.round(SMOKE_TICKS / 60) + ' minutes, and it keeps for good.') } }]),
+          { label: 'look at the rack', act: () => lookAtNode(n) },
+        ])
+        return
+      }
+      // §7ek: scenery, answered before the gathering fallback can send the
+      // engine a verb it refuses. See the note beside SCENERY.
+      if (SCENERY[n.type]) { feed(SCENERY[n.type]); flashClick(n.x, n.y, false); return }
       if (!me.inventory.some(sl => sl === null)) {
         feed('Your pack is full: bank it, drop it, or use it.')
         return
@@ -20224,7 +21087,7 @@ cv.addEventListener('click', (e) => {
   // registration order, so the swallower -- declared below, with the long
   // press it belongs to -- would have fired after this.
   if (_lpFired) { _lpFired = false; return }
-  try { worldPress(e) } finally { _pressTile = null }
+  try { worldPress(e) } finally { _pressTile = null; _pressName = null; _pressLook = null }
 })
 // §7ei: THE LONG PRESS IS THE RIGHT BUTTON, because a phone has no other one.
 //
@@ -20240,7 +21103,6 @@ cv.addEventListener('click', (e) => {
 // cancelled by a lift or by moving more than a thumb's wobble -- ten pixels,
 // because a finger never holds perfectly still and a three-pixel threshold
 // would mean the menu almost never opens.
-const LONG_PRESS_MS = 450, LONG_PRESS_SLOP = 10
 let _lpTimer = null, _lpFrom = null, _lpFired = false
 const _lpStop = () => { if (_lpTimer) { clearTimeout(_lpTimer); _lpTimer = null } _lpFrom = null }
 cv.addEventListener('pointerdown', (e) => {
@@ -20254,7 +21116,7 @@ cv.addEventListener('pointerdown', (e) => {
     // different things
     _menuAt = { x: e.clientX, y: e.clientY }
     try { worldPress({ type: 'contextmenu', clientX: e.clientX, clientY: e.clientY }) }
-    finally { _menuAt = null; _pressTile = null }
+    finally { _menuAt = null; _pressTile = null; _pressName = null; _pressLook = null }
   }, LONG_PRESS_MS)
 })
 cv.addEventListener('pointermove', (e) => {
@@ -20270,7 +21132,7 @@ cv.addEventListener('contextmenu', (e) => {
   // long press on some platforms), so this says it plainly rather than
   // relying on the press having happened.
   _menuAt = { x: e.clientX, y: e.clientY }
-  try { worldPress(e) } finally { _menuAt = null; _pressTile = null }
+  try { worldPress(e) } finally { _menuAt = null; _pressTile = null; _pressName = null; _pressLook = null }
 })
 </script>
 <script>

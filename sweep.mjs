@@ -156,6 +156,15 @@ const WALKN = (() => { const i = process.argv.indexOf('--walk'); return i > 0 ? 
 const METER = process.argv.includes('--meter')
 const SMOKE = process.argv.includes('--smoke')
 const LIT = process.argv.includes('--lit')
+// §7ek: --doing <verb>, WHICH POSTURE A DEED IS MIMED IN.
+//
+// Burying was reported as having no animation at all, and it was true: `bury`
+// was filed under the posture for stirring a pot, which is a two pixel lean
+// and an arm rocking with nothing in the hand. A table cannot say whether
+// that reads as digging and neither can a count of canvas calls. So this
+// stands the window up, files the deed, and photographs the citizen close
+// enough to see, six frames across the posture's own length.
+const DOING = arg('--doing')
 const only = arg('--only')
 const plan = only ? shots.filter((s) => s.place === only || s.name.toLowerCase().includes(only.toLowerCase())) : shots
 
@@ -215,6 +224,7 @@ const AFTER = (plan, state, myId) => `<script>
   const WALKN = ${JSON.stringify(WALKN)}
   const LIT = ${JSON.stringify(LIT)}
   const SMOKE = ${JSON.stringify(SMOKE)}
+  const DOING = ${JSON.stringify(DOING)}
   const METER = ${JSON.stringify(METER)}
   ;(async () => {
     const say = (t) => { document.title = t }
@@ -291,6 +301,71 @@ const AFTER = (plan, state, myId) => `<script>
           + ' px ' + cv.width + 'x' + cv.height)
         return
       }
+      if (DOING) {
+        // somewhere plain and lit, so nothing stands between the eye and the
+        // body: the posture is the whole subject of the picture
+        const meD = STATE.players[ME]
+        STATE.tick = 600
+        feedOne({ type: 'state', state: STATE, worldId: 'sweep' })
+        await settle(500)
+        if (typeof doingSeen !== 'function') { say('SWEEPFAIL no doingSeen'); return }
+        // a close-up, cut out of the window's own canvas rather than drawn a
+        // second way: what is photographed is exactly what a citizen sees
+        const crop = document.createElement('canvas')
+        const Z = 3, CW = 180, CH = 180
+        crop.width = CW * Z; crop.height = CH * Z
+        const cc = crop.getContext('2d')
+        cc.imageSmoothingEnabled = false
+        // A STATE PER FRAME, because under a virtual clock requestAnimationFrame
+        // does not fire: the window draws when a state arrives and at no other
+        // time. The first version fed one state and then only filed the deed,
+        // so all seven pictures were the same pixels and the posture looked
+        // like it was not being drawn when it was never being asked for.
+        for (let f = 0; f < 6; f++) {
+          doingSeen(DOING)
+          STATE.tick = 600 + f
+          feedOne({ type: 'state', state: JSON.parse(JSON.stringify(STATE)), worldId: 'sweep' })
+          await settle(170)
+          // WHERE THE WINDOW PUT THEM, asked of the window. Guessing the
+          // middle of the canvas was wrong: the keyhole is fourteen tiles
+          // over ten and the camera does not centre the citizen exactly, so
+          // the first run photographed a patch of empty road. The camera,
+          // the tile size and the zoom are what the drawing itself uses.
+          const bx = (meD.x - cam.x) * TILE * ZR
+          const by = (meD.y - cam.y) * TILE * ZR
+          const sx = Math.max(0, Math.round(bx + TILE * ZR / 2 - (CW / 2)))
+          const sy = Math.max(0, Math.round(by + TILE * ZR * 0.9 - (CH / 2)))
+          cc.clearRect(0, 0, crop.width, crop.height)
+          cc.drawImage(cv, sx, sy, CW, CH, 0, 0, crop.width, crop.height)
+          out.push(crop.toDataURL('image/png'))
+        }
+        // AND ONE WITH NO POSTURE AT ALL, taken in the same run from the same
+        // crop, so the pair can be compared. Two separate runs cannot be: the
+        // canvas settles to a different size run to run and the crop lands
+        // somewhere else, which made the first comparison meaningless.
+        await settle(1600)                      // DOING_MS, and the posture lapses
+        {
+          STATE.tick = 620
+          feedOne({ type: 'state', state: JSON.parse(JSON.stringify(STATE)), worldId: 'sweep' })
+          await settle(200)
+          const bx = (meD.x - cam.x) * TILE * ZR
+          const by = (meD.y - cam.y) * TILE * ZR
+          const sx = Math.max(0, Math.round(bx + TILE * ZR / 2 - (CW / 2)))
+          const sy = Math.max(0, Math.round(by + TILE * ZR * 0.9 - (CH / 2)))
+          cc.clearRect(0, 0, crop.width, crop.height)
+          cc.drawImage(cv, sx, sy, CW, CH, 0, 0, crop.width, crop.height)
+          out.push(crop.toDataURL('image/png'))
+        }
+        const errD = document.getElementById('frameerr')
+        if (errD) { say('SWEEPFAIL ' + errD.textContent.replace(/\\s+/g, ' ').slice(0, 200)); return }
+        const boxD = document.createElement('div')
+        boxD.id = 'sweepout'; boxD.textContent = out.join('|')
+        document.body.appendChild(boxD)
+        say('DOINGDONE ' + DOING + ' posture ' + String(doingNow()) + ' frames ' + out.length
+          + ' at ' + Math.round((meD.x - cam.x) * TILE * ZR) + ','
+          + Math.round((meD.y - cam.y) * TILE * ZR) + ' of ' + cv.width + 'x' + cv.height)
+        return
+      }
       if (SMOKE) {
         // somewhere with creatures in it: a field of sheep is the cheapest
         // place in the world to put something in front of the drawing code
@@ -305,8 +380,18 @@ const AFTER = (plan, state, myId) => `<script>
         // second state to draw from, as it would in play
         STATE.tick = 601
         feedOne({ type: 'state', state: JSON.parse(JSON.stringify(STATE)), worldId: 'sweep' })
-        await settle(2500)
-        const later = cv.toDataURL('image/png')
+        // WAIT FOR A DRAW, DO NOT TIME ONE. A single two and a half second
+        // settle made this flaky under load: the smoke runs beside sixty
+        // other test files, and a browser under a virtual clock that has not
+        // got round to the frame yet is not a window that has stopped. It
+        // asks the same question -- has the canvas changed -- and gives the
+        // machine room to answer it. A window that has truly stopped still
+        // fails, it just takes the whole wait to say so.
+        let later = first
+        for (let t = 0; t < 14 && later === first; t++) {
+          await settle(400)
+          later = cv.toDataURL('image/png')
+        }
         const err = document.getElementById('frameerr')
         const why = []
         if (err) why.push('the window reported: ' + err.textContent.replace(/\\s+/g, ' ').slice(0, 200))
@@ -416,7 +501,24 @@ const served = (() => {
   return {
     settlements: { settlements: WG.settlementsOf(g).map((t) => ({ tag: t.tag, name: t.name, x: t.x, y: t.y, w: t.w, h: t.h })) },
     roads: { tiles: [...WG.roadTilesOf(g)], bridges: [], bends: [] },
-    ground: { w: g.worldW, h: g.worldH, rows, dark: WG.darkTilesOf ? WG.darkTilesOf(g) : [] },
+    ground: { w: g.worldW, h: g.worldH, rows, dark: WG.darkTilesOf ? WG.darkTilesOf(g) : [],
+      // §7ek: and where the water is, run-length encoded by row, because the
+      // window is told that too now and a sweep that withholds it photographs
+      // a fallback rather than the world
+      water: (() => {
+        if (typeof WG.isWater !== 'function') return []
+        const wr = []
+        for (let y = 0; y < g.worldH; y++) {
+          const runs = []
+          let cur = false, start = 0
+          for (let x = 0; x <= g.worldW; x++) {
+            const k = x < g.worldW ? !!WG.isWater(g, x, y) : false
+            if (k !== cur) { if (cur) runs.push([start, x - start]); cur = k; start = x }
+          }
+          if (runs.length) wr.push([y, runs])
+        }
+        return wr
+      })() },
   }
 })()
 const BEFORE = BEFORE_TPL.replace('__SERVED__', JSON.stringify(served))
@@ -432,7 +534,7 @@ const dom = execFileSync(CHROME, ['--headless', '--disable-gpu', '--dump-dom', '
   // window buys nothing. A bigger device ratio buys everything: RES absorbs
   // it, the canvas doubles, and the same keyhole arrives twice as sharp.
   '--force-device-scale-factor=2',
-  '--virtual-time-budget=' + (plan.length * 600 + 30000), '--window-size=1200,900',
+  '--virtual-time-budget=' + (DOING ? 40000 : plan.length * 600 + 30000), '--window-size=1200,900',
   pathToFileURL(pagePath).href], { encoding: 'utf8', maxBuffer: 1024 * 1024 * 1024 })
 
 // THE TITLE, NOT A STRING IN THE PAGE. A first version looked for its own
@@ -449,6 +551,18 @@ if (SMOKE) {
   if (title.startsWith('SMOKEOK')) { console.log('the window drew, and kept drawing: ' + title); process.exit(0) }
   console.log('SMOKE FAILED: ' + title)
   process.exit(1)
+}
+if (DOING) {
+  if (!title.startsWith('DOINGDONE')) { console.log('DOING FAILED: ' + title); process.exit(1) }
+  const us = (dom.match(/data:image\/png;base64,[A-Za-z0-9+/=]+/g) || [])
+  const dir = OUT + '/doing'
+  mkdirSync(dir, { recursive: true })
+  us.forEach((u, i) => writeFileSync(dir + '/' + DOING
+    + (i === us.length - 1 ? '-still' : '-' + i) + '.png',
+    Buffer.from(u.split(',')[1], 'base64')))
+  console.log(title)
+  console.log('wrote ' + us.length + ' frames to ' + dir)
+  process.exit(us.length ? 0 : 1)
 }
 if (!title.startsWith('SWEEPDONE')) {
   console.log('the sweep did not finish.')

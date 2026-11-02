@@ -121,6 +121,25 @@ export function biomeOf(genesis) {
   return (x, y) => (wet(genesis, x, y) ? null : gen.biomeAt(genesis, x, y))
 }
 
+// §7ek: AND WHERE THE WATER IS, which no window knew at all.
+//
+// `groundKindAt` answers NULL on a water tile, deliberately: water is not a
+// surface you walk on, so it has no named ground. The consequence was that
+// after the ground was served, window-web had no way to tell water from
+// ordinary country -- its `blockedAt` only knows nodes -- so it could not say
+// whether a tile was wet. That is not a drawing problem: the engine asks for
+// water BESIDE you before it will let a citizen set a willow buck, and a
+// window that cannot see water cannot offer the deed without offering it
+// everywhere and failing in silence.
+//
+// `isWater` is in the geography hash, so this is the world's own answer and a
+// window may only read it.
+export function waterOf(genesis) {
+  const gen = generatorFor(genesis)
+  if (typeof gen.isWater !== 'function') return () => false
+  return (x, y) => !!gen.isWater(genesis, x, y)
+}
+
 // §7ec-iii: THE NAMED PLACES WITHIN A COUNTRY, so a window can say where you
 // are rather than only which country you are in. Twenty records with a centre
 // and two radii: small enough to send whole, so there is nothing to encode and
