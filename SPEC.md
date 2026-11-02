@@ -16119,6 +16119,32 @@ charcoal is what powder is made of. So a coal miner keeps the fire that makes
 the charcoal that somebody else turns into powder. The miner supplies the
 burner supplies the gunner, and none of the three can do the others' work.
 
+## 7dg-ii. Smoke stops the rot, and nothing stops the withering
+
+**A smoked eel ends the rot outright.** Eating one clears `rottingUntil` and
+`rotBy`: three health every third interval for twenty-four, gone. It is the
+only thing in this world that ends the effect of any spell.
+
+**It is a COUNTER, not a heal, and the difference is the design.** A smoked
+eel restores five where a cooked one restores thirteen, so a citizen who
+carries these instead of food has made a trade and not an upgrade. The rot
+ignores armour, which is what makes the barrow book's worst spell worth
+carrying, and this answers it without weakening it: whoever went to the fens
+first has a card to play, and whoever did not does not.
+
+**The withering is untouched, deliberately. One counter, one thing.** For
+sixteen intervals nothing mends them -- not food, not a spell, not a well,
+and no eel either. The two spells are a pair: the rot has exactly one answer
+and it comes from the fens; the withering has none.
+
+**The handbook must say so.** A player cannot discover that a food cures a
+curse by trying foods, so a counter nobody is told about is not a card. The
+book's rot entry carried the spell's effect and not its answer, and the
+withering line two rows below -- promising that nothing can mend them --
+then read as a rule about the whole book. A rule that exists and is
+unfindable is the same fault as a rule the law does not carry, which is why
+it is here.
+
 ## 7dg. Smoking, And The Window
 
 > **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2584` by `spec-stubs.mjs`.

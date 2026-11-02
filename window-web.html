@@ -7128,7 +7128,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b82'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b83'  // stamp: if your screen says an older build, hard-refresh
 // ===========================================================================
 // WHAT A CITIZEN IS SEEN TO BE DOING
 //
@@ -18931,9 +18931,9 @@ cv.addEventListener('pointerleave', () => { hoverT = null })
 const ONE_ACTION = {
   altar: 'make a sigil', anvil: 'smith', bellwork: 'ring the bell',
   campfire: 'cook', fire: 'cook', dummy: 'strike the pell', ferry: 'sail',
-  fountain: 'look into it', guard: 'talk to the guard', hearth: 'look at the hearth',
+  fountain: 'look into it', guard: 'talk to the guard',
   keeper: 'talk to them', landmark: 'look at it', 'looking-glass': 'change your look',
-  plot: 'sow', rockfall: 'mine it', sawpit: 'saw', smith: 'talk to the smith',
+  rockfall: 'mine it', sawpit: 'saw', smith: 'talk to the smith',
   stamp: 'crush stone', tollgate: 'pay the toll', waystone: 'read it', well: 'drink',
   // and the six the first pass of this missed, which is exactly why the test
   // asks the HANDLER what it answers rather than trusting this list: `bell`
@@ -19206,6 +19206,29 @@ function worldPress(e, asLeft) {
   }
   for (const [id, n] of Object.entries(world.nodes))
     if (n.type === 'plot' && n.x === x && n.y === y) {
+      // §7ei: AND THE RIGHT BUTTON REACHES IT. The plot has a loop of its
+      // own, ABOVE the one every other thing is answered in, so the
+      // right-click branch down there never saw it: right-clicking a row did
+      // exactly what left-clicking did, silently, which is the one thing a
+      // menu button must never do.
+      //
+      // Its options are the row's state and not a fixed list: bare earth can
+      // be sown and nothing else, a grown row can be pulled, and a row still
+      // coming on can only be looked at. §7y -- a menu lists what is possible
+      // at that moment, not what the world defines.
+      if (rightPress) {
+        const sownR = (me.crops ?? {})[id] ?? 0
+        const elR = world.tick - sownR
+        const seedR = me.inventory.findIndex(sl => sl?.item === 'seeds')
+        const opts = []
+        if (!sownR && seedR !== -1) opts.push({ label: 'sow the row',
+          act: () => { intent = { kind: 'plant', id, slot: seedR }; nudgeIntent() } })
+        if (sownR && elR >= 1200) opts.push({ label: 'pull the crop',
+          act: () => { intent = { kind: 'harvest', id }; nudgeIntent() } })
+        opts.push({ label: 'look at the row', act: () => worldPress(e, true) })
+        chooseAction(opts)
+        return
+      }
       flashClick(x, y, true)
       // §6o: your row, not the plot's. Everyone may work the same ground.
       const sown = (me.crops ?? {})[id] ?? 0
@@ -19804,10 +19827,30 @@ function worldPress(e, asLeft) {
       // §6dj: THE HEARTH is the one place a brewpot may be raised beside
       // (§8a), and the waystone is a road marker. Neither answered a click, so
       // both said "You begin gathering." and sent an input the engine refused.
+      // §7ei: AND A HEARTH IS A FIRE, which the engine has always said and
+      // this window never did. `_FIRE_TYPES` is `campfire`, `fire`, HEARTH:
+      // cooking asks for an adjacent one and takes any of the three. The
+      // campfire branch below has offered to cook since it was written; the
+      // hearth said "a brewpot may be raised beside it" and offered nothing
+      // at all, so the one fire that stands in every cottage in every town
+      // was the one fire a citizen could not cook at.
+      //
+      // It has two things it can do, so it opens a list rather than doing
+      // one of them. `cookall` is the campfire's own verb, taken whole: one
+      // fire, one way of cooking at it.
       if (n.type === 'hearth') {
         flashClick(n.x, n.y, false)
         if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }; feed('You make for the hearth.'); return }
-        feed('A town hearth. Bones burn hotter here, and a brewpot may be raised beside it.')
+        const rawH = me.inventory.findIndex(sl => sl && isRawFoodW(sl.item))
+        const optsH = []
+        if (rawH !== -1) optsH.push({ label: 'cook your catch',
+          act: () => { intent = { kind: 'cookall' }; feed('You start cooking your catch\u2026'); nudgeIntent() } })
+        optsH.push({ label: 'look at the hearth', act: () => {
+          feed('A town hearth. Bones burn hotter here, and a brewpot may be raised beside it.') } })
+        // one option is worse than the option (§7y): with nothing to cook,
+        // the hearth simply says what it is, as it always did
+        if (optsH.length === 1) { optsH[0].act(); return }
+        chooseAction(optsH)
         return
       }
       if (n.type === 'waystone') {

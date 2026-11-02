@@ -2417,3 +2417,63 @@ test('a window that cannot be told the island admits it', () => {
   assert.ok(!/_groundIsTold = true[\s\S]{0,400}derived/.test(win),
     'the derived copy is being corrected, which restarts the drift clock')
 })
+
+// §7ei: A THING WITH ITS OWN LOOP IS STILL A THING.
+//
+// The farm plot is answered in a loop of its OWN, above the one every other
+// thing is answered in, so the right-click branch down there never saw it:
+// right-clicking a row did exactly what left-clicking did, silently, which is
+// the one thing a menu button must never do. Found by playing, not by any
+// test here, because every test here asked about the main chain.
+test('the farm plot answers the right button, not just the left', () => {
+  const at = win.indexOf("if (n.type === 'plot' && n.x === x && n.y === y) {")
+  assert.ok(at > 0, 'the plot branch has moved')
+  const body = win.slice(at, at + 2600)
+  assert.match(body, /if \(rightPress\) \{/,
+    'the plot has its own loop and still never checks which button was pressed')
+  assert.match(body, /chooseAction\(opts\)/, 'the plot offers no list')
+  // and the list is the ROW's state, not a fixed menu: bare earth can be sown,
+  // a grown row pulled, a row still coming on only looked at (§7y)
+  assert.match(body, /if \(!sownR && seedR !== -1\) opts\.push/,
+    'the plot offers to sow a row that is already sown, or with no seeds')
+  assert.match(body, /if \(sownR && elR >= 1200\) opts\.push/,
+    'the plot offers to pull a crop that is not grown')
+})
+
+// §7ei: AND A HEARTH IS A FIRE.
+//
+// `_FIRE_TYPES` in the engine is campfire, fire, HEARTH, and cooking asks for
+// an adjacent one. The campfire branch has offered to cook since it was
+// written; the hearth offered nothing at all -- so the one fire standing in
+// every cottage in every town was the one fire a citizen could not cook at.
+//
+// Held against the ENGINE's own set, so the day a fourth fire is added this
+// says whether the window knows about it.
+test('a citizen can cook at a hearth, because the engine says a hearth is a fire', () => {
+  const eng = fs.readFileSync(path.join(root, 'engine.js'), 'utf8')
+  const m = /const _FIRE_TYPES = new Set\(\[([^\]]*)\]\)/.exec(eng)
+  assert.ok(m, 'the engine no longer names what counts as a fire')
+  const fires = [...m[1].matchAll(/'([a-z-]+)'/g)].map((x) => x[1])
+  assert.ok(fires.includes('hearth'),
+    'the engine no longer counts a hearth as a fire; the window now offers to cook at one')
+  // SEARCHED INSIDE THE PRESS HANDLER, not from the top of the file. Every
+  // one of these has a branch in `drawScene` under the identical condition,
+  // and the drawing comes first -- so a plain indexOf tests the ART and
+  // reports that the campfire does not offer to cook. The bank test above
+  // carries the same warning for the same reason.
+  const press = win.indexOf('function worldPress(')
+  assert.ok(press > 0, 'the press handler has moved')
+  // every fire the engine accepts must let a citizen cook from the window.
+  // A TYPE MAY SHARE A BRANCH: `fire` and `campfire` are answered together,
+  // so this looks for a branch whose CONDITION names the type rather than
+  // assuming one branch per word.
+  const handler = win.slice(press)
+  for (const f of fires) {
+    const re = new RegExp("if \\([^)]*n\\.type === '" + f + "'[^)]*\\) \\{", 'g')
+    const hit = re.exec(handler)
+    assert.ok(hit, `the window has no click branch for a ${f}`)
+    const body = handler.slice(hit.index, hit.index + 1800)
+    assert.match(body, /cookall/,
+      `the engine lets a citizen cook at a ${f} and the window never offers it`)
+  }
+})
