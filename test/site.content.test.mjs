@@ -450,3 +450,33 @@ test('only one thing on the island is the drowned bell', async () => {
   assert.ok(Object.values(w.nodes).some((n) => n.kind === 'upturned-boat'),
     'the drowned village lost its centre rather than its claim')
 })
+
+// §7dg: THE BOOK MUST NAME THE ONE ANSWER TO THE ROT.
+//
+// The handbook's rot entry said only what the spell does TO you, and stopped
+// there. The handler ends the rot outright on a smoked eel -- it deletes
+// `rottingUntil` and `rotBy` -- and that is exactly the kind of rule this
+// book exists to carry: nobody discovers that a food cures a curse by trying
+// foods. Worse, the withering line two rows down promises that nothing mends
+// THAT, which read as a rule about the whole book rather than about one
+// spell, so the omission made the book actively misleading.
+//
+// Held against the ENGINE, so the book cannot drift from the handler the way
+// it just did: if the counter is ever changed to another food, or removed,
+// this says so.
+test('the handbook names the rot’s counter, and the engine still has one', () => {
+  const eng = fs.readFileSync(path.join(root, 'engine.js'), 'utf8')
+  const m = /if \(slot\.item === '([a-z-]+)'\) \{ delete p\.rottingUntil/.exec(eng)
+  assert.ok(m, 'the engine no longer ends the rot on any food; the book now says it does')
+  const cure = m[1].replace(/-/g, ' ')          // 'smoked-eel' -> 'smoked eel'
+  const book = fs.readFileSync(path.join(root, 'handbook.mjs'), 'utf8')
+  const rot = /rot: '([\s\S]*?)',\n/.exec(book)
+  assert.ok(rot, 'the handbook no longer describes the rot')
+  assert.ok(rot[1].includes(cure),
+    `the engine ends the rot on a ${cure} and the handbook's rot entry does not `
+    + 'say so. A counter nobody is told about cannot be found by playing.')
+  // and the withering must not claim to be the only unanswerable one in a way
+  // that contradicts the rot having an answer
+  assert.ok(!/withering: '[^']*\bnothing can mend them\. Not food, not a spell, not a well: /.test(book),
+    'the withering line still reads as a rule about the whole book')
+})

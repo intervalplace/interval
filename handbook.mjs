@@ -1105,14 +1105,22 @@ const SPELL_IS = {
   //
   // Read off the handlers rather than the comments beside them, and said in
   // the number of words the common book uses for its own.
+  // AND ITS ONE ANSWER, which was missing. The handler ends the rot outright
+  // on a smoked eel -- `delete p.rottingUntil` -- and the book said only what
+  // the spell does TO you. A counter nothing tells you about is the exact
+  // thing this book exists to carry: a player cannot discover that a food
+  // cures a curse by trying foods, and the withering line two rows down
+  // already promises that nothing mends THAT, which reads as a rule about
+  // the book rather than about one spell.
   rot: 'they rot where they stand: three off them every third interval for '
-    + 'twenty-four, and every bite of it teaches you',
+    + 'twenty-four, and every bite of it teaches you. A smoked eel ends it: '
+    + 'the only answer to any spell in this book',
   taking: 'take eight of their life and keep it. You must be hurt to cast it, '
     + 'and it is the only healing this book has',
   waking: 'strike the one you name and everything standing against them, nine '
     + 'apiece, from six tiles off',
   withering: 'for sixteen intervals nothing can mend them. Not food, not a '
-    + 'spell, not a well: the door is simply shut',
+    + 'spell, not a well, and no eel either: the door is simply shut',
 }
 const UNLOCKS = typeof E.skillUnlocks === 'function' ? E.skillUnlocks() : {}
 const RUNG = {}
