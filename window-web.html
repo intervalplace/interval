@@ -3125,6 +3125,19 @@ window.addEventListener('resize', () => { fitCanvas() })
 // items drawn by the same hand as the world: no emoji speaks this dialect
 const ICON_CV = {}
 function itemSprite(item) {
+  // §7ek: THE EMBER BREATHES IN THE WINDOW AND MUST NOT IN THE BOOK.
+  //
+  // Seven of these drawings read the wall clock so that a fire flickers, and
+  // `sprite-svg.mjs` lifts this function to make the handbook's plates. So
+  // eighteen of the book's two hundred and forty icons came out a different
+  // colour every time it was generated, and the printed book was not
+  // reproducible: a real regression in the art would have been one line in a
+  // diff full of flame jitter, which is how art faults hide here (§7f-ix).
+  //
+  // Frozen when asked, and only then. `globalThis` rather than a const beside
+  // this function, for the reason the next note gives.
+  const emberNow = () => (typeof globalThis.SPRITE_FROZEN === 'number'
+    ? globalThis.SPRITE_FROZEN : Date.now())
   // §35: WHERE THE CHAIN'S LINKS LIE, used by both chains.
   //
   // INSIDE this function on purpose. `sprite-svg.mjs` lifts `itemSprite`
@@ -3326,7 +3339,7 @@ function itemSprite(item) {
     // not pick up.
     case 'great-sword': case 'great-crossbow':
     case 'great-hatchet': case 'great-pickaxe': {
-      const beat = 0.62 + Math.sin(Date.now() / 520 + item.length) * 0.20   // the ember breathes
+      const beat = 0.62 + Math.sin(emberNow() / 520 + item.length) * 0.20   // the ember breathes
       // SLAG HAS TO BE LIGHTER THAN THE NIGHT IT SITS IN. The first cut used
       // #24211f, which is within a few points of the field these are drawn on:
       // the silhouette disappeared and the only thing left was the glow, so
@@ -3428,7 +3441,7 @@ function itemSprite(item) {
     // §6bs: BRIMSTONE. A crusted yellow lump with the heat still in the seams
     // -- it should look like something you would not put in your pocket.
     case 'brimstone': {
-      const beat = 0.6 + Math.sin(Date.now() / 620) * 0.22
+      const beat = 0.6 + Math.sin(emberNow() / 620) * 0.22
       pl([[9, 24], [7, 15], [13, 9], [22, 8], [26, 15], [23, 24]], '#7a6420', '#3d3210')
       g.fillStyle = '#c9a63a'
       pl([[12, 22], [11, 15], [15, 11], [21, 11], [23, 16], [20, 22]], '#c9a63a', '#6b5417')
@@ -3553,7 +3566,7 @@ function itemSprite(item) {
     // rather than a scatter of cracks: it is the fissure that gives way when
     // the thing spends itself, and it should look like the place it will break.
     case 'great-helm': case 'great-plate': {
-      const beat = 0.6 + Math.sin(Date.now() / 560 + item.length) * 0.22
+      const beat = 0.6 + Math.sin(emberNow() / 560 + item.length) * 0.22
       const emb = (a) => 'rgba(255,' + Math.round(96 + 40 * beat) + ',' + Math.round(24 * beat) + ',' + a + ')'
       if (item === 'great-helm') {
         g.fillStyle = emb('0.07'); g.beginPath(); g.arc(16, 13, 8, 0, 7); g.fill()
@@ -3642,7 +3655,7 @@ function itemSprite(item) {
       g.fillStyle = darkLo; g.fillRect(8, 18, 16, 2.4)
       // the eye-slot, and an ember still living in it (the fire that took him)
       g.fillStyle = soot; g.fillRect(11, 20, 10, 2.2)
-      const beat = 0.55 + Math.sin(Date.now() / 540) * 0.22
+      const beat = 0.55 + Math.sin(emberNow() / 540) * 0.22
       g.fillStyle = 'rgba(255,' + Math.round(96 + 44 * beat) + ',34,' + (0.5 + 0.3 * beat).toFixed(2) + ')'
       g.fillRect(14.4, 20.3, 3.2, 1.6)
       // the crown: five points worked into the brow, gold gone dull
@@ -3973,7 +3986,7 @@ function itemSprite(item) {
       // dragon-bone, pale and slightly wrong in shape, and they are bound at
       // the grip with scale that still catches light. Nothing else in the
       // pack glows, and this does, faintly, all the time.
-      const glow = 0.5 + 0.5 * Math.sin(Date.now() / 620)
+      const glow = 0.5 + 0.5 * Math.sin(emberNow() / 620)
       // the ember behind it: you can tell which slot it is in without reading
       g.fillStyle = 'rgba(226,110,30,' + (0.10 + 0.10 * glow) + ')'
       g.beginPath(); g.arc(15, 16, 15, 0, 7); g.fill()
@@ -4058,7 +4071,7 @@ function itemSprite(item) {
     case 'sigil-bow': {
       // a horn-bow with three sigils bound into the limbs. The bow is the
       // same bow -- what changed is that it does not eat.
-      const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 900)
+      const pulse = 0.5 + 0.5 * Math.sin(emberNow() / 900)
       g.strokeStyle = '#6b5330'; g.lineWidth = 3                 // the horn limbs
       g.beginPath()
       g.moveTo(12, 3); g.quadraticCurveTo(24, 16, 12, 29); g.stroke()
@@ -4070,7 +4083,7 @@ function itemSprite(item) {
       // THREE SIGILS, bound along the belly of the bow and lit
       for (let k = 0; k < 3; k++) {
         const sy = 9 + k * 7
-        const a2 = 0.35 + 0.35 * Math.sin(Date.now() / 700 + k * 2.1)
+        const a2 = 0.35 + 0.35 * Math.sin(emberNow() / 700 + k * 2.1)
         g.fillStyle = 'rgba(150,190,240,' + (0.20 + 0.20 * a2) + ')'
         g.beginPath(); g.arc(18, sy, 4.6, 0, 7); g.fill()
         g.strokeStyle = 'rgba(210,230,255,' + (0.55 + 0.35 * a2) + ')'; g.lineWidth = 1.1

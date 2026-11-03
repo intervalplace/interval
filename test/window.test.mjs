@@ -1656,6 +1656,31 @@ test('the panel and the scene survive a frame (check-window-panel.mjs)', () => {
   assert.equal(r.status, 0, '\n' + r.stdout + r.stderr)
 })
 
+// §7ek: AND THE PRINTED BOOK IS THE SAME BOOK TWICE.
+//
+// `sprite-svg.mjs` lifts `itemSprite` out of window-web to make the
+// handbook's plates, and seven of those drawings read the wall clock so that
+// an ember breathes. Printed, that made eighteen of the book's two hundred
+// and forty icons come out a different colour on every run: the book could
+// not be diffed, so a real regression in the art would have been one line in
+// a page of flame jitter. This asks the drawing code for the same word twice
+// and holds it to itself.
+test('the book\u2019s art does not change between two runs of the same code', async () => {
+  const sprite = await import('../sprite-svg.mjs')
+  const WORDS = ['torch', 'fire-arrows', 'fire-siphon', 'coal', 'logs']
+  const once = {}
+  for (const w of WORDS) once[w] = String(sprite.spriteSvg(w, { allowFallback: true }))
+  // a second pass through the same door: the ember must not have moved
+  const twice = {}
+  for (const w of WORDS) twice[w] = String(sprite.spriteSvg(w, { allowFallback: true }))
+  for (const w of Object.keys(once))
+    assert.equal(twice[w], once[w], 'the drawing of ' + w + ' changed between two calls')
+  assert.ok(/SPRITE_FROZEN/.test(fs.readFileSync(path.join(root, 'window-web.html'), 'utf8')),
+    'window-web no longer offers the handbook a way to stop the clock')
+  assert.ok(/SPRITE_FROZEN = 0/.test(fs.readFileSync(path.join(root, 'sprite-svg.mjs'), 'utf8')),
+    'sprite-svg no longer stops it')
+})
+
 // AND THE PILLAR CAN STILL ANSWER.
 test('the pillar serves the ground it founded', () => {
   const serve = fs.readFileSync(path.join(root, 'serve.mjs'), 'utf8')

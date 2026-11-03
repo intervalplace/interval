@@ -403,6 +403,11 @@ const ready = () => {
     ${code}
     return (word) => { ICON_CV = {}; return itemSprite(word)._pen }
   `.replace('const ICON_CV = {}', 'let ICON_CV = {}')
+  // §7ek: AND THE FIRE STANDS STILL FOR THE PLATE. Seven of these drawings
+  // read the wall clock so an ember breathes; printed, that made eighteen of
+  // the book's icons come out a different colour on every run, so the book
+  // could not be diffed and an art regression would have hidden in the noise.
+  globalThis.SPRITE_FROZEN = 0
   draw = new Function('Pen', body)(SvgPen)
   return draw
 }
