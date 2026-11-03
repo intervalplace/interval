@@ -8715,6 +8715,9 @@ let _pressName = null
 // place. A closure rather than the thing itself, because what is being looked
 // at is a node, a creature, a citizen or a pile, and each has its own answer.
 let _pressLook = null
+// and what to CALL that option. "look at the X" is right for a thing and
+// wrong for a person: a citizen called alder is looked at, not looked at the.
+let _pressLookAs = null
 // `closest` is an ELEMENT method and a pointer event does not always carry
 // one: a synthetic event, or one that lands on the document or the window
 // itself, has a target with no such function and the handler throws. Both
@@ -8762,7 +8765,7 @@ function chooseAction(opts, at) {
   // that are only ever read already do.
   if (_pressLook && !opts.some((o) => o && o.label && /^(look|read|listen)\b/.test(o.label))) {
     const lk = _pressLook
-    opts = [...opts, { label: 'look at the ' + (_pressName ?? 'it'), act: lk }]
+    opts = [...opts, { label: _pressLookAs ?? ('look at the ' + (_pressName ?? 'it')), act: lk }]
   }
   // §7ei: and every menu raised over the world carries `walk here`.
   if (_pressTile) {
@@ -19399,7 +19402,7 @@ function invClick(i, asMenu) {
   const { name, opts } = invOptions(i)
   if (!opts.length) return
   if (asMenu) {
-    _pressName = name; _pressLook = null
+    _pressName = name; _pressLook = null; _pressLookAs = null
     try { chooseAction(opts) } finally { _pressName = null }
     return
   }
@@ -19630,7 +19633,7 @@ function worldPress(e, asLeft) {
   // a right-click again or the menu would reopen itself for ever.
   const rightPress = !asLeft && e.type === 'contextmenu'
   _pressTile = { x, y }
-  _pressName = null; _pressLook = null
+  _pressName = null; _pressLook = null; _pressLookAs = null
 
   // a new order interrupts the old work by REPLACING it: the engine
   // honors the latest input natively. (An explicit stop sent alongside
@@ -19711,6 +19714,7 @@ function worldPress(e, asLeft) {
     const { id: pid, p } = best
     _pressName = p.name ?? 'a stranger'
     _pressLook = () => lookAtCitizen(pid, p)
+    _pressLookAs = 'look at ' + (p.name ?? 'them')
     if (gambitArmed && GAMBIT_OF[me.equipment?.weapon?.item]) {
       gambitArmed = false
       send({ do: 'gambit', targetId: pid })
@@ -19745,7 +19749,7 @@ function worldPress(e, asLeft) {
           if (q2 && Math.abs(me.x - q2.x) + Math.abs(me.y - q2.y) <= 1) { send({ do: 'attackp', targetId: pid }); feed('You turn on ' + nm + '. ' + why) }
           else { intent = { kind: 'pvpattack', id: pid }; feed('You go for ' + nm + '. ' + why) }
         } },
-        { label: 'trade', act: () => { if (Math.abs(me.x - p.x) + Math.abs(me.y - p.y) === 1) openTrade(pid); else { intent = { kind: 'meet', id: pid }; feed('You approach ' + nm + '.') } } },
+        { label: 'trade with ' + nm, act: () => { if (Math.abs(me.x - p.x) + Math.abs(me.y - p.y) === 1) openTrade(pid); else { intent = { kind: 'meet', id: pid }; feed('You approach ' + nm + '.') } } },
         ...social,
       ]); return
     }
@@ -19962,7 +19966,7 @@ function worldPress(e, asLeft) {
         // the callback runs long after this press is over, so it owns the
         // tile for its own run and clears it again
         chooseAction([{ label: ONE_ACTION[n.type],
-          act: () => { try { worldPress(e, true) } finally { _pressTile = null; _pressName = null; _pressLook = null } } },
+          act: () => { try { worldPress(e, true) } finally { _pressTile = null; _pressName = null; _pressLook = null; _pressLookAs = null } } },
           // §7ek: AND A STONE THAT WILL TAKE A NAME SAYS SO HERE.
           //
           // This gate answers the right button INSTEAD of the type's own
@@ -21087,7 +21091,7 @@ cv.addEventListener('click', (e) => {
   // registration order, so the swallower -- declared below, with the long
   // press it belongs to -- would have fired after this.
   if (_lpFired) { _lpFired = false; return }
-  try { worldPress(e) } finally { _pressTile = null; _pressName = null; _pressLook = null }
+  try { worldPress(e) } finally { _pressTile = null; _pressName = null; _pressLook = null; _pressLookAs = null }
 })
 // §7ei: THE LONG PRESS IS THE RIGHT BUTTON, because a phone has no other one.
 //
@@ -21116,7 +21120,7 @@ cv.addEventListener('pointerdown', (e) => {
     // different things
     _menuAt = { x: e.clientX, y: e.clientY }
     try { worldPress({ type: 'contextmenu', clientX: e.clientX, clientY: e.clientY }) }
-    finally { _menuAt = null; _pressTile = null; _pressName = null; _pressLook = null }
+    finally { _menuAt = null; _pressTile = null; _pressName = null; _pressLook = null; _pressLookAs = null }
   }, LONG_PRESS_MS)
 })
 cv.addEventListener('pointermove', (e) => {
@@ -21132,7 +21136,7 @@ cv.addEventListener('contextmenu', (e) => {
   // long press on some platforms), so this says it plainly rather than
   // relying on the press having happened.
   _menuAt = { x: e.clientX, y: e.clientY }
-  try { worldPress(e) } finally { _menuAt = null; _pressTile = null; _pressName = null; _pressLook = null }
+  try { worldPress(e) } finally { _menuAt = null; _pressTile = null; _pressName = null; _pressLook = null; _pressLookAs = null }
 })
 </script>
 <script>

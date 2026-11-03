@@ -127,6 +127,9 @@ const ctx = {
   matchMedia: () => ({ matches: false, addEventListener: noop }),
   innerWidth: 960, innerHeight: 720, devicePixelRatio: 1,
   AudioContext: FakeAC,
+  // the window's own connect() reaches for these the moment anything awaits
+  // real time, and a missing one kills the whole script rather than the fetch
+  AbortController, AbortSignal,
   URL, URLSearchParams, TextEncoder, TextDecoder,
 }
 ctx.window = ctx
@@ -149,6 +152,14 @@ vm.runInContext(body + `
                  preventDefault () {}, target: {} })
   },
   inv: (i, asMenu) => invClick(i, asMenu),
+  // the two doors a live pillar answers, and what the window did with them
+  takeGround: (gd) => takeGroundTold(gd),
+  wet: (x, y) => isWetAt(x, y),
+  nearWet: (x, y) => nextToWater(x, y),
+  setWH: (w, h) => { W = w; H = h },
+  tables: () => ({ marketPlanks: MARKET_PLANKS, marketOre: MARKET_ORE,
+    grovePlantLevel: GROVE_PLANT_LEVEL, bucksAt: BUCKS_AT, gravable: [...GRAVABLE],
+    nodeGate: NODE_GATE, swearCountries: SWEAR_COUNTRIES_W, prices: Object.keys(PRICES).length }),
   probe: () => ({ pressAt: _pressAt, menuAt: _menuAt, pressTile: _pressTile, pressName: _pressName, mini: miniRect }),
   anims: () => ({ doing: DOING_ANIM, silent: [...ACTION_SILENT], voice: Object.keys(ACTION_VOICE),
     still: [...ACTION_STILL] }),
@@ -156,6 +167,7 @@ vm.runInContext(body + `
   wake: () => wakeAudio(),
   doing: () => doingNow(),
   seen: (v) => doingSeen(v),
+  mobs: () => MOB_STATS,
   priced: () => Object.keys(PRICES),
   equippable: () => [...EQUIPPABLE],
   heals: () => Object.keys(HEALS),
@@ -276,6 +288,81 @@ ok(ONE_ONLY.length === 0, ONE_ONLY.length
   ? ONE_ONLY.length + ' offer one choice, so the right button is the left button: ' + ONE_ONLY.join(', ')
   : 'and every one offers at least two things')
 
+console.log('\n--- 2b. and so does everything else you can press ---')
+{
+  // A NODE IS NOT THE ONLY THING UNDER A CURSOR. The same question has to be
+  // asked of the creatures, the citizens and what is lying on the ground: a
+  // beast standing on a pile hid the pile entirely, and a single pile was
+  // lifted outright on either button with no menu and no name.
+  const MOBS = Object.keys(ctx.__h.mobs ? ctx.__h.mobs() : E.MOB_STATS)
+  const bad2 = []
+  for (const type of MOBS) {
+    const s = fresh()
+    s.mobs.m1 = { type, x: 10, y: 11, health: 3, hp: 3 }
+    ctx.__h.set(s, ID)
+    let opts = null
+    try { ctx.__h.press(10, 11, true); opts = takeMenu() }
+    catch (e) { bad2.push(type + ' threw ' + e.message); continue }
+    if (!opts) { bad2.push(type + ': no menu'); continue }
+    if (!opts.some((o) => o && o.head)) bad2.push(type + ': unheaded')
+    if (opts.filter((o) => o && !o.head).length < 2) bad2.push(type + ': one choice')
+  }
+  ok(bad2.length === 0, bad2.length ? bad2.slice(0, 8).join('; ')
+    : 'all ' + MOBS.length + ' creatures open a headed menu with more than one thing on it')
+
+  // a creature standing ON a pile: the fault that made a skeleton knight's
+  // bones unreachable, because the creature is found first and returns
+  {
+    const s = fresh()
+    s.mobs.m1 = { type: 'goblin', x: 10, y: 11, health: 3, hp: 3 }
+    s.ground = { g1: { item: 'bones', qty: 1, x: 10, y: 11 } }
+    ctx.__h.set(s, ID)
+    ctx.__h.press(10, 11, true)
+    const opts = takeMenu() ?? []
+    const labels = opts.filter((o) => o && o.label).map((o) => o.label)
+    ok(labels.some((l) => /take the bones/.test(l)),
+      'a creature standing on a pile does not hide it: ' + labels.join(' / '))
+  }
+  // one pile on bare ground: offered, not lifted
+  {
+    const s = fresh()
+    s.ground = { g1: { item: 'bones', qty: 1, x: 10, y: 11 } }
+    ctx.__h.set(s, ID)
+    ctx.__h.press(10, 11, true)
+    const opts = takeMenu() ?? []
+    ok(opts.some((o) => o && o.head && /bones/.test(o.head))
+      && opts.filter((o) => o && !o.head).length >= 2,
+      'a single pile is offered rather than lifted, and named: '
+        + opts.map((o) => o.head ? '[' + o.head + ']' : o.label).join(' / '))
+  }
+  // another citizen
+  {
+    const s = fresh()
+    const other = E.generateIdentity()
+    E.addPlayer(s, other.playerId, 10, 11)
+    s.players[other.playerId].name = 'alder'
+    ctx.__h.set(s, ID)
+    ctx.__h.press(10, 11, true)
+    const opts = takeMenu() ?? []
+    ok(opts.some((o) => o && o.head === 'alder') && opts.filter((o) => o && !o.head).length >= 2,
+      'a citizen is named and offers more than one thing: '
+        + opts.map((o) => o.head ? '[' + o.head + ']' : o.label).join(' / '))
+  }
+  // AND THE APPRENTICESHIP IS ON THAT LIST, which is the deed that could not
+  // be begun from this window at all
+  {
+    const s = fresh()
+    const other = E.generateIdentity()
+    E.addPlayer(s, other.playerId, 10, 11)
+    s.players[other.playerId].name = 'alder'
+    ctx.__h.set(s, ID)
+    ctx.__h.press(10, 11, true)
+    const labels = (takeMenu() ?? []).filter((o) => o && o.label).map((o) => o.label)
+    ok(labels.some((l) => /apprentice/.test(l)),
+      'and taking somebody on is one of them: ' + labels.join(' / '))
+  }
+}
+
 console.log('\n--- 3. the pack: left does the first thing, right shows the list ---')
 {
   const ITEMS = [...new Set([...ctx.__h.priced(), ...ctx.__h.equippable(), ...ctx.__h.heals(),
@@ -391,6 +478,64 @@ console.log('\n--- 5. no table says the same thing twice ---')
   }
   ok(dupes.length === 0, dupes.length ? 'a key is written twice: ' + dupes.join(', ')
     : 'no key is written twice in any of the nine tables the window keys by word')
+}
+
+// ---- 6. and the live pillar's own payload, read by the window's own reader --
+//
+// Every other section here feeds the window something this file made up. The
+// class of fault that made `/api/tables` worth checking at all was a SHAPE
+// one: `JSON.stringify(new Set())` is `{}`, so four tables went down the wire
+// served, fetched and empty. A number this window now takes from the pillar
+// is a number it will show a citizen, so the real payload has to go through
+// the real reader at least once.
+//
+//   node check-window-reach.mjs --live https://interval.place
+const live = (() => { const i = process.argv.indexOf('--live'); return i > 0 ? process.argv[i + 1] : null })()
+if (live) {
+  console.log('\n--- 6. the live pillar, read by the window\u2019s own reader (' + live + ') ---')
+  const get = async (path) => {
+    const r = await fetch(live + path)
+    if (!r.ok) throw new Error(path + ' answered ' + r.status)
+    return r.json()
+  }
+  try {
+    const t = await get('/api/tables')
+    // the numbers the window now takes rather than guesses
+    const want = { marketPlanks: E.MARKET_PLANKS, marketOre: E.MARKET_ORE,
+      grovePlantLevel: E.GROVE_PLANT_LEVEL, swearCountries: E.SWEAR_COUNTRIES }
+    const wrong = Object.entries(want).filter(([k, v]) => t[k] !== v)
+      .map(([k, v]) => k + ' served ' + JSON.stringify(t[k]) + ', engine says ' + v)
+    ok(wrong.length === 0, wrong.length ? wrong.join('; ')
+      : 'the pillar serves the engine\u2019s own numbers for the four a window used to guess')
+    ok(Array.isArray(t.gravable) && t.gravable.length === [...E.GRAVABLE].length,
+      'and the stones that take a name survive JSON as a list ('
+        + (Array.isArray(t.gravable) ? t.gravable.length : typeof t.gravable) + ')')
+    ok(Array.isArray(t.bucksAt) && t.bucksAt.length === E.BUCKS_AT.length,
+      'and so does the buck ladder')
+    ok(t.nodeGate && Object.keys(t.nodeGate).length === Object.keys(E.NODE_GATE).length,
+      'and the seam gates arrive whole ('
+        + Object.keys(t.nodeGate ?? {}).length + ' of ' + Object.keys(E.NODE_GATE).length + ')')
+
+    const gd = await get('/api/ground')
+    ctx.__h.setWH(gd.w, gd.h)
+    const took = ctx.__h.takeGround(gd)
+    ok(took !== false, 'the window accepts the ground the pillar serves')
+    ok(Array.isArray(gd.water) && gd.water.length > 0,
+      'the water is served (' + (gd.water ? gd.water.length : 0) + ' rows)')
+    // and the window can answer the question the buck asks. A bitmap that
+    // loaded but answers false everywhere is the same as no bitmap at all.
+    let wetTiles = 0, shore = 0
+    for (const [y, runs] of (gd.water ?? [])) {
+      for (const [x0, len] of runs) {
+        if (ctx.__h.wet(x0, y)) wetTiles++
+        if (x0 > 0 && ctx.__h.nearWet(x0 - 1, y)) shore++
+      }
+    }
+    ok(wetTiles > 0, 'and the window reads it back: ' + wetTiles + ' runs answer wet')
+    ok(shore > 0, 'and can say which dry tiles are beside water: ' + shore + ' shores')
+  } catch (e) {
+    ok(false, 'the live pillar could not be read: ' + e.message)
+  }
 }
 
 console.log(bad ? `\n${bad} failure(s).` : '\nevery deed the world offers is reachable.')

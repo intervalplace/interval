@@ -165,6 +165,13 @@ const LIT = process.argv.includes('--lit')
 // stands the window up, files the deed, and photographs the citizen close
 // enough to see, six frames across the posture's own length.
 const DOING = arg('--doing')
+// §7ek: --menu <x,y>, WHAT A RIGHT CLICK ACTUALLY LOOKS LIKE.
+//
+// The menu is DOM, not canvas, so toDataURL cannot see it and every check in
+// this project that reads a menu reads the option list rather than the thing
+// a person sees. A list that is correct and ugly is still a fault here. This
+// opens one over the real world and lets Chrome photograph the page.
+const MENU = arg('--menu')
 const only = arg('--only')
 const plan = only ? shots.filter((s) => s.place === only || s.name.toLowerCase().includes(only.toLowerCase())) : shots
 
@@ -225,6 +232,7 @@ const AFTER = (plan, state, myId) => `<script>
   const LIT = ${JSON.stringify(LIT)}
   const SMOKE = ${JSON.stringify(SMOKE)}
   const DOING = ${JSON.stringify(DOING)}
+  const MENU = ${JSON.stringify(MENU)}
   const METER = ${JSON.stringify(METER)}
   ;(async () => {
     const say = (t) => { document.title = t }
@@ -299,6 +307,80 @@ const AFTER = (plan, state, myId) => `<script>
         for (const k of COUNTED) if (real[k]) cx[k] = real[k]
         say('METER calls ' + one + ' saves ' + s1 + ' restores ' + r1
           + ' px ' + cv.width + 'x' + cv.height)
+        return
+      }
+      if (MENU) {
+        const [mx, my] = MENU.split(',').map(Number)
+        const meM = STATE.players[ME]
+        // stand beside it, so nothing is dimmed for distance
+        meM.x = mx; meM.y = my - 1
+        STATE.tick = 600
+        feedOne({ type: 'state', state: STATE, worldId: 'sweep' })
+        // long enough for the ground to arrive and be baked: the first go
+        // photographed a flat green field with a correct menu floating over
+        // it, which says nothing about how the menu sits on the world
+        await settle(3000)
+        STATE.tick = 601
+        feedOne({ type: 'state', state: JSON.parse(JSON.stringify(STATE)), worldId: 'sweep' })
+        await settle(800)
+        // through the window's own listener, with the button the world reads
+        const r = cv.getBoundingClientRect()
+        const sx = r.left + ((mx - cam.x + 0.5) * TILE * ZR) * (r.width / cv.width)
+        const sy = r.top + ((my - cam.y + 0.5) * TILE * ZR) * (r.height / cv.height)
+        cv.dispatchEvent(new MouseEvent('pointerdown',
+          { clientX: sx, clientY: sy, bubbles: true }))
+        cv.dispatchEvent(new MouseEvent('contextmenu',
+          { clientX: sx, clientY: sy, bubbles: true, cancelable: true }))
+        await settle(400)
+        // AND WHAT THE CANVAS ITSELF HOLDS, beside what the page screenshot
+        // shows. If the two disagree the fault is in the screenshot, not in
+        // the window, and there is no way to tell them apart without both.
+        {
+          const b2 = document.createElement('div')
+          b2.id = 'sweepout'; b2.textContent = cv.toDataURL('image/png')
+          b2.style.cssText = 'display:none'   // in the DOM for --dump-dom, not on the page
+          document.body.appendChild(b2)
+        }
+        const m = document.getElementById('ctxmenu')
+        say(m ? ('MENUOK ' + m.textContent.replace(/\\s+/g, ' ').slice(0, 200))
+              : 'SWEEPFAIL no menu opened at ' + mx + ',' + my)
+        // AND THE WORLD UNDER IT. Chrome's page screenshot does not capture
+        // what is in the canvas -- the canvas came back flat green while
+        // toDataURL of the same canvas held the whole smithy -- so the
+        // canvas's own picture is laid over the canvas as an image before
+        // the shutter. Nothing is drawn a second way: it is the window's own
+        // output, put where a screenshot can see it.
+        {
+          // LAID OVER THE CANVAS, UNDER EVERYTHING ELSE. The canvas element is
+          // 944 CSS wide and the side panel laps about fifty pixels of it, so
+          // the canvas is partly covered BY DESIGN: an overlay at a z-index
+          // above the panel covered the panel instead, and one placed in the
+          // document beside the canvas landed under a different offset parent
+          // and slid down the page. Fixed, at the canvas's own rect, below
+          // everything the window draws over it.
+          const img = document.createElement('img')
+          img.src = cv.toDataURL('image/png')
+          const r2 = cv.getBoundingClientRect()
+          // THE OVERLAY LAPS THE PANEL BY ABOUT FIFTY PIXELS, and that is the
+          // harness rather than the window. The canvas element is 944 CSS
+          // wide and the side panel covers its right edge, so the window's
+          // own picture is wider than the part of it anybody sees; a fixed
+          // element makes its own stacking context and sits over the panel
+          // whatever z-index it is given. Three ways of clipping it were
+          // tried and none landed, so it is written down instead: when
+          // reading a --menu picture, the strip of world over the left of the
+          // panel is not something the window draws.
+          const panelL = document.getElementById('inv')?.getBoundingClientRect().left
+          const vis = Math.min(r2.width, Number.isFinite(panelL) ? panelL - r2.left - 10 : r2.width)
+          const clip = document.createElement('div')
+          clip.style.cssText = 'position:fixed;z-index:0;overflow:hidden;pointer-events:none;left:'
+            + r2.left + 'px;top:' + r2.top + 'px;width:' + vis + 'px;height:' + r2.height + 'px'
+          img.style.cssText = 'position:absolute;left:0;top:0;width:' + r2.width
+            + 'px;height:' + r2.height + 'px;image-rendering:auto'
+          clip.appendChild(img)
+          document.body.appendChild(clip)
+          await settle(400)
+        }
         return
       }
       if (DOING) {
@@ -534,7 +616,8 @@ const dom = execFileSync(CHROME, ['--headless', '--disable-gpu', '--dump-dom', '
   // window buys nothing. A bigger device ratio buys everything: RES absorbs
   // it, the canvas doubles, and the same keyhole arrives twice as sharp.
   '--force-device-scale-factor=2',
-  '--virtual-time-budget=' + (DOING ? 40000 : plan.length * 600 + 30000), '--window-size=1200,900',
+  '--virtual-time-budget=' + (DOING || MENU ? 40000 : plan.length * 600 + 30000), '--window-size=1200,900',
+  ...(MENU ? ['--screenshot=' + OUT + '/menu.png'] : []),
   pathToFileURL(pagePath).href], { encoding: 'utf8', maxBuffer: 1024 * 1024 * 1024 })
 
 // THE TITLE, NOT A STRING IN THE PAGE. A first version looked for its own
@@ -551,6 +634,15 @@ if (SMOKE) {
   if (title.startsWith('SMOKEOK')) { console.log('the window drew, and kept drawing: ' + title); process.exit(0) }
   console.log('SMOKE FAILED: ' + title)
   process.exit(1)
+}
+if (MENU) {
+  const u2 = (dom.match(/data:image\/png;base64,[A-Za-z0-9+/=]+/g) || [])
+  if (u2.length) {
+    writeFileSync(OUT + '/menu-canvas.png', Buffer.from(u2[u2.length - 1].split(',')[1], 'base64'))
+    console.log('wrote ' + OUT + '/menu-canvas.png (the canvas as the window drew it)')
+  }
+  console.log(title.startsWith('MENUOK') ? title : ('MENU FAILED: ' + title))
+  process.exit(title.startsWith('MENUOK') ? 0 : 1)
 }
 if (DOING) {
   if (!title.startsWith('DOINGDONE')) { console.log('DOING FAILED: ' + title); process.exit(1) }
