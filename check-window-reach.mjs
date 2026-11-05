@@ -32,7 +32,15 @@ import E from './engine.js'
 if (E.initCrypto) await E.initCrypto()
 
 const html = readFileSync('window-web.html', 'utf8')
-const body = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)][0][1]
+// BOTH SCRIPT BLOCKS, not the first one. `comeHomeWeb` is declared in the
+// second and called from `onState` in the first, which is fine in a browser
+// -- a function declaration in a classic script is a global, and both blocks
+// have run long before a state arrives -- and is a ReferenceError in a
+// harness that lifts only one. It is swallowed by the guard around onState
+// and reported as "the window hit an error", so a harness that loads half
+// the window accuses it of a fault it does not have.
+const body = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)]
+  .map((m) => m[1]).join('\n;\n')
 const eng = readFileSync('engine.js', 'utf8')
 
 let bad = 0
@@ -102,6 +110,7 @@ class FakeAC {
   createOscillator () { return anode('osc') }
 }
 const win = {}
+const winErrors = []
 const sent = []
 let CLOCK = 1000
 const ctx = {
@@ -113,11 +122,14 @@ const ctx = {
     if (k === 'body' || k === 'head') return el(null)
     return el(null)
   } }),
-  console: { log: noop, warn: noop, error: noop },
+  // the window swallows a throw in onState into `_noteFrameErr`, which writes
+  // to a bar on the page and to console.error. A harness that discards both
+  // cannot tell a window that refused a state from one that took it.
+  console: { log: noop, warn: noop, error: (...a) => winErrors.push(a.map(String).join(' ')) },
   setTimeout: noop, setInterval: noop, clearTimeout: noop, requestAnimationFrame: noop,
   fetch: () => new Promise(noop),
   WebSocket: function () { this.readyState = 1
-    this.send = (r) => { try { const m = JSON.parse(r); if (m.type === 'act') sent.push(m.action.do) } catch {} }
+    this.send = (r) => { try { const m = JSON.parse(r); if (m.type === 'act') sent.push(m.action) } catch {} }
     this.close = noop; return this },
   localStorage: { getItem: () => null, setItem: noop }, location: { href: '', search: '' },
   navigator: { userAgent: 'node' }, crypto: globalThis.crypto,
@@ -157,6 +169,23 @@ vm.runInContext(body + `
   wet: (x, y) => isWetAt(x, y),
   nearWet: (x, y) => nextToWater(x, y),
   setWH: (w, h) => { W = w; H = h },
+  // the act ladder itself, so a captured action can be put through the door
+  // the engine actually reads
+  bridge: (a) => BRIDGE_TO_INPUT(a),
+  // send() returns early unless the socket says it is open, and the window's
+  // own socket is never opened here, so without this every press was
+  // swallowed and the check reported nought inputs with a straight face.
+  // NO BACKTICKS IN THIS BLOCK: it is a template literal.
+  openSocket: (w) => { ws = w },
+  intent: () => intent,
+  // the window's own front door, so an intent can be discharged the way a
+  // tick discharges it rather than by reaching into the machinery
+  msg: (m) => onMessage({ data: JSON.stringify(m) }),
+  enter: () => { try { entered = true } catch (e) {} },
+  probe2: () => ({ entered: typeof entered === 'undefined' ? '?' : entered,
+    curWorldId: typeof curWorldId === 'undefined' ? '?' : curWorldId,
+    hasCur: !!curState, intent: intent ? intent.kind : null }),
+  clearIntent: () => { intent = null },
   tables: () => ({ marketPlanks: MARKET_PLANKS, marketOre: MARKET_ORE,
     grovePlantLevel: GROVE_PLANT_LEVEL, bucksAt: BUCKS_AT, gravable: [...GRAVABLE],
     nodeGate: NODE_GATE, swearCountries: SWEAR_COUNTRIES_W, prices: Object.keys(PRICES).length }),
@@ -178,6 +207,11 @@ vm.runInContext(body + `
 // pointer was, which is what the global pointerdown is for
 for (const f of win.pointerdown ?? []) f({ clientX: 100, clientY: 100, target: {} })
 const takeMenu = ctx.__h.spy()
+// a socket the window believes in, so `send` gets past its own door
+const SOCK = { readyState: 1, close: noop,
+  send: (r) => { try { const m = JSON.parse(r); if (m.type === 'act') sent.push(m.action) } catch {} } }
+ctx.__h.openSocket(SOCK)
+ctx.__h.enter()
 ctx.__h.wake()
 
 // ---- a world to press things in ----
@@ -194,6 +228,11 @@ function fresh () {
   p.hp = E.maxHealth(p); p.gold = 5000
   return s
 }
+
+// through the door, so the tick machinery runs rather than sitting behind a
+// gate. The identity has to exist first, which is why this is not up with the
+// socket.
+ctx.__h.msg({ type: 'hello', playerId: ID })
 
 console.log('\n--- 1. every input the engine has a schema for ---')
 // What the window can send: every literal `do:` that reaches `send`, plus the
@@ -536,6 +575,131 @@ if (live) {
   } catch (e) {
     ok(false, 'the live pillar could not be read: ' + e.message)
   }
+}
+
+console.log('\n--- 7. and pressing an option builds an input the engine will read ---')
+{
+  // A MENU THAT OPENS IS NOT A MENU THAT WORKS. Everything above proves the
+  // list is there and says the right words; none of it presses anything. The
+  // engine answers a malformed input with "unknown field" or "missing field"
+  // and the window is never told, so an option with one field named wrong
+  // does nothing at all, for ever, in silence. That is the fault that put
+  // `special` in this window when the engine had renamed it `gambit`, and the
+  // check written for it reads the TYPE and ignores the fields.
+  //
+  // So: open every menu, press every option on it, catch what the socket was
+  // handed, and put it through `validateInputShape` with its fields on.
+  const base = { playerId: ID, worldId: WID, tick: 1, sig: 'c'.repeat(128) }
+  const malformed = [], threw = []
+  const seen = new Set()
+  let stateNow = null
+  const breathe = () => new Promise((r) => setImmediate(r))
+  const pressAll = async (where, open) => {
+    let opts = null
+    try { open(); opts = takeMenu() } catch (e) { threw.push(where + ' (opening) ' + e.message); return }
+    if (!opts) return
+    for (const o of opts.filter((x) => x && !x.head && typeof x.act === 'function')) {
+      sent.length = 0
+      try { ctx.__h.clearIntent(); o.act() }
+      catch (e) { threw.push(where + ' > "' + o.label + '" ' + e.message); continue }
+      finally { closeAny() }
+      // AN INTENT IS A DEED THAT HAS NOT GONE YET. Most options here do not
+      // send: they set an intent and the next tick turns it into an input
+      // once the citizen is standing in the right place. Pressing and
+      // reading the socket therefore misses most of the window, so the
+      // intent is discharged the way a tick discharges it: by handing the
+      // window a state through its own front door.
+      const pend = ctx.__h.intent()
+      if (pend && !sent.length) {
+        try {
+          for (let t = 0; t < 3; t++) {
+            const s2 = JSON.parse(JSON.stringify(stateNow))
+            s2.tick = 100 + t
+            ctx.__h.msg({ type: 'state', state: s2, worldId: WID })
+            // onMessage finishes in a microtask, so a synchronous probe
+            // right after it reads a window that has not taken the state:
+            // the first version of this reported every intent as stuck with
+            // curState still null.
+            await breathe()
+          }
+        } catch (e) { threw.push(where + ' > "' + o.label + '" on the tick after: ' + e.message) }
+        if (process.argv.includes('--why') && !sent.length)
+          console.log('      intent ' + pend.kind + ' did not discharge: '
+            + JSON.stringify(ctx.__h.probe2())
+            + (winErrors.length ? ' | window said: ' + winErrors[winErrors.length - 1].slice(0, 200) : ''))
+      }
+      for (const a of sent) {
+        const k = JSON.stringify(a)
+        if (seen.has(k)) continue
+        seen.add(k)
+        let inp = null
+        try { inp = ctx.__h.bridge(a) } catch (e) { malformed.push(where + ' > ' + a.do + ': the act ladder threw ' + e.message); continue }
+        if (!inp) { malformed.push(where + ' > "' + o.label + '" sends `' + a.do + '`, which the act ladder has no line for'); continue }
+        // validateInputShape answers NULL when the shape is good and a
+        // sentence when it is not. The first run of this read null as a
+        // complaint and reported forty-seven perfectly good inputs.
+        const why = E.validateInputShape({ ...base, ...inp })
+        if (typeof why === 'string') malformed.push(where + ' > "' + o.label
+          + '" sends ' + JSON.stringify(inp) + ': ' + why)
+      }
+    }
+  }
+  // takeMenu only clears what floatMenu caught; a nested menu opened by an
+  // option has to be drained too or it is read as the next thing's menu
+  const closeAny = () => { takeMenu() }
+
+  for (const type of NODE_TYPES) {
+    const s = fresh()
+    E.addNode(s, 'n1', type, 10, 11)
+    const n = s.nodes.n1
+    if (type === 'stall' || type === 'market') n.kind = 'arms'
+    if (type === 'keeper' || type === 'guard' || type === 'crier') n.name = 'somebody'
+    // enough in the pack that the options that need goods are live ones
+    s.players[ID].inventory[0] = { item: 'planks', qty: 20 }
+    s.players[ID].inventory[1] = { item: 'iron-ore', qty: 20 }
+    s.players[ID].inventory[2] = { item: 'logs', qty: 20 }
+    s.players[ID].inventory[3] = { item: 'eel', qty: 2 }
+    s.players[ID].inventory[4] = { item: 'coal', qty: 5 }
+    s.players[ID].inventory[5] = { item: 'graver', qty: 1 }
+    s.players[ID].inventory[6] = { item: 'sapling', qty: 2 }
+    s.players[ID].inventory[7] = { item: 'raw-fish', qty: 2 }
+    ctx.__h.set(s, ID); stateNow = s
+    await pressAll('node ' + type, () => ctx.__h.press(10, 11, true))
+  }
+  for (const type of Object.keys(ctx.__h.mobs())) {
+    const s = fresh()
+    s.mobs.m1 = { type, x: 10, y: 11, health: 3, hp: 3 }
+    s.ground = { g1: { item: 'bones', qty: 1, x: 10, y: 11 } }
+    ctx.__h.set(s, ID); stateNow = s
+    await pressAll('beast ' + type, () => ctx.__h.press(10, 11, true))
+  }
+  {
+    const s = fresh()
+    const other = E.generateIdentity()
+    E.addPlayer(s, other.playerId, 10, 11)
+    s.players[other.playerId].name = 'alder'
+    s.players[ID].calling = 'forester'
+    s.players[ID].inventory[0] = { item: 'sigil', qty: 1 }
+    s.players[ID].equipment.weapon = { item: 'wand', qty: 1 }
+    ctx.__h.set(s, ID); stateNow = s
+    await pressAll('a citizen', () => ctx.__h.press(10, 11, true))
+  }
+  for (const item of [...new Set([...ctx.__h.priced(), ...ctx.__h.equippable(), ...ctx.__h.heals(),
+    'bones', 'dragon-bones', 'logs', 'sigil', 'quick-stone', 'chart', 'rubble', 'arrows',
+    'fire-arrows', 'lamprey-spit'])]) {
+    const s = fresh()
+    s.players[ID].inventory[0] = { item, qty: 3 }
+    s.players[ID].inventory[1] = { item: 'ironbark', qty: 3 }
+    s.players[ID].inventory[2] = { item: 'steel', qty: 3 }
+    ctx.__h.set(s, ID); stateNow = s
+    await pressAll('holding ' + item, () => ctx.__h.inv('0', true))
+  }
+  ok(threw.length === 0, threw.length
+    ? threw.length + ' options threw when pressed: ' + threw.slice(0, 6).join(' | ')
+    : 'no option threw when it was actually pressed')
+  ok(malformed.length === 0, malformed.length
+    ? malformed.length + ' build an input the engine refuses at the door: ' + malformed.slice(0, 6).join(' | ')
+    : 'all ' + seen.size + ' distinct inputs the menus build pass the engine\u2019s own shape check')
 }
 
 console.log(bad ? `\n${bad} failure(s).` : '\nevery deed the world offers is reachable.')
