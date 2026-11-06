@@ -7240,7 +7240,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b87'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b88'  // stamp: if your screen says an older build, hard-refresh
 // ===========================================================================
 // WHAT A CITIZEN IS SEEN TO BE DOING
 //
@@ -18765,109 +18765,208 @@ function socialOpts(pid, p, me) {
   }
   return out
 }
-// §7cq: THE SPELLBOOK, because there was not one.
+// §7cq/§7ek: THE SPELLBOOK, AND A SPELL IS SPOKEN AT THE THING IT LANDS ON.
 //
-// `alch` lived on an inventory slot, `still` on a citizen tap, `turn` at an
-// ossuary -- and the four barrow spells lived NOWHERE. They were in the engine,
-// the SDK and both windows' input mapping, and no thumb could reach any of them.
-// A citizen who walked to an ossuary, turned to the barrow-work and gave up five
-// spells got four they could not cast.
+// The first spellbook was a mode. You opened a strip in the side column,
+// clicked a row to ARM a word, the button changed colour to say so, and then
+// you went and clicked a target. Five steps, a state to forget, and the only
+// sign you were holding a word ready was the text on a collapsed button at
+// the other end of the screen. The stilling had a SECOND arming mode of its
+// own on the sigil in the pack, which set a flag on `window`.
 //
-// It follows the gambit button, which already works this way and which
-// citizens already understand: ARM a spell, then pick what it lands on. The
-// panel shows the book you are actually reading, greys what you cannot speak,
-// and says WHY -- the level, the sigils, the staff.
+// Everything else in this window now works one way: left does the default
+// thing, right lists what is possible on the thing you pressed (§7ek). A
+// spell is a thing you can do to a beast, a citizen, a thing in your pack or
+// something lying on the ground, so it belongs on those lists, and the mode
+// goes away. Right-click a troll and "speak a word at the troll" is there,
+// one line, opening a second page with the words you can actually say (§7y:
+// one line then a list, never one line per variant).
+//
+// THE BOOK PANEL STAYS, and stops pretending to be a weapon. Its job is the
+// one a book does: to say what sorcery is, what each word costs, how close
+// you have to stand, and where it is spoken. A caster who has never cast
+// learns the trade from it; a caster mid-fight does not have to open it.
+//
+// WHAT IS IN EACH BOOK IS THE ENGINE'S OWN LIST. `BOOKS` there is
+// `common: still, seal, transmute, mend, mendp, unmake` and
+// `barrow: waking, rot, taking, withering`, disjoint on purpose: turning to
+// the barrow-work at an ossuary TAKES the common book away. The old table
+// here held four of the common six -- `seal` and `unmake` were missing, so
+// two of a caster's words were not in their own book -- and it had the level
+// for mending another at 50 when the engine asks 75. The numbers are checked
+// against engine.js on every run now (check-window-reach.mjs section 9).
+//
+// Generated from engine.js: MEND_REQ, MENDP_REQ, MENDP_RANGE, STILL_LEVEL,
+// STILL_SIGILS, STILL_RANGE, SEAL_RANGE, UNMAKE_RANGE, ROT_*, TAKING_*,
+// WAKING_*, WITHER_*.
 const SPELLBOOK = {
   common: [
-    { v: 'alch',   name: 'transmute',  lvl: 1,  sigils: 1, on: 'item',
-      says: 'a thing, into what it is worth' },
-    { v: 'mend',   name: 'mend',       lvl: 50, sigils: 1, on: 'self',
-      says: 'your own wounds, +20, once in twenty-five' },
-    { v: 'mendp',  name: 'mend other', lvl: 50, sigils: 1, on: 'citizen', wand: 'wand',
-      says: 'somebody else\u2019s, a wand sends what a bare hand keeps' },
-    { v: 'still',  name: 'the stilling', lvl: 85, sigils: 3, on: 'citizen',
-      says: 'the fight simply stops' },
+    { v: 'transmute', name: 'transmute', lvl: 1, sigils: 1, on: 'item',
+      says: 'a thing in your pack, into what a keeper would have paid' },
+    { v: 'mend', name: 'mend', lvl: 50, sigils: 1, on: 'self', every: 25,
+      says: 'your own wounds, twenty back, once in twenty-five intervals' },
+    { v: 'mendp', name: 'mend another', lvl: 75, sigils: 1, on: 'citizen',
+      wand: 'wand', reach: 4,
+      says: 'somebody else\u2019s wounds. A wand sends what a bare hand keeps' },
+    { v: 'still', name: 'the stilling', lvl: 85, sigils: 3, on: 'any', reach: 6,
+      says: 'the fight simply stops, for them and for you' },
+    { v: 'seal', name: 'the sealing', lvl: 1, sigils: 1, on: 'pile',
+      wand: 'goo-staff', reach: 5,
+      says: 'a dropped thing, held for the hand that dropped it, while you stand by' },
+    { v: 'unmake', name: 'the unmaking', lvl: 1, sigils: 1, on: 'pile',
+      wand: 'goo-staff', reach: 5,
+      says: 'a dropped thing, gone. Nobody will have it' },
   ],
   barrow: [
-    { v: 'rot',       name: 'the rot',       lvl: 40, sigils: 1, on: 'any', wand: 'bone-staff',
+    { v: 'rot', name: 'the rot', lvl: 40, sigils: 1, on: 'any',
+      wand: 'bone-staff', reach: 5,
       says: 'nothing now; twenty-four intervals of decay, and plate does not stop it' },
-    { v: 'taking',    name: 'the taking',    lvl: 60, sigils: 2, on: 'any', wand: 'bone-staff',
-      says: 'eight of their life becomes yours, once in twelve' },
-    { v: 'waking',    name: 'the waking',    lvl: 75, sigils: 3, on: 'any', wand: 'bone-staff',
-      says: 'your mark and everything standing round it, once in forty' },
-    { v: 'withering', name: 'the withering', lvl: 88, sigils: 4, on: 'any', wand: 'bone-staff',
+    { v: 'taking', name: 'the taking', lvl: 60, sigils: 2, on: 'any',
+      wand: 'bone-staff', reach: 3, every: 12,
+      says: 'eight of their life becomes yours' },
+    { v: 'waking', name: 'the waking', lvl: 75, sigils: 3, on: 'any',
+      wand: 'bone-staff', reach: 6, every: 40,
+      says: 'your mark and everything standing round it' },
+    { v: 'withering', name: 'the withering', lvl: 88, sigils: 4, on: 'any',
+      wand: 'bone-staff', reach: 2,
       says: 'sixteen intervals in which nothing will heal them' },
   ],
 }
-let spellArmed = null
-function castable(sp, me) {
-  const have = (me.inventory || []).reduce((t, sl) => t + (sl?.item === 'sigil' ? (sl.qty ?? 1) : 0), 0)
+// §7cs: AND NOBODY SPEAKS IN THE LISTS. The engine refuses every spell inside
+// fourteen tiles of the Lists ferry and the window never knew, so a caster
+// standing in the arena was offered words that would be refused in silence.
+// The span is a copy of the engine's `LISTS_SPAN`, checked against it.
+const LISTS_SPAN_W = 14
+const inListsW = (s, x, y) => {
+  const q = s?.nodes?.['ferry-lists']
+  return !!q && Math.max(Math.abs(x - q.x), Math.abs(y - q.y)) <= LISTS_SPAN_W
+}
+// Which book a citizen is reading. The two are disjoint: turning to the
+// barrow-work at an ossuary gives the waking and takes transmute, mend, the
+// mending of others, the sealing and the unmaking.
+const bookOf = (p) => (p?.book === 'barrow' ? 'barrow' : 'common')
+// WHY A WORD CANNOT BE SPOKEN, in the order a citizen would hit the walls.
+// Returns null when it can.
+function castable(sp, me, s) {
+  if (!sp || !me) return 'a caster'
+  if (inListsW(s ?? world, me.x, me.y)) return 'to be out of the Lists'
   // §5m: magic is SORCERY. This read `skills.magic`, which no citizen has, so
-  // `mag` was one for everybody and every spell above level one reported itself
-  // unreachable -- the whole trade, refused by the client on a name.
+  // every spell above level one reported itself unreachable: the whole trade,
+  // refused by the client on a name.
   const mag = XP_TO_LVL(me.skills?.sorcery ?? 0)
-  if (mag < sp.lvl) return 'sorcery ' + sp.lvl
-  if (have < sp.sigils) return sp.sigils + ' sigils'
-  if (sp.wand && me.equipment?.weapon?.item !== sp.wand) return 'a ' + sp.wand.replace(/-/g, ' ')
+  if (mag < sp.lvl) return 'sorcery ' + sp.lvl + ' (you have ' + mag + ')'
+  const have = (me.inventory || []).reduce((t, sl) => t + (sl?.item === 'sigil' ? (sl.qty ?? 1) : 0), 0)
+  if (have < sp.sigils) return sp.sigils + (sp.sigils === 1 ? ' sigil' : ' sigils')
+    + ' (you carry ' + have + ')'
+  if (sp.wand && me.equipment?.weapon?.item !== sp.wand) return 'a ' + say1(sp.wand) + ' in hand'
   return null
 }
-function drawBook() {
-  const me = world?.players?.[myId]; if (!me) return
-  const btn = document.getElementById('bookbtn'), pan = document.getElementById('bookpanel')
-  const book = me.book ?? 'common'
-  btn.style.display = 'block'
-  btn.textContent = (bookOpen ? '\u25be ' : '\u25b8 ')
-    + (book === 'barrow' ? 'THE BARROW-WORK' : 'SPELLS')
-    + (spellArmed ? ', ' + spellArmed.name + ' ARMED' : '')
-  btn.style.borderColor = spellArmed ? 'var(--gold)' : 'var(--stone-lt)'
-  btn.style.background = spellArmed ? '#3a2a12' : 'var(--stone-dk)'
-  pan.style.display = bookOpen ? 'block' : 'none'
-  if (!bookOpen) return
-  pan.innerHTML = SPELLBOOK[book].map((sp, i) => {
-    const why = castable(sp, me)
-    const on = spellArmed && spellArmed.v === sp.v
-    return '<div data-sp="' + i + '" style="padding:3px 6px;cursor:pointer;'
-      + 'border-left:3px solid ' + (on ? 'var(--gold)' : 'transparent') + ';'
-      + 'color:' + (why ? 'var(--dim)' : 'var(--gold)') + '">'
-      + '<b>' + sp.name + '</b>'
-      + '<span style="float:right;font-size:10px">' + (why ? 'needs ' + why : sp.sigils + '\u25c6') + '</span>'
-      + '<div style="font-size:10px;color:var(--dim)">' + sp.says + '</div></div>'
-  }).join('')
-  pan.querySelectorAll('[data-sp]').forEach((el) => {
-    el.onclick = () => {
-      const sp = SPELLBOOK[book][Number(el.dataset.sp)]
-      const why = castable(sp, me)
-      if (why) { feed('You cannot speak ' + sp.name + ' yet. It needs ' + why + '.'); return }
-      if (sp.on === 'self') { send({ do: 'cast', spell: 'mend' }); feed('You close your own wounds.'); return }
-      if (sp.on === 'item') { feed('Tap what you want to transmute, in your pack.'); return }
-      spellArmed = (spellArmed && spellArmed.v === sp.v) ? null : sp
-      feed(spellArmed ? 'You hold ' + sp.name + ' ready. Tap what it lands on.':
-        'You let ' + sp.name + ' go.')
-      drawBook()
-    }
-  })
+// WHAT CAN BE SPOKEN AT THIS KIND OF THING. `kind` is 'beast', 'citizen',
+// 'item' or 'pile'; a spell marked `any` lands on a beast or a citizen.
+function spellsOn(kind, me, s) {
+  const book = SPELLBOOK[bookOf(me)] ?? []
+  return book.filter((sp) => sp.on === kind
+    || (sp.on === 'any' && (kind === 'beast' || kind === 'citizen')))
+    .map((sp) => ({ sp, why: castable(sp, me, s) }))
 }
-let bookOpen = false, _bookWired = false
-// §7cq: what an armed spell does when you tap something
-function castArmed(tid, t) {
-  const sp = spellArmed; if (!sp) return
-  const me = world.players[myId]
-  const why = castable(sp, me)
-  if (why) { feed('You cannot speak ' + sp.name + '. It needs ' + why + '.'); spellArmed = null; drawBook(); return }
-  if (sp.on === 'citizen' && !world.players[tid]) {
-    feed(sp.name + ' is for a citizen, not a beast.'); return
+// §7ek: ONE LINE, THEN A LIST. A beast or a citizen gets a single "speak a
+// word" row rather than four, and the row opens the words. Nothing is armed
+// and nothing is remembered: the target was chosen before the word was.
+function spellOpts(kind, targetName, targetId, t, me) {
+  const rows = spellsOn(kind, me, world)
+  if (!rows.length) return []
+  const speakable = rows.filter((r) => !r.why).length
+  return [{
+    label: 'speak a word at ' + targetName + (speakable ? '' : ' (none yet)'),
+    dim: !speakable,
+    act: () => chooseAction([
+      { head: (bookOf(me) === 'barrow' ? 'the barrow-work' : 'your words')
+        + ' \u00b7 at ' + targetName },
+      ...rows.map(({ sp, why }) => ({
+        label: sp.name + (why ? '' : '  ' + sp.sigils + '\u25c6'
+          + (sp.reach ? ', within ' + sp.reach : '')),
+        dim: !!why,
+        act: () => {
+          if (why) { feed('You cannot speak ' + sp.name + '. It wants ' + why + '.'); return }
+          speakAt(sp, targetId, t, me)
+        },
+      })),
+    ]),
+  }]
+}
+// Speaking it. One place, so the beast menu, the citizen menu and the book
+// cannot drift into sending three different things.
+function speakAt(sp, targetId, t, me) {
+  const d = t ? Math.max(Math.abs(me.x - t.x), Math.abs(me.y - t.y)) : 0
+  if (sp.reach && d > sp.reach) {
+    feed(sp.name + ' reaches ' + sp.reach + ' tiles and they are ' + d + ' away.')
+    return
   }
-  send({ do: sp.v, targetId: tid, target: tid })
-  // §7cr: and the world shows it. The mark is raised HERE, on the tap, rather
-  // than from a state diff -- three of these four change no hitpoints at all
+  send({ do: sp.v, targetId, target: targetId })
+  // §7cr: AND THE WORLD SHOWS IT. The mark is raised here, on the press,
+  // rather than from a state diff: three of these change no hitpoints at all
   // the interval they land, so there is nothing for a diff to notice.
   const MARK = { rot: 'rot', taking: 'taking', waking: 'waking', withering: 'wither', still: 'still' }
   if (sp.v === 'still') stillRings.push({ x: t.x, y: t.y, at: performance.now() })
   else if (MARK[sp.v]) spellMarks.push({ kind: MARK[sp.v], x: t.x, y: t.y,
     tx: me.x, ty: me.y, at: performance.now() })
   feed('You speak ' + sp.name + ' at ' + (t?.name ?? 'them') + '.')
-  spellArmed = null; drawBook()
 }
+function drawBook() {
+  const me = world?.players?.[myId]; if (!me) return
+  const btn = document.getElementById('bookbtn'), pan = document.getElementById('bookpanel')
+  const book = bookOf(me)
+  btn.style.display = 'block'
+  btn.textContent = (bookOpen ? '\u25be ' : '\u25b8 ')
+    + (book === 'barrow' ? 'THE BARROW-WORK' : 'SPELLS')
+  btn.style.borderColor = 'var(--stone-lt)'
+  btn.style.background = 'var(--stone-dk)'
+  pan.style.display = bookOpen ? 'block' : 'none'
+  if (!bookOpen) return
+  const WHERE = {
+    self: 'spoken here',
+    item: 'right-click a thing in your pack',
+    citizen: 'right-click a citizen',
+    any: 'right-click a beast or a citizen',
+    pile: 'right-click something lying on the ground',
+  }
+  const barred = inListsW(world, me.x, me.y)
+  pan.innerHTML = (barred
+    ? '<div style="padding:4px 6px;color:var(--dim);font-size:10px">'
+      + 'No word is spoken in the Lists.</div>' : '')
+    + SPELLBOOK[book].map((sp, i) => {
+      const why = castable(sp, me, world)
+      const cost = sp.sigils + '\u25c6'
+        + (sp.reach ? ' \u00b7 within ' + sp.reach : '')
+        + (sp.every ? ' \u00b7 once in ' + sp.every : '')
+      return '<div style="padding:4px 6px;border-top:1px solid var(--edge);'
+        + 'color:' + (why ? 'var(--dim)' : 'var(--gold)') + '">'
+        + '<b>' + sp.name + '</b>'
+        + '<span style="float:right;font-size:10px">' + (why ? 'wants ' + why : cost) + '</span>'
+        + '<div style="font-size:10px;color:var(--dim)">' + sp.says + '</div>'
+        + '<div style="font-size:10px;color:var(--dim);opacity:.8">' + WHERE[sp.on] + '</div>'
+        + (sp.on === 'self' && !why
+          ? '<button data-sp="' + i + '" style="' + BTN + ';margin-top:3px">speak it</button>' : '')
+        + '</div>'
+    }).join('')
+  // the only button a book has: a word that lands on nobody but you. Every
+  // other word is spoken at the thing it lands on, which is where it is
+  // offered.
+  pan.querySelectorAll('[data-sp]').forEach((el) => {
+    el.onclick = () => {
+      const sp = SPELLBOOK[book][Number(el.dataset.sp)]
+      const why = castable(sp, me, world)
+      if (why) { feed('You cannot speak ' + sp.name + '. It wants ' + why + '.'); return }
+      send({ do: 'cast', spell: 'mend' })
+      feed('You close your own wounds.')
+    }
+  })
+}
+let bookOpen = false, _bookWired = false
+// §7ek: `castArmed` is gone with the arming mode. A word is spoken at the
+// thing it lands on, from that thing's own menu, by `speakAt` above: one
+// place, so the beast menu, the citizen menu and the book cannot drift into
+// sending three different things.
 // §7cy: WHO WORKS HERE. A trace left at the place, not a directory.
 //
 // It says who has used this work lately and how long ago. It does NOT say where
@@ -19168,34 +19267,31 @@ function invOptions(i) {
   }
 
   if (it.item === 'sigil') {
-    // the three things a sigil is spent on are opposed and one of them moves
-    // you across the island, so none of them is a left click
-    const opts = [{ label: 'look at the sigil',
-      act: () => feed('A compressed piece of night. It hums faintly. Spent, it speaks one word of sorcery.') }]
-    if (lvlOf('sorcery') >= 85 && (meNow.inventory ?? []).filter(sl => sl?.item === 'sigil').length >= 3
-      && !((world.players?.[myId]?.stillCdUntil ?? 0) > (world?.tick ?? 0)))
-      opts.push({ label: 'cast: THE STILLING (3 sigils)', act: () => {
-        window.__stillArm = true
-        feed('You hold the truce unspoken. Tap whom to still , beast or citizen, within six tiles.')
-      } })
-    if (lvlOf('sorcery') >= 20) opts.push({ label: 'cast: mend (heal)', act: () => {
-      send({ do: 'cast', spell: 'mend' })
-      feed('You spend the sigil to knit yourself whole.')
-      tone(520, 0.18, { type: 'sine', vol: 0.05 }); tone(780, 0.22, { type: 'sine', vol: 0.045, at: 0.08 })
-    } })
-    // §6bq: RETURN TO ANCHOR IS REPEALED, and this window went on offering it.
+    // §7ek: A SIGIL IS WHAT A WORD IS SPENT ON, not where a word is chosen.
     //
-    // The engine's spell field reads `['mend'].includes(v) || 'must be a
-    // constitutional spell'`, with the repeal written in the margin beside
-    // it. So "cast: return to Anchor" built an input the engine refused at
-    // the door, every time, and a refusal is silent (§6dd): a citizen spent
-    // the tap and nothing whatever happened. A window that offers a verb the
-    // rules have repealed is a window lying about the rules, which is the one
-    // thing it must never do.
-    //
-    // Found by PRESSING every option and putting what it built through
-    // `validateInputShape` with its fields on, rather than by reading the
-    // type name: see check-window-reach.mjs section 7.
+    // This offered the stilling, which armed a flag on `window` and asked you
+    // to tap a target, and "cast: mend" at sorcery 20 when the engine asks
+    // 50, and "return to Anchor", which was repealed (§6bq) and refused at
+    // the door every time. All three are gone: mending yourself is the one
+    // word that lands on nobody else, so it is here and in the book, and
+    // every other word is spoken at the thing it lands on.
+    const mendSp = (SPELLBOOK.common ?? []).find((sp) => sp.v === 'mend')
+    const whyMend = mendSp ? castable(mendSp, meNow, world) : 'a caster'
+    const opts = [
+      { label: 'look at the sigil', act: () => feed('A compressed piece of night. It hums '
+        + 'faintly. Spent, it speaks one word of sorcery. ' + (bookOf(meNow) === 'barrow'
+          ? 'You read the barrow-work: right-click a beast or a citizen to speak at them.'
+          : 'Right-click what a word should land on: a beast, a citizen, a thing in your '
+            + 'pack, or something lying on the ground.')) },
+      whyMend
+        ? { label: 'mend yourself', dim: true,
+            act: () => feed('You cannot speak mend. It wants ' + whyMend + '.') }
+        : { label: 'mend yourself (1 sigil)', act: () => {
+            send({ do: 'cast', spell: 'mend' })
+            feed('You spend the sigil to knit yourself whole.')
+            tone(520, 0.18, { type: 'sine', vol: 0.05 })
+            tone(780, 0.22, { type: 'sine', vol: 0.045, at: 0.08 }) } },
+    ]
     return { name, opts: [...opts, ...tail] }
   }
 
@@ -19687,18 +19783,10 @@ function worldPress(e, asLeft) {
     const d = Math.hypot(ix + 0.5 - fxT, iy + 0.5 - fyT)
     if (d < 0.8 && (!best || d < best.d)) best = { d, kind: 'citizen', id: pid, p }
   }
-  if (window.__stillArm && best && (best.kind === 'mob' || best.kind === 'citizen')) {
-    window.__stillArm = false
-    const tid = best.id
-    const tx = best.kind === 'mob' ? best.m.x : best.p.x, ty = best.kind === 'mob' ? best.m.y : best.p.y
-    if (Math.max(Math.abs(me.x - tx), Math.abs(me.y - ty)) > 6) { feed('Too far. The stilling reaches six tiles.'); return }
-    send({ do: 'still', target: tid })
-    feed('You speak the truce. The fight simply stops , for them, and for you.')
-    stillRings.push({ x: tx, y: ty, at: performance.now() })
-    tone(220, 0.5, { type: 'sine', vol: 0.05 }); tone(110, 0.8, { type: 'sine', vol: 0.04, at: 0.15 }) // a bell, descending into quiet
-    flashClick(tx, ty, false)
-    return
-  }
+  // §7ek: THE STILLING HAD AN ARMING MODE OF ITS OWN, set from the sigil in
+  // the pack onto a flag on `window`, and it is gone with the other one. The
+  // stilling is a word spoken at a beast or a citizen, so it is on their menu
+  // with the rest of the book, and there is no mode to be in.
   if (best?.kind === 'mob') {
     const { id, m } = best
     _pressName = say1(m.type)
@@ -19722,6 +19810,7 @@ function worldPress(e, asLeft) {
         ...pile.slice(0, 5).map(([gid, g3]) => ({ label: 'take the ' + say1(g3.item),
           act: () => { send({ do: 'pickup', groundId: gid, confirm: false })
             feed('You pick up the ' + say1(g3.item) + '.') } })),
+        ...spellOpts('beast', 'the ' + say1(m.type), id, m, me),
         { label: 'look at the ' + say1(m.type), act: () => lookAtMob(m) },
       ])
       return
@@ -19730,7 +19819,6 @@ function worldPress(e, asLeft) {
     // §7cq: an armed spell lands on a beast too. Three of the four barrow
     // spells work on anything with hitpoints, and the gibbet-dead behind its
     // railing can be reached by nothing else.
-    if (spellArmed) { castArmed(id, m); return }
     if (me.action?.mobId === id) return                        // already fighting it: silent
     if (adj(m)) { send({ do: 'prowess', mobId: id }); feed('You attack the ' + m.type + '!') }
     else intent = { kind: 'prowess', id }                       // hunt it down, then engage
@@ -19767,7 +19855,6 @@ function worldPress(e, asLeft) {
       const nm = p.name ?? pid.slice(0, 6)
       const why = (me.consignment && p.consignment) ? 'You are both carrying.' : 'The Wilds allow it.'
       const social = socialOpts(pid, p, me)
-      if (spellArmed) { castArmed(pid, p); return }
       chooseAction([
         ...mendOpt,
         { label: 'attack ' + nm, act: () => {
@@ -19776,12 +19863,12 @@ function worldPress(e, asLeft) {
           else { intent = { kind: 'pvpattack', id: pid }; feed('You go for ' + nm + '. ' + why) }
         } },
         { label: 'trade with ' + nm, act: () => { if (Math.abs(me.x - p.x) + Math.abs(me.y - p.y) === 1) openTrade(pid); else { intent = { kind: 'meet', id: pid }; feed('You approach ' + nm + '.') } } },
+        ...spellOpts('citizen', nm, pid, p, me),
         ...social,
       ]); return
     }
     // §7cq: an armed spell lands on whoever you tapped, whatever else the tap
     // would have offered -- the same way an armed gambit does.
-    if (spellArmed) { castArmed(pid, p); return }
     if (mendOpt.length) {
       const nm3 = p.name ?? pid.slice(0, 6)
       chooseAction([
@@ -19789,17 +19876,18 @@ function worldPress(e, asLeft) {
         { label: 'trade with ' + nm3, act: () => {
           if (Math.abs(me.x - p.x) + Math.abs(me.y - p.y) === 1) openTrade(pid)
           else { intent = { kind: 'meet', id: pid }; feed('You approach ' + nm3 + '.') } } },
+        ...spellOpts('citizen', nm3, pid, p, me),
         ...socialOpts(pid, p, me),
       ]); return
     }
     // §7cn: a plain stranger still gets the social choices -- remembering
     // somebody and falling in behind them are not combat and not trade, and
     // before this there was no way to do either from a tap.
-    if (spellArmed) { castArmed(pid, p); return }
     chooseAction([
       { label: 'trade with ' + (p.name ?? 'the stranger'), act: () => {
         if (Math.abs(me.x - p.x) + Math.abs(me.y - p.y) === 1) openTrade(pid)
         else { intent = { kind: 'meet', id: pid }; feed('You approach ' + (p.name ?? 'the stranger') + '.') } } },
+      ...spellOpts('citizen', p.name ?? 'the stranger', pid, p, me),
       ...socialOpts(pid, p, me),
     ])
     return

@@ -172,6 +172,14 @@ const DOING = arg('--doing')
 // a person sees. A list that is correct and ugly is still a fault here. This
 // opens one over the real world and lets Chrome photograph the page.
 const MENU = arg('--menu')
+// --pick <n>: press the nth option on the menu and photograph what it opened.
+// A verb with several variants is ONE line that opens a second page (§7y), so
+// a picture of the first page says nothing about the page that matters.
+const PICK = arg('--pick')
+// --caster: a citizen who can actually speak. The sweep's walker is a plain
+// body on purpose, and every word in the book is dimmed for them, so a
+// picture of the spell page taken by that body shows nine greyed rows.
+const CASTER = process.argv.includes('--caster')
 const only = arg('--only')
 const plan = only ? shots.filter((s) => s.place === only || s.name.toLowerCase().includes(only.toLowerCase())) : shots
 
@@ -233,6 +241,8 @@ const AFTER = (plan, state, myId) => `<script>
   const SMOKE = ${JSON.stringify(SMOKE)}
   const DOING = ${JSON.stringify(DOING)}
   const MENU = ${JSON.stringify(MENU)}
+  const PICK = ${JSON.stringify(PICK)}
+  const BOOK = ${JSON.stringify(process.argv.includes('--book'))}
   const METER = ${JSON.stringify(METER)}
   ;(async () => {
     const say = (t) => { document.title = t }
@@ -331,6 +341,15 @@ const AFTER = (plan, state, myId) => `<script>
           { clientX: sx, clientY: sy, bubbles: true }))
         cv.dispatchEvent(new MouseEvent('contextmenu',
           { clientX: sx, clientY: sy, bubbles: true, cancelable: true }))
+        // AND LIFT THE FINGER. A MouseEvent carries no pointerType, so the
+        // window's long-press timer does not recognise it as a mouse and
+        // starts counting: four hundred and fifty milliseconds later it
+        // opened the world menu again, on top of whatever page the driver
+        // had just opened, and every --pick picture came back showing the
+        // first page. The window is right; the synthetic press was not a
+        // press a mouse makes.
+        cv.dispatchEvent(new MouseEvent('pointerup',
+          { clientX: sx, clientY: sy, bubbles: true }))
         await settle(400)
         // AND WHAT THE CANVAS ITSELF HOLDS, beside what the page screenshot
         // shows. If the two disagree the fault is in the screenshot, not in
@@ -341,45 +360,84 @@ const AFTER = (plan, state, myId) => `<script>
           b2.style.cssText = 'display:none'   // in the DOM for --dump-dom, not on the page
           document.body.appendChild(b2)
         }
+        if (PICK !== null && PICK !== undefined) {
+          const first = document.getElementById('ctxmenu')
+          const rows = first ? [...first.querySelectorAll('button')] : []
+          const b = rows[Number(PICK)]
+          if (!b) { say('SWEEPFAIL the menu has no option ' + PICK + ' (it has ' + rows.length + ')'); return }
+          window.__picked = rows.length + ' options, picked "' + b.textContent + '"'
+          try { b.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })) }
+          catch (e) { window.__picked += ' THREW ' + e.message }
+          await settle(300)
+          const after = document.getElementById('ctxmenu')
+          if (!after) { say('SWEEPFAIL option ' + PICK + ' opened nothing'); return }
+        }
+        if (BOOK) {
+          const bb = document.getElementById('bookbtn')
+          if (bb) { bb.click(); await settle(300) }
+        }
         const m = document.getElementById('ctxmenu')
-        say(m ? ('MENUOK ' + m.textContent.replace(/\\s+/g, ' ').slice(0, 200))
-              : 'SWEEPFAIL no menu opened at ' + mx + ',' + my)
-        // AND THE WORLD UNDER IT. Chrome's page screenshot does not capture
-        // what is in the canvas -- the canvas came back flat green while
-        // toDataURL of the same canvas held the whole smithy -- so the
-        // canvas's own picture is laid over the canvas as an image before
-        // the shutter. Nothing is drawn a second way: it is the window's own
-        // output, put where a screenshot can see it.
-        {
-          // LAID OVER THE CANVAS, UNDER EVERYTHING ELSE. The canvas element is
-          // 944 CSS wide and the side panel laps about fifty pixels of it, so
-          // the canvas is partly covered BY DESIGN: an overlay at a z-index
-          // above the panel covered the panel instead, and one placed in the
-          // document beside the canvas landed under a different offset parent
-          // and slid down the page. Fixed, at the canvas's own rect, below
-          // everything the window draws over it.
-          const img = document.createElement('img')
-          img.src = cv.toDataURL('image/png')
-          const r2 = cv.getBoundingClientRect()
-          // THE OVERLAY LAPS THE PANEL BY ABOUT FIFTY PIXELS, and that is the
-          // harness rather than the window. The canvas element is 944 CSS
-          // wide and the side panel covers its right edge, so the window's
-          // own picture is wider than the part of it anybody sees; a fixed
-          // element makes its own stacking context and sits over the panel
-          // whatever z-index it is given. Three ways of clipping it were
-          // tried and none landed, so it is written down instead: when
-          // reading a --menu picture, the strip of world over the left of the
-          // panel is not something the window draws.
-          const panelL = document.getElementById('inv')?.getBoundingClientRect().left
-          const vis = Math.min(r2.width, Number.isFinite(panelL) ? panelL - r2.left - 10 : r2.width)
-          const clip = document.createElement('div')
-          clip.style.cssText = 'position:fixed;z-index:0;overflow:hidden;pointer-events:none;left:'
-            + r2.left + 'px;top:' + r2.top + 'px;width:' + vis + 'px;height:' + r2.height + 'px'
-          img.style.cssText = 'position:absolute;left:0;top:0;width:' + r2.width
-            + 'px;height:' + r2.height + 'px;image-rendering:auto'
-          clip.appendChild(img)
-          document.body.appendChild(clip)
-          await settle(400)
+        const bp = document.getElementById('bookpanel')
+        say(m ? ('MENUOK ' + (window.__picked ? '[' + window.__picked + '] ' : '')
+                + m.textContent.replace(/\\s+/g, ' ').slice(0, 240))
+              : (BOOK && bp ? 'MENUOK book ' + bp.textContent.replace(/\\s+/g, ' ').slice(0, 240)
+                 : 'SWEEPFAIL no menu opened at ' + mx + ',' + my))
+        // AND A GHOST ON THE LEFT, in --book pictures only: a right-aligned
+        // copy of each row's cost, painted where the canvas is. The canvas
+        // cannot draw those strings -- they exist only in the book's DOM --
+        // so it is a stale composited layer that Chrome's page screenshot
+        // does not refresh, not anything the window puts there. Ignore it
+        // when reading one of these.
+        //
+        // ...unless the subject IS the panel. The overlay is the window's
+        // own canvas laid over the page; it stops a little way into the side
+        // column whatever it is clipped to, and a picture of the book with
+        // its left edge covered is worse than a picture with no world in it.
+        if (!BOOK) {
+          // AND THE WORLD UNDER IT. Chrome's page screenshot does not capture
+          // what is in the canvas -- the canvas came back flat green while
+          // toDataURL of the same canvas held the whole smithy -- so the
+          // canvas's own picture is laid over the canvas as an image before
+          // the shutter. Nothing is drawn a second way: it is the window's own
+          // output, put where a screenshot can see it.
+          {
+            // LAID OVER THE CANVAS, UNDER EVERYTHING ELSE. The canvas element is
+            // 944 CSS wide and the side panel laps about fifty pixels of it, so
+            // the canvas is partly covered BY DESIGN: an overlay at a z-index
+            // above the panel covered the panel instead, and one placed in the
+            // document beside the canvas landed under a different offset parent
+            // and slid down the page. Fixed, at the canvas's own rect, below
+            // everything the window draws over it.
+            const img = document.createElement('img')
+            img.src = cv.toDataURL('image/png')
+            const r2 = cv.getBoundingClientRect()
+            // THE OVERLAY LAPS THE PANEL BY ABOUT FIFTY PIXELS, and that is the
+            // harness rather than the window. The canvas element is 944 CSS
+            // wide and the side panel covers its right edge, so the window's
+            // own picture is wider than the part of it anybody sees; a fixed
+            // element makes its own stacking context and sits over the panel
+            // whatever z-index it is given. Three ways of clipping it were
+            // tried and none landed, so it is written down instead: when
+            // reading a --menu picture, the strip of world over the left of the
+            // panel is not something the window draws.
+            // #panel is the side column and #view is the box the canvas sits
+            // in. The canvas element is wider than the part of it anybody sees,
+            // so the overlay is cut at the panel's own left edge. Asking #inv
+            // for that edge was wrong: #inv is INSIDE the panel and its box is
+            // inset, so the cut landed fifty pixels too far right.
+            const panelL = document.getElementById('panel')?.getBoundingClientRect().left
+            const vis = Math.min(r2.width, Number.isFinite(panelL) && panelL > r2.left
+              ? panelL - r2.left : r2.width)
+            const clip = document.createElement('div')
+            clip.style.cssText = 'position:fixed;z-index:0;overflow:hidden;pointer-events:none;left:'
+              + r2.left + 'px;top:' + r2.top + 'px;width:' + vis + 'px;height:' + r2.height + 'px'
+            img.style.cssText = 'position:absolute;left:0;top:0;width:' + r2.width
+              + 'px;height:' + r2.height + 'px;image-rendering:auto'
+            clip.appendChild(img)
+            document.body.appendChild(clip)
+            await settle(400)
+          }
+
         }
         return
       }
@@ -565,6 +623,14 @@ const FULL_HP = E.maxHealth({})
 world.players[myId] = { x: towns[0].x, y: towns[0].y, hp: FULL_HP, maxHp: FULL_HP, gold: 0,
   inventory: Array(28).fill(null), skills: {},
   equipment: { weapon: null, offhand: null, head: null, body: null, legs: null } }
+if (CASTER) {
+  const me9 = world.players[myId]
+  me9.skills.sorcery = E.XP_TABLE[99]
+  for (let i = 0; i < 4; i++) me9.inventory[i] = { item: 'sigil', qty: 1 }
+  me9.equipment.weapon = { item: 'bone-staff', qty: 1 }
+  me9.book = process.argv.includes('--barrow') ? 'barrow' : 'common'
+  if (me9.book === 'common') me9.equipment.weapon = { item: 'wand', qty: 1 }
+}
 
 mkdirSync(OUT, { recursive: true })
 const pagePath = OUT + '/sweep-page.html'

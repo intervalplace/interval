@@ -580,9 +580,17 @@ console.log('\n--- 7. and pressing an option builds an input the engine will rea
     if (!opts) return
     for (const o of opts.filter((x) => x && !x.head && typeof x.act === 'function')) {
       sent.length = 0
-      try { ctx.__h.clearIntent(); o.act() }
+      let nested = null
+      try { ctx.__h.clearIntent(); o.act(); nested = takeMenu() }
       catch (e) { threw.push(where + ' > "' + o.label + '" ' + e.message); continue }
-      finally { closeAny() }
+      // ONE LINE, THEN A LIST (§7y), so a check that stops at the first list
+      // never reaches the words. "speak a word at the troll" is one row that
+      // opens the book; the spells are on the second page.
+      for (const o2 of (nested ?? []).filter((x) => x && !x.head && typeof x.act === 'function')) {
+        try { o2.act() } catch (e) { threw.push(where + ' > "' + o.label + '" > "' + o2.label + '" ' + e.message) }
+        takeMenu()
+      }
+      closeAny()
       // AN INTENT IS A DEED THAT HAS NOT GONE YET. Most options here do not
       // send: they set an intent and the next tick turns it into an input
       // once the citizen is standing in the right place. Pressing and
@@ -650,6 +658,13 @@ console.log('\n--- 7. and pressing an option builds an input the engine will rea
     const s = fresh()
     s.mobs.m1 = { type, x: 10, y: 11, health: 3, hp: 3 }
     s.ground = { g1: { item: 'bones', qty: 1, x: 10, y: 11 } }
+    // A CASTER, so the words on the beast's own page are live rather than
+    // dimmed. A dimmed row sends nothing, so a check run by a citizen who
+    // cannot cast proves nothing about the spells.
+    s.players[ID].skills.sorcery = E.XP_TABLE[99]
+    for (let k = 0; k < 4; k++) s.players[ID].inventory[k] = { item: 'sigil', qty: 1 }
+    s.players[ID].equipment.weapon = { item: 'bone-staff', qty: 1 }
+    s.players[ID].book = (Object.keys(ctx.__h.mobs()).indexOf(type) % 2) ? 'barrow' : 'common'
     ctx.__h.set(s, ID); stateNow = s
     await pressAll('beast ' + type, () => ctx.__h.press(10, 11, true))
   }
@@ -659,7 +674,8 @@ console.log('\n--- 7. and pressing an option builds an input the engine will rea
     E.addPlayer(s, other.playerId, 10, 11)
     s.players[other.playerId].name = 'alder'
     s.players[ID].calling = 'forester'
-    s.players[ID].inventory[0] = { item: 'sigil', qty: 1 }
+    s.players[ID].skills.sorcery = E.XP_TABLE[99]
+    for (let k = 0; k < 4; k++) s.players[ID].inventory[k] = { item: 'sigil', qty: 1 }
     s.players[ID].equipment.weapon = { item: 'wand', qty: 1 }
     ctx.__h.set(s, ID); stateNow = s
     await pressAll('a citizen', () => ctx.__h.press(10, 11, true))
@@ -791,6 +807,78 @@ console.log('\n--- 8. and the panels, which nothing had ever pressed ---')
     ? malformed.length + ' build an input the engine refuses: ' + malformed.slice(0, 6).join(' | ')
     : 'and what they build passes the engine\u2019s shape check ('
       + [...new Set(pressed)].sort().join(', ') + ')')
+}
+
+console.log('\n--- 9. the spellbook says what the engine asks ---')
+{
+  // THE BOOK IS A TABLE OF CONSTITUTIONAL NUMBERS and it had drifted twice.
+  // It said mending another wants sorcery 50 where the engine asks 75, and
+  // the sigil in the pack offered mend at 20 where the engine asks 50. A
+  // citizen reads those numbers to decide what to train. They are not served
+  // (that would want an engine change and a refounding), so they are held to
+  // the engine's SOURCE here.
+  const num = (name) => {
+    const m = new RegExp('\\b' + name + '\\s*=\\s*(\\d+)').exec(eng)
+    return m ? Number(m[1]) : null
+  }
+  const book = (() => {
+    const i = html.indexOf('const SPELLBOOK = {')
+    const a = html.indexOf('{', i)
+    let d = 0, j = a
+    for (; j < html.length; j++) { if (html[j] === '{') d++; else if (html[j] === '}') { d--; if (!d) break } }
+    return Function('return ' + html.slice(a, j + 1))()
+  })()
+  const WANT = {
+    mend: { lvl: num('MEND_REQ'), every: num('MEND_EVERY') },
+    mendp: { lvl: num('MENDP_REQ'), reach: num('MENDP_RANGE') },
+    still: { lvl: num('STILL_LEVEL'), sigils: num('STILL_SIGILS'), reach: num('STILL_RANGE') },
+    seal: { reach: num('SEAL_RANGE') },
+    unmake: { reach: num('UNMAKE_RANGE') },
+    rot: { lvl: num('ROT_LEVEL'), sigils: num('ROT_SIGILS'), reach: num('ROT_REACH') },
+    taking: { lvl: num('TAKING_LEVEL'), sigils: num('TAKING_SIGILS'), reach: num('TAKING_REACH'),
+      every: num('TAKING_EVERY') },
+    waking: { lvl: num('WAKING_LEVEL'), sigils: num('WAKING_SIGILS'), reach: num('WAKING_REACH'),
+      every: num('WAKING_EVERY') },
+    withering: { lvl: num('WITHER_LEVEL'), sigils: num('WITHER_SIGILS'), reach: num('WITHER_REACH') },
+  }
+  const all = [...(book.common ?? []), ...(book.barrow ?? [])]
+  const wrong = []
+  for (const [v, want] of Object.entries(WANT)) {
+    const sp = all.find((x) => x.v === v)
+    if (!sp) { wrong.push('the book has no ' + v); continue }
+    for (const [k, n] of Object.entries(want)) {
+      if (n === null) { wrong.push('engine.js no longer names the number for ' + v + '.' + k); continue }
+      if (sp[k] !== n) wrong.push(v + '.' + k + ' says ' + sp[k] + ', the engine asks ' + n)
+    }
+  }
+  ok(wrong.length === 0, wrong.length ? wrong.join('; ')
+    : 'all ' + Object.keys(WANT).length + ' spells carry the engine\u2019s own level, cost and reach')
+  // and the two books hold what the engine says they hold
+  const BOOKS = (() => {
+    const i = eng.indexOf('const BOOKS = {')
+    const a = eng.indexOf('{', i)
+    let d = 0, j = a
+    for (; j < eng.length; j++) { if (eng[j] === '{') d++; else if (eng[j] === '}') { d--; if (!d) break } }
+    const out = {}
+    for (const m of eng.slice(a, j + 1).matchAll(/(\w+):\s*new Set\(\[([^\]]*)\]\)/g))
+      out[m[1]] = m[2].split(',').map((t) => t.trim().replace(/['"]/g, '')).filter(Boolean)
+    return out
+  })()
+  const off = []
+  for (const [name, words] of Object.entries(BOOKS)) {
+    const mine = (book[name] ?? []).map((sp) => sp.v).sort().join(' ')
+    const theirs = [...words].sort().join(' ')
+    if (mine !== theirs) off.push(name + ': the window has [' + mine + '], the engine has [' + theirs + ']')
+  }
+  ok(off.length === 0, off.length ? off.join('; ')
+    : 'and each book holds exactly the words the engine puts in it')
+  // the Lists span, which the window copies so it can stop offering words
+  // where none may be spoken
+  const span = num('LISTS_SPAN')
+  const mineSpan = /const LISTS_SPAN_W = (\d+)/.exec(html)
+  ok(span !== null && mineSpan && Number(mineSpan[1]) === span,
+    'and the window keeps the engine\u2019s span for the Lists (' + (mineSpan ? mineSpan[1] : '?')
+      + ' vs ' + span + ')')
 }
 
 console.log(bad ? `\n${bad} failure(s).` : '\nevery deed the world offers is reachable.')
