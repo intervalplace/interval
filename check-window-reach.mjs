@@ -28,6 +28,7 @@
 import { readFileSync } from 'fs'
 import vm from 'vm'
 import E from './engine.js'
+import { makeDocument } from './window-dom.mjs'
 
 if (E.initCrypto) await E.initCrypto()
 
@@ -70,30 +71,16 @@ const INPUTS = (() => {
   return [...new Set(keys)]
 })()
 
-// ---- the fake document, lifted from check-window-panel.mjs ----
-const bars = {}
-const el = (id) => new Proxy(function () {}, {
-  get (t, k) {
-    if (k === '__id') return id
-    if (k === 'style') return new Proxy({}, { get: () => '', set: () => true })
-    if (k === 'dataset') return {}
-    if (k === 'classList') return { add: noop, remove: noop, contains: () => false }
-    if (k === 'children' || k === 'childNodes') return []
-    if (k === 'parentNode' || k === 'parentElement') return el(null)
-    if (k === 'innerHTML' || k === 'textContent' || k === 'value' || k === 'id') return ''
-    if (k === 'width' || k === 'height' || k === 'offsetWidth') return 800
-    // the rect must match what the element reports for width/height, or the
-    // window scales the press and lands on the wrong tile: the first run of
-    // this check pressed y=11 and worldPress read y=15
-    if (k === 'getBoundingClientRect') return () => ({ left: 0, top: 0, width: 800, height: 800 })
-    if (k === 'closest') return () => null
-    if (k === 'toDataURL') return () => 'data:,'
-    if (k === Symbol.toPrimitive) return () => ''
-    return el(null)
-  },
-  set (t, k, v) { if (k === 'innerHTML' && id) bars[id] = String(v); return true },
-  apply: () => el(),
-})
+// ---- the document ----
+//
+// A REAL ONE, SMALL. This used to be a proxy that answered every question
+// with another proxy, which is right for asking "does a frame throw" (which
+// is what check-window-panel.mjs asks) and useless for asking "what happens
+// when somebody presses this". Half of this window is panels built by setting
+// innerHTML and then finding the pieces again, and nothing had ever pressed
+// one. See window-dom.mjs.
+const doc = makeDocument(html)
+
 // ---- a fake audio graph that counts what it was asked to build ----
 const built = []
 const aparam = () => ({ value: 0, setValueAtTime: noop, setTargetAtTime: noop,
@@ -114,14 +101,7 @@ const winErrors = []
 const sent = []
 let CLOCK = 1000
 const ctx = {
-  document: new Proxy({}, { get (t, k) {
-    if (k === 'getElementById') return (id) => el(id)
-    if (k === 'querySelector' || k === 'createElement') return () => el('new')
-    if (k === 'querySelectorAll') return () => []
-    if (k === 'addEventListener') return noop
-    if (k === 'body' || k === 'head') return el(null)
-    return el(null)
-  } }),
+  document: doc,
   // the window swallows a throw in onState into `_noteFrameErr`, which writes
   // to a bar on the page and to console.error. A harness that discards both
   // cannot tell a window that refused a state from one that took it.
@@ -700,6 +680,117 @@ console.log('\n--- 7. and pressing an option builds an input the engine will rea
   ok(malformed.length === 0, malformed.length
     ? malformed.length + ' build an input the engine refuses at the door: ' + malformed.slice(0, 6).join(' | ')
     : 'all ' + seen.size + ' distinct inputs the menus build pass the engine\u2019s own shape check')
+}
+
+console.log('\n--- 8. and the panels, which nothing had ever pressed ---')
+{
+  // HALF THIS WINDOW IS NOT A MENU. The bank, the counter, the anvil, the
+  // trade table, the spellbook, the worn slots and the skill guide are built
+  // by writing HTML into a pane and finding the pieces again, and no check
+  // had ever clicked one of them: the harness every other checker uses
+  // answers `querySelectorAll` with an empty list on purpose.
+  const base = { playerId: ID, worldId: WID, tick: 1, sig: 'c'.repeat(128) }
+  const threw = [], malformed = [], pressed = []
+  const press = (where, sel, prepare) => {
+    let st = null
+    try { st = prepare() } catch (e) { threw.push(where + ' (setting up) ' + e.message); return }
+    ctx.__h.set(st, ID)
+    try { ctx.panel(st) } catch (e) { threw.push(where + ' (drawing the panel) ' + e.message); return }
+    const els = doc.querySelectorAll(sel)
+    if (!els.length) { threw.push(where + ': the panel drew no ' + sel); return }
+    for (const el of els) {
+      sent.length = 0
+      // TWICE. Two of these controls are deliberately double-tap: setting a
+      // container down forfeits the route and asks again first, and a worn
+      // slot names the gear on the first tap and takes it off on the second.
+      // Pressing once reads both as dead.
+      try { el.click(); el.click() }
+      catch (e) { threw.push(where + ' ' + sel + '=' + el.getAttribute(sel.slice(1, -1)) + ': ' + e.message); continue }
+      // A PANE CONTROL MAY ASK BEFORE IT ACTS. Releasing a consignment
+      // forfeits the route, so it opens a menu rather than doing it, and a
+      // check that reads the socket straight after the click sees nothing
+      // and calls the control dead. Follow into whatever it opened.
+      const asked = takeMenu()
+      for (const o of (asked ?? []).filter((x) => x && !x.head && typeof x.act === 'function')) {
+        try { o.act() } catch (e) { threw.push(where + ' > "' + o.label + '": ' + e.message) }
+        takeMenu()
+      }
+      for (const a of sent) {
+        pressed.push(a.do)
+        let inp = null
+        try { inp = ctx.__h.bridge(a) } catch (e) { malformed.push(where + ': the act ladder threw on ' + a.do); continue }
+        if (!inp) { malformed.push(where + ' sends `' + a.do + '`, which the act ladder has no line for'); continue }
+        const why = E.validateInputShape({ ...base, ...inp })
+        if (typeof why === 'string') malformed.push(where + ' sends ' + JSON.stringify(inp) + ': ' + why)
+      }
+    }
+  }
+  const beside = (type, extra) => () => {
+    const st = fresh()
+    E.addNode(st, 'p1', type, 10, 11)
+    if (extra) extra(st, st.nodes.p1)
+    return st
+  }
+
+  press('the vault', '[data-wd]', beside('vault', (st) => {
+    st.players[ID].vaults = { logs: 5, 'iron-ore': 3 }
+  }))
+  press('the vault, all of it', '[data-wdall]', beside('vault', (st) => {
+    st.players[ID].vaults = { logs: 5 }
+    st.players[ID].inventory[0] = { item: 'logs', qty: 1 }
+  }))
+  press('the counter', '[data-consign]', beside('store', (st) => {
+    st.players[ID].inventory[0] = { item: 'logs', qty: 3 }
+  }))
+  press('the counter, mid route', '[data-release]', beside('store', (st) => {
+    st.players[ID].consignment = { from: 'p1', route: ['p1'], leg: 0,
+      items: [{ item: 'logs', qty: 3 }, ...Array(11).fill(null)] }
+  }))
+  press('the counter, at the end', '[data-deliver]', beside('store', (st) => {
+    st.players[ID].consignment = { from: 'p1', route: ['p1'], leg: 1,
+      items: [{ item: 'logs', qty: 3 }, ...Array(11).fill(null)] }
+  }))
+  press('the anvil', '[data-recipe]', beside('anvil', (st) => {
+    st.players[ID].inventory[0] = { item: 'iron', qty: 9 }
+    st.players[ID].inventory[1] = { item: 'logs', qty: 9 }
+    st.players[ID].inventory[2] = { item: 'steel', qty: 9 }
+  }))
+  press('the table', '[data-tup]', () => {
+    const st = fresh()
+    const them = E.generateIdentity()
+    E.addPlayer(st, them.playerId, 10, 11)
+    st.players[them.playerId].name = 'alder'
+    st.players[ID].inventory[0] = { item: 'logs', qty: 2 }
+    // a good already ON the table: `data-tup` is drawn for what is up, so an
+    // empty side draws no control and the pane looks unpressable
+    st.players[ID].trade = { with: them.playerId, slots: [0], gold: 0, settled: false }
+    st.players[them.playerId].trade = { with: ID, slots: [], gold: 0, settled: false }
+    return st
+  })
+  press('the worn slots', '[data-worn]', () => {
+    const st = fresh()
+    st.players[ID].equipment.weapon = { item: 'iron-sword', qty: 1 }
+    return st
+  })
+  // THE BOOK, which has to be opened first
+  press('the spellbook', '[data-sp]', () => {
+    const st = fresh()
+    st.players[ID].skills.sorcery = E.XP_TABLE[99]
+    for (let i = 0; i < 4; i++) st.players[ID].inventory[i] = { item: 'sigil', qty: 1 }
+    st.players[ID].equipment.weapon = { item: 'wand', qty: 1 }
+    ctx.__h.set(st, ID)
+    try { ctx.drawBook() } catch (e) {}
+    const b = doc.getElementById('bookbtn')
+    try { b.click() } catch (e) {}
+    return st
+  })
+  ok(threw.length === 0, threw.length
+    ? threw.length + ' panel controls would not answer: ' + threw.slice(0, 8).join(' | ')
+    : 'every pane drew its controls and every one of them answered a press')
+  ok(malformed.length === 0, malformed.length
+    ? malformed.length + ' build an input the engine refuses: ' + malformed.slice(0, 6).join(' | ')
+    : 'and what they build passes the engine\u2019s shape check ('
+      + [...new Set(pressed)].sort().join(', ') + ')')
 }
 
 console.log(bad ? `\n${bad} failure(s).` : '\nevery deed the world offers is reachable.')
