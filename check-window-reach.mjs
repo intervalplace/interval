@@ -377,8 +377,11 @@ console.log('\n--- 2b. and so does everything else you can press ---')
     ctx.__h.set(s, ID)
     ctx.__h.press(10, 10, true)
     const labels = (takeMenu() ?? []).filter((o) => o && o.label).map((o) => o.label)
-    ok(labels.some((l) => /speak a word at yourself/.test(l)),
-      'right-clicking where you stand offers the words that land on you: ' + labels.join(' / '))
+    // §7y: a list of one is worse than the option, so a caster who can say
+    // exactly one word at themselves gets `mend` on the menu rather than a
+    // page with a single row on it.
+    ok(labels.some((l) => /^mend\b/.test(l) || /cast a spell at yourself/.test(l)),
+      'right-clicking where you stand offers the spells that land on you: ' + labels.join(' / '))
   }
   // AND THE APPRENTICESHIP IS ON THAT LIST, which is the deed that could not
   // be begun from this window at all
@@ -693,6 +696,17 @@ console.log('\n--- 7. and pressing an option builds an input the engine will rea
     ctx.__h.set(s, ID); stateNow = s
     await pressAll('a citizen', () => ctx.__h.press(10, 11, true))
   }
+  // AND YOURSELF, which is where the one word that lands on nobody else is
+  // cast. Section 7 pressed every other kind of target and not this one, so
+  // `cast` was built by nothing here and the guard below caught it.
+  {
+    const s = fresh()
+    s.players[ID].skills.sorcery = E.XP_TABLE[99]
+    s.players[ID].inventory[0] = { item: 'sigil', qty: 1 }
+    s.players[ID].health = 10
+    ctx.__h.set(s, ID); stateNow = s
+    await pressAll('yourself', () => ctx.__h.press(10, 10, true))
+  }
   for (const item of [...new Set([...ctx.__h.priced(), ...ctx.__h.equippable(), ...ctx.__h.heals(),
     'bones', 'dragon-bones', 'logs', 'sigil', 'quick-stone', 'chart', 'rubble', 'arrows',
     'fire-arrows', 'lamprey-spit'])]) {
@@ -709,6 +723,13 @@ console.log('\n--- 7. and pressing an option builds an input the engine will rea
   ok(malformed.length === 0, malformed.length
     ? malformed.length + ' build an input the engine refuses at the door: ' + malformed.slice(0, 6).join(' | ')
     : 'all ' + seen.size + ' distinct inputs the menus build pass the engine\u2019s own shape check')
+  // AND THE WORD THAT LANDS ON YOU IS AMONG THEM. `cast` left the panels when
+  // the book stopped carrying a button, so if pressing yourself ever stopped
+  // offering it, mending would be unreachable and every other check here
+  // would still be green.
+  const verbs = [...seen].map((k) => JSON.parse(k).do)
+  ok(verbs.includes('cast'), 'and mending yourself is one of them'
+    + (verbs.includes('cast') ? '' : ' (no `cast` was built by any menu)'))
 }
 
 console.log('\n--- 8. and the panels, which nothing had ever pressed ---')
@@ -866,6 +887,31 @@ console.log('\n--- 9. the spellbook says what the engine asks ---')
   }
   ok(wrong.length === 0, wrong.length ? wrong.join('; ')
     : 'all ' + Object.keys(WANT).length + ' spells carry the engine\u2019s own level, cost and reach')
+  // TRANSMUTE IS THE ONE THAT SPENDS NO SIGIL, and the book charged one for
+  // it, so a caster carrying none was told they could not do the thing they
+  // could. The engine says it in as many words beside the case; this holds
+  // the book to the case itself.
+  {
+    const i = eng.indexOf("case 'transmute': {")
+    const blk = eng.slice(i, eng.indexOf("case 'cast': {", i))
+    const tm = all.find((x) => x.v === 'transmute')
+    const bad2 = []
+    if (!tm) bad2.push('the book has no transmute')
+    else {
+      if (/countItem\(p\.inventory, 'sigil'\)|item === 'sigil'/.test(blk))
+        bad2.push('the engine now asks transmute for a sigil and the book does not')
+      else if (tm.sigils !== 0) bad2.push('the book charges transmute ' + tm.sigils
+        + ' sigils and the engine spends the thing itself')
+      // the instruments, taken from the clause that refuses a bare hand
+      const hands = [...blk.matchAll(/held !== '([a-z-]+)'/g)].map((m) => m[1]).sort()
+      const mine = [...(tm.hands ?? [])].sort()
+      if (hands.length && mine.join(' ') !== hands.join(' '))
+        bad2.push('transmute wants one of [' + hands.join(', ') + '] in hand; the book says ['
+          + mine.join(', ') + ']')
+    }
+    ok(bad2.length === 0, bad2.length ? bad2.join('; ')
+      : 'and transmute spends the thing itself, with any of the four instruments in hand')
+  }
   // and the two books hold what the engine says they hold
   const BOOKS = (() => {
     const i = eng.indexOf('const BOOKS = {')
