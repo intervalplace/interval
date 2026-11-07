@@ -129,13 +129,19 @@ vm.createContext(ctx)
 // §6dj: a `let` at the top of a vm script is not on the context object, so the
 // only way in is a setter compiled into the same lexical scope.
 vm.runInContext(body + `
+;globalThis.__said = []
 ;globalThis.__h = {
   set: (w, i) => { world = w; myId = i },
   // the menu, caught at the one door every menu goes through. floatMenu gets
   // the FINAL list -- heading and 'walk here' included -- which is the thing
   // being tested, so the spy goes here and not on chooseAction.
   spy: () => { let last = null
-    floatMenu = (opts) => { last = opts }
+    floatMenu = (opts) => { last = opts
+      for (const o of opts ?? []) {
+        if (o && o.head) globalThis.__said.push(o.head)
+        if (o && o.label) globalThis.__said.push(o.label)
+      }
+    }
     return () => { const l = last; last = null; return l } },
   press: (x, y, right) => {
     cam.x = 0; cam.y = 0
@@ -938,6 +944,31 @@ console.log('\n--- 9. the spellbook says what the engine asks ---')
   ok(span !== null && mineSpan && Number(mineSpan[1]) === span,
     'and the window keeps the engine\u2019s span for the Lists (' + (mineSpan ? mineSpan[1] : '?')
       + ' vs ' + span + ')')
+}
+
+console.log('\n--- 10. nothing a menu says is a symbol ---')
+{
+  // A MENU IS A SENTENCE, NOT A DIAGRAM. The spell rows carried a diamond for
+  // the sigil, and the headings were held together with middots: typography
+  // standing in for words, in a window whose whole register is plain English.
+  // Quantities were a times sign, which reads as arithmetic where a count and
+  // a noun would do.
+  //
+  // Every label and heading this check has raised, in all nine sections
+  // above, is read back here. That is the real text a citizen sees, not a
+  // guess at it from the source.
+  const said = [...new Set(ctx.__said ?? [])]
+  // the apostrophe and the ellipsis are punctuation and stay; everything
+  // outside plain ASCII otherwise is a symbol and does not belong
+  const KEEP = new Set(['\u2019', '\u2026'])
+  const bad10 = said.filter((t) => [...String(t)].some((c) => c.charCodeAt(0) > 126 && !KEEP.has(c)))
+  ok(bad10.length === 0, bad10.length
+    ? bad10.length + ' carry a symbol: ' + bad10.slice(0, 6).join(' | ')
+    : 'all ' + said.length + ' labels and headings are words, with no glyph standing in for one')
+  const dotted = said.filter((t) => / \u00b7 |&middot;/.test(String(t)))
+  ok(dotted.length === 0, dotted.length
+    ? dotted.length + ' are held together with a separator dot: ' + dotted.slice(0, 4).join(' | ')
+    : 'and none of them is held together with a separator dot')
 }
 
 console.log(bad ? `\n${bad} failure(s).` : '\nevery deed the world offers is reachable.')

@@ -7240,7 +7240,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b90'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b91'  // stamp: if your screen says an older build, hard-refresh
 // ===========================================================================
 // WHAT A CITIZEN IS SEEN TO BE DOING
 //
@@ -7471,7 +7471,7 @@ function askTake(g2, alreadyAided, onYes) {
   _askBox = box
   box.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;'
     + 'justify-content:center;background:rgba(8,7,5,.72)'
-  const what = String(g2.item).replace(/-/g, ' ') + (g2.qty > 1 ? ' \u00d7' + g2.qty : '')
+  const what = (g2.qty > 1 ? g2.qty + ' ' : '') + String(g2.item).replace(/-/g, ' ')
   const who = dropperName(g2.by)
   const esc = (t) => String(t).replace(/[&<>"]/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
@@ -7507,9 +7507,9 @@ const feed = t => { const now = performance.now()
   // deduplicated. Fold a repeat into a count instead.
   const back = feedLines.length - 1
   for (let i = back; i >= 0 && i > back - 6; i--) {
-    const m = /^(.*?)(?: \u00d7(\d+))?$/.exec(feedLines[i])
+    const m = /^(.*?)(?: \((\d+) times\))?$/.exec(feedLines[i])
     if (m && m[1] === t && now - lastFeed.at < 12000) {
-      feedLines[i] = t + ' \u00d7' + ((+m[2] || 1) + 1)
+      feedLines[i] = t + ' (' + ((+m[2] || 1) + 1) + ' times)'
       lastFeed = { text: t, at: now }
       const el0 = document.getElementById('feed')
       el0.innerHTML = feedLines.map(x => '<div>' + x + '</div>').join(''); el0.scrollTop = 9e9
@@ -8072,7 +8072,7 @@ function onMessage (ev) {
       window._frames[m.type ?? '?'] = (window._frames[m.type ?? '?'] ?? 0) + 1
       const gi = document.getElementById('gateinfo')
       if (gi) gi.innerHTML = 'waking the world&hellip;<br><span style="font-size:10px;opacity:.75">heard: '
-        + Object.entries(window._frames).map(([k, v]) => k + ' \u00d7' + v).join(', ') + '</span>'
+        + Object.entries(window._frames).map(([k, v]) => v + ' ' + k).join(', ') + '</span>'
     }
   }
   catch (e) {
@@ -17441,7 +17441,7 @@ function panel(s) {
     const price = PRICES?.[name]
     if (price) bits.push(price + ' coin' + (price === 1 ? '' : 's'))
     return '<b>' + name.replace(/-/g, ' ') + '</b>'
-      + (bits.length ? '<span class="stat">' + bits.join(' &middot; ') + '</span>' : '')
+      + (bits.length ? '<span class="stat">' + bits.join(', ') + '</span>' : '')
   }
   {
     const el = document.getElementById('itemname')
@@ -17499,7 +17499,7 @@ function panel(s) {
         // verb in the window that acts on everything at once by default.
         ? vaulted.map(([item, q]) => '<span style="white-space:nowrap;display:inline-block;margin:3px 3px 0 0">'
             + '<button data-wd="' + item + '">'
-            + (ICONS[item] ?? '') + ' ' + item.replace(/-/g, ' ') + ' \u00d7' + q + '</button>'
+            + (ICONS[item] ?? '') + ' ' + q + ' ' + item.replace(/-/g, ' ') + '</button>'
             + (q > 1 ? '<button data-wdall="' + item + '" title="withdraw all ' + q + '"'
                 + ' style="margin-left:-1px;padding:0 5px;color:#a89a7c">all</button>' : '')
             + '</span>').join(''):
@@ -17591,7 +17591,7 @@ function panel(s) {
             + (myHaul.items ?? []).map((sl, k) => sl && PRICES_C[sl.item]
               ? '<button data-deliver="' + k + '" style="margin:1px;background:#3a3126;color:#e8d9a0;'
                 + 'border:1px solid #6e5433;padding:3px 6px;font-family:inherit;font-size:10px;cursor:pointer">'
-                + sl.item.replace(/-/g, ' ') + (sl.qty > 1 ? ' \u00d7' + sl.qty : '') + ' \u2192 discharge</button>':
+                + 'discharge ' + (sl.qty > 1 ? sl.qty + ' ' : '') + sl.item.replace(/-/g, ' ') + '</button>':
               '').join('')):
         '<span style="color:#8a7f68;font-size:10px">Carry it to the last town on the route.</span>')
       + '<button data-release="1" style="' + BTN + ';border-color:#a33">set the container down'
@@ -18896,8 +18896,8 @@ function spellOpts(kind, targetName, targetId, t, me) {
   const rows = spellsOn(kind, me, world)
   if (!rows.length) return []
   const row = ({ sp, why }) => ({
-    label: sp.name + (why ? '' : '  ' + spellCost(sp)
-      + (sp.reach ? ', within ' + sp.reach : '')),
+    label: sp.name + (why ? '' : ' (' + spellCost(sp)
+      + (sp.reach ? ', within ' + sp.reach : '') + ')'),
     dim: !!why,
     act: () => {
       if (why) { feed('You cannot cast ' + sp.name + '. It wants ' + why + '.'); return }
@@ -18918,7 +18918,7 @@ function spellOpts(kind, targetName, targetId, t, me) {
     dim: !can.length,
     act: () => chooseAction([
       { head: (bookOf(me) === 'barrow' ? 'the barrow-work' : 'your spells')
-        + ' \u00b7 at ' + targetName },
+        + ' at ' + targetName },
       ...rows.map(row),
     ]),
   }]
@@ -18974,7 +18974,14 @@ function describeSpell(sp, why) {
 // What a caster wants from a glance is which words they can say now, and for
 // the ones they cannot, the single thing they lack. Everything else is one
 // press away.
-const spellCost = (sp) => (sp.sigils > 0 ? sp.sigils + '\u25c6' : 'the thing itself')
+// §7ek: A SIGIL IS CALLED A SIGIL. The cost was a diamond glyph, which is a
+// symbol this world does not use anywhere else and which nobody can read
+// without being told; and the rows were held together with middots, which is
+// typography standing in for a sentence. Both are gone from every menu and
+// every heading: plain words, and a comma where a comma belongs.
+const spellCost = (sp) => (sp.sigils > 0
+  ? sp.sigils + (sp.sigils === 1 ? ' sigil' : ' sigils')
+  : 'the thing itself')
 function spellNote(sp, why) {
   if (!why) return spellCost(sp)
   // the first clause of the refusal is the thing that is missing; the rest is
@@ -19968,7 +19975,7 @@ function worldPress(e, asLeft) {
     if (here.length > 1) {
       _pressName = here.length + ' things on the ground'
       _pressLook = () => feed('On the ground: '
-        + here.map(([, g4]) => say1(g4.item) + ((g4.qty ?? 1) > 1 ? ' \u00d7' + g4.qty : '')).join(', ') + '.')
+        + here.map(([, g4]) => ((g4.qty ?? 1) > 1 ? g4.qty + ' ' : '') + say1(g4.item)).join(', ') + '.')
       // A SCRIPT MAY NAME ANY OF THEM, SO A PERSON MUST BE ABLE TO REACH ANY
       // OF THEM. This took here[0] and nothing else -- the dearest thing, with
       // no way to choose -- while an automated citizen could lift the
@@ -19987,7 +19994,7 @@ function worldPress(e, asLeft) {
       const sealable9 = staffed9 && here.filter(([, g3]) => g3.by && !g3.sealSpent && !g3.sealedBy)
       chooseAction([
         ...here.slice(0, 10).map(([gid2, g3]) => ({
-          label: 'take the ' + g3.item.replace(/-/g, ' ') + ((g3.qty ?? 1) > 1 ? ' (' + g3.qty + ')' : '')
+          label: 'take the ' + ((g3.qty ?? 1) > 1 ? g3.qty + ' ' : '') + g3.item.replace(/-/g, ' ')
             + (g3.sealedBy ? (g3.by === myId ? ', sealed for you' : ', sealed, not yours') : ''),
           act: () => {
             if (g3.sealedBy && g3.by !== myId) {
@@ -20008,7 +20015,7 @@ function worldPress(e, asLeft) {
     }
     if (here.length) {
       const [gid, g2] = here[0]
-      _pressName = say1(g2.item) + ((g2.qty ?? 1) > 1 ? ' (' + g2.qty + ')' : '')
+      _pressName = ((g2.qty ?? 1) > 1 ? g2.qty + ' ' : '') + say1(g2.item)
       _pressLook = () => lookAtItem(g2.item)
       // §6aj/§6bn: a goo staff and a sigil reach it where it lies, five tiles
       // off. TWO verbs now come out of that one staff and they are opposites,
@@ -20316,7 +20323,7 @@ function worldPress(e, asLeft) {
           const price = (d) => { const v = Math.max(0, ask + d)
             send({ do: 'price_market', ask: v }); feed('You ask ' + v + ' gold.') }
           chooseAction([
-            { head: 'your stall \u00b7 ' + (good ? qty + ' \u00d7 ' + say1(good) : 'empty')
+            { head: 'your stall, ' + (good ? qty + ' ' + say1(good) : 'empty')
               + (ask > 0 ? ' at ' + ask + 'g' : ', unpriced') },
             ...(canPut ? [{ label: 'put something on it', act: () => {
               const slot = (me.inventory ?? []).findIndex((sl) => sl && sl.item !== 'dragonbow'
@@ -20351,8 +20358,9 @@ function worldPress(e, asLeft) {
           const purseM = meS.gold ?? 0
           const brandM = (meS.brandedUntil ?? 0) > world.tick
           chooseAction([
-            { head: 'a stall · ' + (good ? qty + ' × ' + say1(good) : 'empty')
-              + (n.ask > 0 ? ' at ' + n.ask + 'g' : ', unpriced') + ' · you have ' + purseM + 'g' },
+            { head: 'a stall, ' + (good ? qty + ' ' + say1(good) : 'empty')
+              + (n.ask > 0 ? ' at ' + n.ask + ' gold' : ', unpriced')
+              + ', you have ' + purseM + ' gold' },
             ...(good && n.ask > 0
               ? [{ label: 'buy the ' + say1(good) + ' (' + n.ask + 'g)',
                   dim: brandM || purseM < n.ask || !adj,
@@ -20762,8 +20770,8 @@ function worldPress(e, asLeft) {
         const packed = me.inventory.filter((sl) => sl).length
         chooseAction([
           { head: held.length
-            ? 'your vault \u00b7 ' + held.length + ' kind' + (held.length === 1 ? '' : 's')
-            : 'your vault \u00b7 empty' },
+            ? 'your vault, ' + held.length + ' kind' + (held.length === 1 ? '' : 's')
+            : 'your vault, empty' },
           ...held.slice(0, 10).map(([item, qty]) => ({
             label: 'take ' + (STACKABLE.has(item) && qty > 1 ? 'the ' + qty + ' ' : 'a ') + say1(item),
             dim: !roomP,
@@ -20815,9 +20823,9 @@ function worldPress(e, asLeft) {
         const purse = me.gold ?? 0
         const branded = (me.brandedUntil ?? 0) > world.tick
         chooseAction([
-          { head: who + ' \u00b7 you have ' + purse + 'g' },
+          { head: who + ', you have ' + purse + ' gold' },
           ...wares.map(([it, pr]) => ({
-            label: say1(it) + '  ' + pr + 'g',
+            label: say1(it) + ', ' + pr + ' gold',
             dim: branded || purse < pr,
             act: () => {
               if (branded) { feed('No keeper will take your money while the mark is on you.'); return }
@@ -20902,9 +20910,9 @@ function worldPress(e, asLeft) {
         if (con) {
           const carried = (con.items ?? []).map((sl, i) => ({ sl, i })).filter((e) => e.sl)
           const legs = (con.route ?? []).length
-          const where = legs ? ' \u00b7 leg ' + ((con.leg ?? 0) + 1) + ' of ' + legs : ''
+          const where = legs ? ', leg ' + ((con.leg ?? 0) + 1) + ' of ' + legs : ''
           chooseAction([
-            { head: 'your consignment \u00b7 ' + carried.length + ' of ' + INV_SLOTS + where },
+            { head: 'your consignment, ' + carried.length + ' of ' + INV_SLOTS + where },
             ...carried.slice(0, 10).map(({ sl, i }) => ({
               label: 'discharge the ' + say1(sl.item) + ((sl.qty ?? 1) > 1 ? ' (' + sl.qty + ')' : ''),
               act: () => { send({ do: 'deliver', slot: i })
@@ -20918,7 +20926,7 @@ function worldPress(e, asLeft) {
         }
         const slots = me.inventory.map((sl, i) => ({ sl, i })).filter((e) => e.sl)
         chooseAction([
-          { head: 'the counter \u00b7 nothing consigned' },
+          { head: 'the counter, nothing consigned' },
           ...(slots.length ? [{ label: 'seal what you are carrying (' + slots.length + ')',
             act: () => { send({ do: 'consign', slots: slots.map((e) => e.i) })
               feed('Sealed. The route is drawn once and never redrawn: walk it.') } }]
