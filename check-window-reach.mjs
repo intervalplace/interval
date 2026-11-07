@@ -367,6 +367,19 @@ console.log('\n--- 2b. and so does everything else you can press ---')
       'a citizen is named and offers more than one thing: '
         + opts.map((o) => o.head ? '[' + o.head + ']' : o.label).join(' / '))
   }
+  // AND YOU CAN PRESS YOURSELF, which is where a word that lands on nobody
+  // else is spoken. It used to have a button on the book, which gave one row
+  // of a list a control the other five did not have.
+  {
+    const s = fresh()
+    s.players[ID].skills.sorcery = E.XP_TABLE[99]
+    s.players[ID].inventory[0] = { item: 'sigil', qty: 1 }
+    ctx.__h.set(s, ID)
+    ctx.__h.press(10, 10, true)
+    const labels = (takeMenu() ?? []).filter((o) => o && o.label).map((o) => o.label)
+    ok(labels.some((l) => /speak a word at yourself/.test(l)),
+      'right-clicking where you stand offers the words that land on you: ' + labels.join(' / '))
+  }
   // AND THE APPRENTICESHIP IS ON THAT LIST, which is the deed that could not
   // be begun from this window at all
   {

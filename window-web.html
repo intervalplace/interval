@@ -7240,7 +7240,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b88'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b89'  // stamp: if your screen says an older build, hard-refresh
 // ===========================================================================
 // WHAT A CITIZEN IS SEEN TO BE DOING
 //
@@ -18858,7 +18858,7 @@ function castable(sp, me, s) {
   const have = (me.inventory || []).reduce((t, sl) => t + (sl?.item === 'sigil' ? (sl.qty ?? 1) : 0), 0)
   if (have < sp.sigils) return sp.sigils + (sp.sigils === 1 ? ' sigil' : ' sigils')
     + ' (you carry ' + have + ')'
-  if (sp.wand && me.equipment?.weapon?.item !== sp.wand) return 'a ' + say1(sp.wand) + ' in hand'
+  if (sp.wand && me.equipment?.weapon?.item !== sp.wand) return 'a ' + say1(sp.wand)
   return null
 }
 // WHAT CAN BE SPOKEN AT THIS KIND OF THING. `kind` is 'beast', 'citizen',
@@ -18902,6 +18902,15 @@ function speakAt(sp, targetId, t, me) {
     feed(sp.name + ' reaches ' + sp.reach + ' tiles and they are ' + d + ' away.')
     return
   }
+  // a word that lands on you goes out as a `cast`, which is the engine's own
+  // shape for it: one spell, named, with no target
+  if (sp.on === 'self') {
+    send({ do: 'cast', spell: sp.v })
+    feed('You close your own wounds.')
+    tone(520, 0.18, { type: 'sine', vol: 0.05 })
+    tone(780, 0.22, { type: 'sine', vol: 0.045, at: 0.08 })
+    return
+  }
   send({ do: sp.v, targetId, target: targetId })
   // §7cr: AND THE WORLD SHOWS IT. The mark is raised here, on the press,
   // rather than from a state diff: three of these change no hitpoints at all
@@ -18911,6 +18920,35 @@ function speakAt(sp, targetId, t, me) {
   else if (MARK[sp.v]) spellMarks.push({ kind: MARK[sp.v], x: t.x, y: t.y,
     tx: me.x, ty: me.y, at: performance.now() })
   feed('You speak ' + sp.name + ' at ' + (t?.name ?? 'them') + '.')
+}
+// §7ek: WHAT ONE WORD IS, said when you ask. The book lists; this explains,
+// in the feed, where every other "look at" in this window puts its answer.
+function describeSpell(sp, why) {
+  const bits = [sp.says + '.']
+  bits.push(sp.sigils + (sp.sigils === 1 ? ' sigil' : ' sigils') + '.')
+  if (sp.reach) bits.push('It reaches ' + sp.reach + ' tiles.')
+  if (sp.every) bits.push('Once in ' + sp.every + ' intervals.')
+  bits.push({
+    self: 'Spoken at yourself: right-click where you stand.',
+    item: 'Spoken at a thing in your pack.',
+    citizen: 'Spoken at a citizen.',
+    any: 'Spoken at a beast or a citizen.',
+    pile: 'Spoken at something lying on the ground.',
+  }[sp.on] ?? '')
+  if (why) bits.push('You cannot say it yet: it wants ' + why + '.')
+  feed(bits.filter(Boolean).join(' '))
+}
+// THE ONE THING A ROW HAS TO SAY AT A GLANCE. Not the cost AND the reach AND
+// the prose AND where it is spoken, which is what was here: six words with
+// three lines of small grey text each is a wall, and a wall is not read.
+// What a caster wants from a glance is which words they can say now, and for
+// the ones they cannot, the single thing they lack. Everything else is one
+// press away.
+function spellNote(sp, why) {
+  if (!why) return sp.sigils + '\u25c6'
+  // the first clause of the refusal is the thing that is missing; the rest is
+  // the arithmetic, which belongs in the sentence rather than in the margin
+  return why.replace(/\s*\(.*$/, '')
 }
 function drawBook() {
   const me = world?.players?.[myId]; if (!me) return
@@ -18923,42 +18961,29 @@ function drawBook() {
   btn.style.background = 'var(--stone-dk)'
   pan.style.display = bookOpen ? 'block' : 'none'
   if (!bookOpen) return
-  const WHERE = {
-    self: 'spoken here',
-    item: 'right-click a thing in your pack',
-    citizen: 'right-click a citizen',
-    any: 'right-click a beast or a citizen',
-    pile: 'right-click something lying on the ground',
-  }
   const barred = inListsW(world, me.x, me.y)
-  pan.innerHTML = (barred
-    ? '<div style="padding:4px 6px;color:var(--dim);font-size:10px">'
-      + 'No word is spoken in the Lists.</div>' : '')
-    + SPELLBOOK[book].map((sp, i) => {
-      const why = castable(sp, me, world)
-      const cost = sp.sigils + '\u25c6'
-        + (sp.reach ? ' \u00b7 within ' + sp.reach : '')
-        + (sp.every ? ' \u00b7 once in ' + sp.every : '')
-      return '<div style="padding:4px 6px;border-top:1px solid var(--edge);'
-        + 'color:' + (why ? 'var(--dim)' : 'var(--gold)') + '">'
-        + '<b>' + sp.name + '</b>'
-        + '<span style="float:right;font-size:10px">' + (why ? 'wants ' + why : cost) + '</span>'
-        + '<div style="font-size:10px;color:var(--dim)">' + sp.says + '</div>'
-        + '<div style="font-size:10px;color:var(--dim);opacity:.8">' + WHERE[sp.on] + '</div>'
-        + (sp.on === 'self' && !why
-          ? '<button data-sp="' + i + '" style="' + BTN + ';margin-top:3px">speak it</button>' : '')
-        + '</div>'
-    }).join('')
-  // the only button a book has: a word that lands on nobody but you. Every
-  // other word is spoken at the thing it lands on, which is where it is
-  // offered.
+  pan.innerHTML = SPELLBOOK[book].map((sp, i) => {
+    const why = castable(sp, me, world)
+    return '<div data-sp="' + i + '" style="display:flex;justify-content:space-between;'
+      + 'gap:8px;padding:3px 7px;cursor:pointer;white-space:nowrap;'
+      + 'color:' + (why ? 'var(--dim)' : 'var(--gold)') + '">'
+      + '<span>' + sp.name + '</span>'
+      + '<span style="font-size:10px;opacity:.85">' + spellNote(sp, why) + '</span>'
+      + '</div>'
+  }).join('')
+    // TWO LINES WRITTEN AS TWO, rather than one long one left to wrap: a
+    // sentence that breaks after its last full stop leaves a single word on a
+    // line of its own, which is the kind of raggedness that makes a clean
+    // list look unfinished.
+    + '<div style="padding:4px 7px;border-top:1px solid var(--edge);color:var(--dim);'
+    + 'font-size:10px;line-height:1.5">'
+    + (barred ? 'No word is spoken in the Lists.'
+      : 'Right-click what a word lands on.')
+    + '<br>Tap a word to hear what it does.</div>'
   pan.querySelectorAll('[data-sp]').forEach((el) => {
     el.onclick = () => {
       const sp = SPELLBOOK[book][Number(el.dataset.sp)]
-      const why = castable(sp, me, world)
-      if (why) { feed('You cannot speak ' + sp.name + '. It wants ' + why + '.'); return }
-      send({ do: 'cast', spell: 'mend' })
-      feed('You close your own wounds.')
+      describeSpell(sp, castable(sp, me, world))
     }
   })
 }
@@ -19269,28 +19294,16 @@ function invOptions(i) {
   if (it.item === 'sigil') {
     // §7ek: A SIGIL IS WHAT A WORD IS SPENT ON, not where a word is chosen.
     //
-    // This offered the stilling, which armed a flag on `window` and asked you
-    // to tap a target, and "cast: mend" at sorcery 20 when the engine asks
-    // 50, and "return to Anchor", which was repealed (§6bq) and refused at
-    // the door every time. All three are gone: mending yourself is the one
-    // word that lands on nobody else, so it is here and in the book, and
-    // every other word is spoken at the thing it lands on.
-    const mendSp = (SPELLBOOK.common ?? []).find((sp) => sp.v === 'mend')
-    const whyMend = mendSp ? castable(mendSp, meNow, world) : 'a caster'
+    // This offered the stilling, which armed a flag on `window`; "cast: mend"
+    // at sorcery 20 where the engine asks 50; and "return to Anchor", which
+    // was repealed (§6bq) and refused at the door every time. All three are
+    // gone. A word is spoken at the thing it lands on, including the one that
+    // lands on you, so there is nothing to choose here and nothing to arm.
     const opts = [
       { label: 'look at the sigil', act: () => feed('A compressed piece of night. It hums '
-        + 'faintly. Spent, it speaks one word of sorcery. ' + (bookOf(meNow) === 'barrow'
-          ? 'You read the barrow-work: right-click a beast or a citizen to speak at them.'
-          : 'Right-click what a word should land on: a beast, a citizen, a thing in your '
-            + 'pack, or something lying on the ground.')) },
-      whyMend
-        ? { label: 'mend yourself', dim: true,
-            act: () => feed('You cannot speak mend. It wants ' + whyMend + '.') }
-        : { label: 'mend yourself (1 sigil)', act: () => {
-            send({ do: 'cast', spell: 'mend' })
-            feed('You spend the sigil to knit yourself whole.')
-            tone(520, 0.18, { type: 'sine', vol: 0.05 })
-            tone(780, 0.22, { type: 'sine', vol: 0.045, at: 0.08 }) } },
+        + 'faintly. Spent, it speaks one word of sorcery. Right-click what a word should '
+        + 'land on: a beast, a citizen, a thing in your pack, something lying on the '
+        + 'ground, or where you are standing.') },
     ]
     return { name, opts: [...opts, ...tail] }
   }
@@ -19774,6 +19787,27 @@ function worldPress(e, asLeft) {
     const ix = o ? lp(o.x, m.x) : m.x, iy = o ? lp(o.y, m.y) : m.y
     const d = Math.hypot(ix + 0.5 - fxT, iy + 0.5 - fyT)
     if (d < 0.8 && (!best || d < best.d)) best = { d, kind: 'mob', id, m }
+  }
+  // §7ek: AND YOU ARE A THING THAT CAN BE PRESSED. A word that lands on
+  // nobody but you had nowhere to be spoken: the book carried a button, which
+  // made one row of a list look different from the other five and gave the
+  // panel two jobs. Every other word is spoken at its target, so this one is
+  // too, and the target is where you are standing.
+  if (!best) {
+    const meSelf = world.players[myId]
+    const oS = prevState?.players?.[myId]
+    const sxS = (!oS || teleported(oS, meSelf)) ? { x: meSelf.x, y: meSelf.y }
+      : { x: lp(oS.x, meSelf.x), y: lp(oS.y, meSelf.y) }
+    if (Math.hypot(sxS.x + 0.5 - fxT, sxS.y + 0.5 - fyT) < 0.8) best = { d: 0, kind: 'self' }
+  }
+  if (best?.kind === 'self') {
+    const meSelf = world.players[myId]
+    _pressName = meSelf.name ?? 'you'
+    _pressLook = () => lookAtCitizen(myId, meSelf)
+    _pressLookAs = 'look at yourself'
+    if (!rightPress) { flashClick(meSelf.x, meSelf.y, false); lookAtCitizen(myId, meSelf); return }
+    chooseAction([...spellOpts('self', 'yourself', myId, meSelf, meSelf)])
+    return
   }
   for (const [pid, p] of Object.entries(world.players)) {
     if (pid === myId) continue
