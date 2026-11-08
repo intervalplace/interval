@@ -158,6 +158,9 @@ vm.runInContext(body + `
   // the act ladder itself, so a captured action can be put through the door
   // the engine actually reads
   bridge: (a) => BRIDGE_TO_INPUT(a),
+  held: () => (spellHeld ? spellHeld.v : null),
+  bookNow: () => bookOf(world?.players?.[myId]),
+  openBook: () => { bookOpen = true; drawBook() },
   // send() returns early unless the socket says it is open, and the window's
   // own socket is never opened here, so without this every press was
   // swallowed and the check reported nought inputs with a straight face.
@@ -383,11 +386,11 @@ console.log('\n--- 2b. and so does everything else you can press ---')
     ctx.__h.set(s, ID)
     ctx.__h.press(10, 10, true)
     const labels = (takeMenu() ?? []).filter((o) => o && o.label).map((o) => o.label)
-    // §7y: a list of one is worse than the option, so a caster who can say
-    // exactly one word at themselves gets `mend` on the menu rather than a
-    // page with a single row on it.
-    ok(labels.some((l) => /^mend\b/.test(l) || /cast a spell at yourself/.test(l)),
-      'right-clicking where you stand offers the spells that land on you: ' + labels.join(' / '))
+    // §7ek: A SPELL IS CHOSEN IN THE BOOK, and a spell that lands on nobody
+    // but you is cast there, because there is nothing to aim. What pressing
+    // yourself is for is looking at yourself.
+    ok(labels.some((l) => /look at yourself/.test(l)),
+      'right-clicking where you stand offers a look at yourself: ' + labels.join(' / '))
   }
   // AND THE APPRENTICESHIP IS ON THAT LIST, which is the deed that could not
   // be begun from this window at all
@@ -702,9 +705,8 @@ console.log('\n--- 7. and pressing an option builds an input the engine will rea
     ctx.__h.set(s, ID); stateNow = s
     await pressAll('a citizen', () => ctx.__h.press(10, 11, true))
   }
-  // AND YOURSELF, which is where the one word that lands on nobody else is
-  // cast. Section 7 pressed every other kind of target and not this one, so
-  // `cast` was built by nothing here and the guard below caught it.
+  // AND YOURSELF, which answers with a look now that the book casts the one
+  // spell that lands on nobody else.
   {
     const s = fresh()
     s.players[ID].skills.sorcery = E.XP_TABLE[99]
@@ -729,13 +731,7 @@ console.log('\n--- 7. and pressing an option builds an input the engine will rea
   ok(malformed.length === 0, malformed.length
     ? malformed.length + ' build an input the engine refuses at the door: ' + malformed.slice(0, 6).join(' | ')
     : 'all ' + seen.size + ' distinct inputs the menus build pass the engine\u2019s own shape check')
-  // AND THE WORD THAT LANDS ON YOU IS AMONG THEM. `cast` left the panels when
-  // the book stopped carrying a button, so if pressing yourself ever stopped
-  // offering it, mending would be unreachable and every other check here
-  // would still be green.
-  const verbs = [...seen].map((k) => JSON.parse(k).do)
-  ok(verbs.includes('cast'), 'and mending yourself is one of them'
-    + (verbs.includes('cast') ? '' : ' (no `cast` was built by any menu)'))
+
 }
 
 console.log('\n--- 8. and the panels, which nothing had ever pressed ---')
@@ -847,6 +843,106 @@ console.log('\n--- 8. and the panels, which nothing had ever pressed ---')
     ? malformed.length + ' build an input the engine refuses: ' + malformed.slice(0, 6).join(' | ')
     : 'and what they build passes the engine\u2019s shape check ('
       + [...new Set(pressed)].sort().join(', ') + ')')
+  // AND THE BOOK CASTS. `cast` is built by nothing else now: the spell that
+  // lands on nobody but you is spoken from the book, where it is chosen. If
+  // the tiles ever stopped answering, mending would be unreachable and every
+  // other check here would still be green.
+  ok(pressed.includes('cast'), pressed.includes('cast')
+    ? 'and pressing the book casts the spell that lands on you'
+    : 'the book no longer casts anything: nothing built a `cast`')
+}
+
+console.log('\n--- 8b. hold a spell, then click what it lands on ---')
+{
+  // THE WHOLE INTERACTION, END TO END. A tile is pressed, a target is
+  // pressed, and the input that goes out is read. Nothing above tests this:
+  // section 8 presses the tiles and section 7 presses the targets, and the
+  // thing being built here is what happens BETWEEN them.
+  const base = { playerId: ID, worldId: WID, tick: 1, sig: 'c'.repeat(128) }
+  const caster = (book, weapon) => {
+    const st = fresh()
+    st.players[ID].skills.sorcery = E.XP_TABLE[99]
+    for (let k = 0; k < 4; k++) st.players[ID].inventory[k] = { item: 'sigil', qty: 1 }
+    st.players[ID].equipment.weapon = { item: weapon, qty: 1 }
+    st.players[ID].book = book
+    return st
+  }
+  const holdAndPress = (where, book, weapon, name, aim) => {
+    const st = caster(book, weapon)
+    aim.set?.(st)
+    ctx.__h.set(st, ID)
+    // the panel's own open flag, not a guess at it: section 8 presses the
+    // button too, so a local idea of whether it is open goes stale and the
+    // tiles read back are whatever was drawn last
+    try { ctx.__h.openBook() } catch (e) {}
+    const tile = doc.querySelectorAll('[data-sp]').find((t) =>
+      t.textContent.trim() === name)
+    if (!tile) { ok(false, where + ': the book has no tile called ' + name
+      + ' (the book is ' + ctx.__h.bookNow() + ' and has '
+      + doc.querySelectorAll('[data-sp]').map((t) => t.textContent.trim()).join(', ') + ')'); return }
+    sent.length = 0
+    tile.click()
+    // NOT "nothing was sent": a tile that refused the press sends nothing
+    // too, and the first version of this read that as success.
+    const held = ctx.__h.held()
+    ok(held !== null && sent.length === 0,
+      where + ': pressing ' + name + ' holds it rather than casting into the air'
+      + (held === null ? ' (nothing is held; the window said: '
+        + String(doc.getElementById('feed')?.innerHTML ?? '').replace(/<[^>]*>/g, ' ').slice(-140) + ')' : ''))
+    aim.press()
+    const a = sent[sent.length - 1]
+    if (!a) { ok(false, where + ': clicking the target cast nothing. The window said: '
+      + String(doc.getElementById('feed')?.innerHTML ?? '').replace(/<[^>]*>/g, ' ').slice(-180)); return }
+    const inp = ctx.__h.bridge(a)
+    const why = inp ? E.validateInputShape({ ...base, ...inp }) : 'the act ladder has no line for ' + a.do
+    ok(typeof why !== 'string', where + ': it goes out as '
+      + JSON.stringify(inp ?? a) + (typeof why === 'string' ? ' which the engine refuses: ' + why : ''))
+  }
+  let bookIsOpen = false
+  // the panel has to be open for the tiles to exist; the button toggles it
+  {
+    const st = caster('common', 'wand')
+    ctx.__h.set(st, ID)
+    try { ctx.drawBook(); doc.getElementById('bookbtn').click(); ctx.drawBook() } catch (e) {}
+    bookIsOpen = doc.querySelectorAll('[data-sp]').length > 0
+    ok(bookIsOpen, 'the book opens on the button (' + doc.querySelectorAll('[data-sp]').length + ' tiles)')
+  }
+  // A TILE YOU CANNOT CAST FROM LOOKS DIFFERENT, and that is the only thing
+  // carrying the information now that the cost and the reach are off the
+  // face of it. If the dim ever stopped being applied, the book would say
+  // every spell is yours and the refusals would arrive one press later.
+  {
+    const st = caster('common', 'iron-sword')   // no instrument in hand at all
+    ctx.__h.set(st, ID)
+    try { ctx.__h.openBook() } catch (e) {}
+    const tiles = doc.querySelectorAll('[data-sp]')
+    const look = (nm) => (tiles.find((t) => t.textContent.trim() === nm)
+      ?.getAttribute('style') ?? '')
+    const dim = (nm) => /var\(--dim\)/.test(look(nm))
+    ok(dim('the sealing') && dim('the unmaking') && dim('transmute'),
+      'a spell you cannot cast is drawn dim (sealing '
+        + dim('the sealing') + ', unmaking ' + dim('the unmaking')
+        + ', transmute ' + dim('transmute') + ')')
+    ok(!dim('mend') && !dim('the stilling'),
+      'and one you can is not')
+  }
+  holdAndPress('at a beast', 'barrow', 'bone-staff', 'the rot', {
+    set: (st) => { st.mobs.m1 = { type: 'goblin', x: 10, y: 11, health: 5, hp: 5 } },
+    press: () => ctx.__h.press(10, 11, false),
+  })
+  holdAndPress('at a citizen', 'common', 'wand', 'mend another', {
+    set: (st) => { const o = E.generateIdentity(); E.addPlayer(st, o.playerId, 10, 11)
+      st.players[o.playerId].name = 'alder' },
+    press: () => ctx.__h.press(10, 11, false),
+  })
+  holdAndPress('on a pile', 'common', 'goo-staff', 'the sealing', {
+    set: (st) => { st.ground = { g1: { item: 'logs', qty: 1, x: 10, y: 11, by: 'x'.repeat(64) } } },
+    press: () => ctx.__h.press(10, 11, false),
+  })
+  holdAndPress('on a thing you carry', 'common', 'staff', 'transmute', {
+    set: (st) => { st.players[ID].inventory[5] = { item: 'logs', qty: 1 } },
+    press: () => ctx.__h.inv('5', false),
+  })
 }
 
 console.log('\n--- 9. the spellbook says what the engine asks ---')
