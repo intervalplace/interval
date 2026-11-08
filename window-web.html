@@ -7240,7 +7240,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b93'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b94'  // stamp: if your screen says an older build, hard-refresh
 // ===========================================================================
 // WHAT A CITIZEN IS SEEN TO BE DOING
 //
@@ -10451,7 +10451,7 @@ function _onState(s, worldId, local) {
       }
       if (l2 > l1) {
         feed('<svg class="skico" width="16" height="16" viewBox="0 0 10 10" style="vertical-align:-3px;margin-right:4px">'
-          + '<use href="#sk-' + k + '"/></svg>\u2728 LEVEL UP! Your ' + k + ' is now level ' + l2 + '. \u2728')
+          + '<use href="#sk-' + k + '"/></svg> LEVEL UP. Your ' + k + ' is now level ' + l2 + '.')
         celebrate = { text: k.toUpperCase() + ' LEVEL ' + l2, skill: k, at: performance.now() }
         SFX.levelup()
       }
@@ -15307,9 +15307,17 @@ function drawScene(now) {
         cx.font = 'bold 7px Verdana'; cx.textAlign = 'center'
         // and only the hovered one says the whole sentence. A wounded beast
         // in a fight wants its health, not a lecture about its maximum hit.
-        const plate = !st ? m.type
-          : _hov ? (m.type + '  ' + m.hp + '/' + st.maxHp + ' hp  hits ' + st.maxHit)
-          : (m.type + '  ' + m.hp + '/' + st.maxHp)
+        // §7ek: AND IT IS THE NAME, AND NOTHING ELSE.
+        //
+        // Hovering said "goblin 3/5 hp hits 1", which is the same fault as a
+        // look reciting its hitpoints and a spell printing its reach: how
+        // hard a thing hits and how much is left in it are found out by
+        // fighting it. The BAR stays, on the same terms it already had, and
+        // a bar is a proportion rather than a number: that is what it is for.
+        //
+        // §5s: with spaces. This printed `m.type` raw, so a scree-imp wore
+        // its hyphen in the only place the world ever says its name.
+        const plate = say1(m.type)
         cx.fillStyle = 'rgba(0,0,0,.45)'; cx.fillText(plate, X + 20.7, Y - 2.3)
         cx.fillStyle = '#ffe08a'; cx.fillText(plate, X + 20, Y - 3)
       }
@@ -18217,9 +18225,9 @@ function drawBanner(now) {
     g.font = "bold " + (grand ? 30 : 24) + "px Verdana"; g.textAlign = "center"
     const ico = announceShow.skill ? skillIcon(announceShow.skill) : null
     const shift = ico ? 22 : 0                    // make room, keep it centred
-    g.fillText("\u2728 " + announceShow.text + " \u2728", 560 + shift, by2 + 50)
+    g.fillText(announceShow.text, 560 + shift, by2 + 50)
     if (ico) {
-      const tw = g.measureText("\u2728 " + announceShow.text + " \u2728").width
+      const tw = g.measureText(announceShow.text).width
       g.drawImage(ico, 560 + shift - tw / 2 - 44, by2 + 50 - 30, 36, 36)
     }
     g.globalAlpha = 1
@@ -18236,9 +18244,9 @@ function drawBanner(now) {
   // and the mark of the skill that rose, beside its name
   const cIco = celebrate.skill ? skillIcon(celebrate.skill) : null
   const cShift = cIco ? 20 : 0
-  g.fillText("\u2728 " + celebrate.text + " \u2728", 560 + cShift, by2 + 44)
+  g.fillText(celebrate.text, 560 + cShift, by2 + 44)
   if (cIco) {
-    const tw2 = g.measureText("\u2728 " + celebrate.text + " \u2728").width
+    const tw2 = g.measureText(celebrate.text).width
     g.drawImage(cIco, 560 + cShift - tw2 / 2 - 40, by2 + 44 - 26, 32, 32)
   }
   g.globalAlpha = 1

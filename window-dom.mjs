@@ -206,8 +206,13 @@ class El {
   querySelector (sel) { return this.querySelectorAll(sel)[0] ?? null }
 }
 
-// The canvas pen: it must answer everything and remember nothing.
+// The canvas pen: it must answer everything and remember nothing, EXCEPT the
+// words. What a window writes on the world is the one thing about a frame
+// that can be read back and held to a rule, so every `fillText` is kept.
+export const penSaid = []
 const ctx2d = () => new Proxy({ measureText: () => ({ width: 10 }), canvas: null,
+  fillText: (t) => { penSaid.push(String(t)) },
+  strokeText: (t) => { penSaid.push(String(t)) },
   createRadialGradient: () => ({ addColorStop () {} }),
   createLinearGradient: () => ({ addColorStop () {} }),
   createPattern: () => null, getImageData: () => ({ data: new Uint8ClampedArray(4) }),

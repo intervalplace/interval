@@ -28,7 +28,7 @@
 import { readFileSync } from 'fs'
 import vm from 'vm'
 import E from './engine.js'
-import { makeDocument } from './window-dom.mjs'
+import { makeDocument, penSaid } from './window-dom.mjs'
 
 if (E.initCrypto) await E.initCrypto()
 
@@ -159,6 +159,8 @@ vm.runInContext(body + `
   // the engine actually reads
   bridge: (a) => BRIDGE_TO_INPUT(a),
   held: () => (spellHeld ? spellHeld.v : null),
+  hover: (x, y) => { hoverT = x === null ? null : { x, y } },
+  draw: () => drawScene(performance.now()),
   bookNow: () => bookOf(world?.players?.[myId]),
   openBook: () => { bookOpen = true; drawBook() },
   // send() returns early unless the socket says it is open, and the window's
@@ -975,6 +977,52 @@ console.log('\n--- 8c. every creature has a look, and no look is a stat line ---
   ok(numeric.length === 0, numeric.length
     ? numeric.length + ' looks recite a number: ' + numeric.map(([k]) => k).join(', ')
     : 'and not one of them recites a number')
+}
+
+console.log('\n--- 8d. what the window writes on a creature ---')
+{
+  // §6bv, THE LAST PLACE IT WAS STILL BEING SAID. The look stopped reciting a
+  // creature's numbers and the spellbook stopped printing a reach, and the
+  // HOVER PLATE went on saying "goblin 3/5 hp hits 1" to anybody who moved a
+  // cursor over one. A rule kept in two places out of three is not a rule.
+  //
+  // Read off the pen rather than out of the source: this is every word the
+  // window actually wrote while drawing a frame with a creature under the
+  // cursor, which is the thing a citizen sees.
+  const st = fresh()
+  st.mobs.m1 = { type: 'skeleton-knight', x: 11, y: 10, health: 9, hp: 9 }
+  // THROUGH THE FRONT DOOR. `drawScene` reads `curState`, which only a state
+  // frame sets: setting `world` by hand leaves the scene drawing the last
+  // thing it was told, and the first run of this read back a frame with no
+  // creature in it at all and called that a pass.
+  ctx.__h.msg({ type: 'state', state: st, worldId: WID })
+  await new Promise((r) => setImmediate(r))
+  ctx.__h.set(st, ID)
+  ctx.__h.hover(11, 10)
+  penSaid.length = 0
+  let threw = null
+  try { ctx.__h.draw() } catch (e) { threw = e.message }
+  ok(!threw, threw ? 'drawing a frame with a creature hovered threw: ' + threw
+    : 'a frame with a creature under the cursor draws')
+  const said = [...new Set(penSaid)]
+  ok(said.includes('skeleton knight'),
+    'and it writes the creature\u2019s name, with spaces (' + said.join(' | ').slice(0, 90) + ')')
+  // the two shapes a stat line takes: a fraction, and a "hits N"
+  const stats = said.filter((t) => /\d+\s*\/\s*\d+/.test(t) || /\bhits?\s+\d/.test(t))
+  ok(stats.length === 0, stats.length
+    ? 'it also writes its numbers: ' + stats.join(' | ')
+    : 'and not its hitpoints, and not what it hits for')
+  // AND NOTHING THE WINDOW WRITES ON THE WORLD IS A SYMBOL EITHER. Section 10
+  // reads the menus; this reads the canvas. The level-up banner was flanked
+  // with a sparkle emoji in three places, inside a gold rule, beside the
+  // skill's own mark: a glyph from somebody else's alphabet in the middle of
+  // this one's.
+  const KEEP8 = new Set(['\u2019', '\u2026'])
+  const glyphs = said.filter((t) => [...t].some((c) => c.charCodeAt(0) > 126 && !KEEP8.has(c)))
+  ok(glyphs.length === 0, glyphs.length
+    ? glyphs.length + ' things the window writes on the world are symbols: ' + glyphs.join(' | ')
+    : 'and nothing it writes on the world is a symbol')
+  ctx.__h.hover(null)
 }
 
 console.log('\n--- 9. the spellbook says what the engine asks ---')
