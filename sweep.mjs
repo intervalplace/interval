@@ -389,55 +389,26 @@ const AFTER = (plan, state, myId) => `<script>
         // does not refresh, not anything the window puts there. Ignore it
         // when reading one of these.
         //
-        // ...unless the subject IS the panel. The overlay is the window's
-        // own canvas laid over the page; it stops a little way into the side
-        // column whatever it is clipped to, and a picture of the book with
-        // its left edge covered is worse than a picture with no world in it.
-        if (!BOOK) {
-          // AND THE WORLD UNDER IT. Chrome's page screenshot does not capture
-          // what is in the canvas -- the canvas came back flat green while
-          // toDataURL of the same canvas held the whole smithy -- so the
-          // canvas's own picture is laid over the canvas as an image before
-          // the shutter. Nothing is drawn a second way: it is the window's own
-          // output, put where a screenshot can see it.
-          {
-            // LAID OVER THE CANVAS, UNDER EVERYTHING ELSE. The canvas element is
-            // 944 CSS wide and the side panel laps about fifty pixels of it, so
-            // the canvas is partly covered BY DESIGN: an overlay at a z-index
-            // above the panel covered the panel instead, and one placed in the
-            // document beside the canvas landed under a different offset parent
-            // and slid down the page. Fixed, at the canvas's own rect, below
-            // everything the window draws over it.
-            const img = document.createElement('img')
-            img.src = cv.toDataURL('image/png')
-            const r2 = cv.getBoundingClientRect()
-            // THE OVERLAY LAPS THE PANEL BY ABOUT FIFTY PIXELS, and that is the
-            // harness rather than the window. The canvas element is 944 CSS
-            // wide and the side panel covers its right edge, so the window's
-            // own picture is wider than the part of it anybody sees; a fixed
-            // element makes its own stacking context and sits over the panel
-            // whatever z-index it is given. Three ways of clipping it were
-            // tried and none landed, so it is written down instead: when
-            // reading a --menu picture, the strip of world over the left of the
-            // panel is not something the window draws.
-            // #panel is the side column and #view is the box the canvas sits
-            // in. The canvas element is wider than the part of it anybody sees,
-            // so the overlay is cut at the panel's own left edge. Asking #inv
-            // for that edge was wrong: #inv is INSIDE the panel and its box is
-            // inset, so the cut landed fifty pixels too far right.
-            const panelL = document.getElementById('panel')?.getBoundingClientRect().left
-            const vis = Math.min(r2.width, Number.isFinite(panelL) && panelL > r2.left
-              ? panelL - r2.left : r2.width)
-            const clip = document.createElement('div')
-            clip.style.cssText = 'position:fixed;z-index:0;overflow:hidden;pointer-events:none;left:'
-              + r2.left + 'px;top:' + r2.top + 'px;width:' + vis + 'px;height:' + r2.height + 'px'
-            img.style.cssText = 'position:absolute;left:0;top:0;width:' + r2.width
-              + 'px;height:' + r2.height + 'px;image-rendering:auto'
-            clip.appendChild(img)
-            document.body.appendChild(clip)
-            await settle(400)
-          }
-
+        // AND THE WORLD UNDER IT. Chrome's page screenshot does not capture
+        // what is in a canvas: the canvas comes back flat green while
+        // toDataURL of the same canvas holds the whole town. So the canvas's
+        // own picture is laid over the canvas before the shutter. Nothing is
+        // drawn a second way; it is the window's own output, put where a
+        // screenshot can see it.
+        //
+        // INSIDE #view, WHICH IS THE CANVAS'S OWN BOX. Three earlier goes put
+        // it on the page at the canvas's rect and it lapped the side panel by
+        // fifty pixels, because the canvas element is wider than the part of
+        // it anybody sees and a fixed element makes its own stacking context.
+        // At 100% of #view it is exactly the canvas, clipped exactly as the
+        // canvas is clipped.
+        {
+          const img = document.createElement('img')
+          img.src = cv.toDataURL('image/png')
+          img.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;'
+            + 'image-rendering:auto;pointer-events:none'
+          ;(cv.parentNode ?? document.body).appendChild(img)
+          await settle(400)
         }
         return
       }

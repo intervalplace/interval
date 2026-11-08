@@ -7240,7 +7240,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b92'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b93'  // stamp: if your screen says an older build, hard-refresh
 // ===========================================================================
 // WHAT A CITIZEN IS SEEN TO BE DOING
 //
@@ -19168,22 +19168,47 @@ function lookAtCitizen(pid, p) {
 }
 // §7ek: WHAT A CREATURE IS, ASKED OF THE CREATURE.
 //
-// Right-clicking a beast gave you one line, "attack", so the only way to find
-// out whether the thing in front of you hits for one or for sixteen was to
-// let it. Everything said here is already in `MOB_STATS`, which is the
-// engine's own table (§7f), so this invents no numbers.
+// The first cut answered with its NUMBERS: so many hitpoints, hits for up to
+// so much, comes for anybody within so many tiles. That is the one thing a
+// look must not say. How hard a thing hits and how close it has to be before
+// it starts are found out by meeting it, the same way what a seam yields is
+// found out by working it, and §6bv has said so since the skill guide was
+// written: gates only, never yields, odds or tactics.
+//
+// What is left is what a look is actually for: saying what the thing IS. One
+// line each, and the seven that have a RULE of their own -- the quencher
+// takes nothing from a weapon that does not burn, the wight wants holy water
+// -- are in the handbook, because that is a rule a citizen cannot discover by
+// playing without dying for it, which is exactly what the handbook is for.
+const MOB_LOOK = {
+  goblin: 'Small, green, and never far from another one. Most citizens kill one '
+    + 'before they have learned anything else.',
+  'scree-imp': 'A knot of grey limbs on the loose stone. It watches, and it does not come down.',
+  wolf: 'Lean and grey, and it decided some while ago.',
+  troll: 'Slow, and the ground hears it coming.',
+  bear: 'It was here before the road was, and it has not agreed to the road.',
+  'shore-crab': 'Armoured like a door. Nothing about it is in any hurry.',
+  dummy: 'A post of oak wrapped in rope. It never hits back and it never falls.',
+  butt: 'Straw and canvas on a frame. It takes an arrow and asks nothing.',
+  boar: 'The tusks are the whole of the argument.',
+  'mountain-goat': 'It stands where nothing should stand, and looks down at you for doing less.',
+  'carrion-crow': 'It has been following somebody for a while.',
+  'fen-adder': 'A wet line in the reeds. You see it after you have stepped.',
+  'gibbet-dead': 'What is left on the chain, and it is still throwing things.',
+  quencher: 'A thing of cold and wet ash. Fires go out when it comes near them.',
+  'barrow-wight': 'It was buried with somebody\u2019s name and it kept the name.',
+  sheep: 'Wool, and no opinion.',
+  siren: 'You hear her before the water does.',
+  'great-spider': 'Too many joints, and every one of them works. The web mends itself behind you.',
+  dragon: 'The oldest thing on this island, and the only one that knows it.',
+  'mere-lamprey': 'A mouth with a body behind it. There will never be more of them than there are.',
+  'skeleton-knight': 'It still keeps the form. Somebody taught it well, and then it died.',
+  incursion: 'Not a beast. Something that arrived, and is still arriving.',
+  risen: 'It has been up before. It does not seem to mind.',
+  'gibbet-king': 'The chain was not enough.',
+}
 function lookAtMob(m) {
-  const st = MOB_STATS[m.type] ?? {}
-  const bits = []
-  if (st.maxHp) bits.push(st.maxHp + ' hitpoints')
-  if (st.maxHit) bits.push('hits for up to ' + st.maxHit)
-  if (st.every && st.every > 1) bits.push('strikes every ' + st.every + ' intervals')
-  if (st.reach && st.reach > 1) bits.push('reaches ' + st.reach + ' tiles')
-  feed('A ' + say1(m.type) + '. ' + (bits.length ? bits.join(', ') + '. ' : '')
-    + (st.dummy ? 'It is a pell: it does not strike back and it does not die.'
-      : st.harmless ? 'It will not come for you.'
-      : st.aggro ? 'It comes for anybody within ' + st.aggro + ' tiles.'
-      : 'It fights back, but it will not start.'))
+  feed(MOB_LOOK[m.type] ?? ('A ' + say1(m.type) + '. It stands there.'))
 }
 function whoWorksHere(n) {
   const w = (n.worked ?? []).filter((e) => e.who !== myId)

@@ -945,6 +945,38 @@ console.log('\n--- 8b. hold a spell, then click what it lands on ---')
   })
 }
 
+console.log('\n--- 8c. every creature has a look, and no look is a stat line ---')
+{
+  // §6bv: A LOOK SAYS WHAT A THING IS, NOT WHAT IT HITS FOR. The first cut
+  // read the numbers out of MOB_STATS, which is the one thing a look must not
+  // do: how hard a thing hits and how close it has to be before it starts are
+  // found out by meeting it. A creature with no line falls back on "it stands
+  // there", which is the fallback-that-draws-a-real-thing trap, so the table
+  // is held to the engine's own roster rather than to whatever the island
+  // happened to grow.
+  const look = (() => {
+    const i = html.indexOf('const MOB_LOOK = {')
+    const a = html.indexOf('{', i)
+    let d = 0, j = a
+    for (; j < html.length; j++) { if (html[j] === '{') d++; else if (html[j] === '}') { d--; if (!d) break } }
+    return Function('return ' + html.slice(a, j + 1))()
+  })()
+  const beasts = Object.keys(ctx.__h.mobs())
+  const missing = beasts.filter((b) => !look[b])
+  const phantom = Object.keys(look).filter((b) => !beasts.includes(b))
+  ok(missing.length === 0, missing.length
+    ? missing.length + ' creatures have no look: ' + missing.join(', ')
+    : 'all ' + beasts.length + ' creatures say what they are')
+  ok(phantom.length === 0, phantom.length
+    ? 'described but not in this world: ' + phantom.join(', ')
+    : 'and nothing is described that this world does not have')
+  // and not one of them recites a number
+  const numeric = Object.entries(look).filter(([, t]) => /\b\d+\b/.test(String(t)))
+  ok(numeric.length === 0, numeric.length
+    ? numeric.length + ' looks recite a number: ' + numeric.map(([k]) => k).join(', ')
+    : 'and not one of them recites a number')
+}
+
 console.log('\n--- 9. the spellbook says what the engine asks ---')
 {
   // THE BOOK IS A TABLE OF CONSTITUTIONAL NUMBERS and it had drifted twice.
