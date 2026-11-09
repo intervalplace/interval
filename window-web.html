@@ -5914,6 +5914,9 @@ let GROVE_SPECIES = { oak: 'oak-tree', ironbark: 'ironbark-tree' }
 let BUCKS_AT = [[20, 1], [40, 2], [60, 3], [75, 4], [88, 5], [96, 6]]
 let BUCK_FILL = 1800, BUCK_SPOILS = 86400, SMOKE_TICKS = 4500, SMOKE_WINDOW = 3000
 const bucksAllowedW = (lv) => { let n = 0; for (const [at, k] of BUCKS_AT) if (lv >= at) n = k; return n }
+// §7ek: THE GROUND SOMEBODY LAID, which ends where they stopped laying it.
+// Nothing here wears into its neighbour, so nothing here frays (see seamAt).
+const BUILT_EDGE = new Set(['floor', 'bridge', 'causey'])
 const NAME_RANGE = 7   // as far as you could read a thing by looking at it
 // §5i: mirrors engine WALK_MAX_STEPS. The engine refuses anything longer, so a
 // window that planned further would simply have its journeys rejected.
@@ -7240,7 +7243,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b94'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b95'  // stamp: if your screen says an older build, hard-refresh
 // ===========================================================================
 // WHAT A CITIZEN IS SEEN TO BE DOING
 //
@@ -11358,12 +11361,16 @@ function paintGroundTile(g, x, y) {
         const other = terrainOf(qx, qy)
         const mine7 = terrainOf(x, y)
         if (other === mine7) return
-        // §7ec: A FLOOR DOES NOT FRAY. Fraying is for ground that WEARS into
-        // its neighbour: grass creeping over a yard, a beach eating a bank.
-        // A floor ends at a wall, which is a built edge and a straight one,
-        // and boards that crumble into the street look like a ruin rather
-        // than a room. Neither side of that join frays.
-        if (mine7 === 'floor' || other === 'floor') return
+        // §7ec/§7ek: A BUILT EDGE DOES NOT FRAY. Fraying is for ground that
+        // WEARS into its neighbour: grass creeping over a yard, a beach
+        // eating a bank. A floor ends at a wall, a bridge ends at a rail and
+        // a causey ends where it was laid, and all three are straight because
+        // somebody made them straight. Boards crumbling into the river look
+        // like a ruin rather than a crossing.
+        //
+        // The paving stays frayed on purpose: a yard really does wear into
+        // the grass round it, and that join is the one §7ec was written for.
+        if (BUILT_EDGE.has(mine7) || BUILT_EDGE.has(other)) return
         g.fillStyle = tileShade(qx, qy)
         const n5 = 2 + tileHash(x, y, 90) % 3
         for (let f = 0; f < n5; f++) {
@@ -20225,8 +20232,16 @@ function worldPress(e, asLeft) {
       // "iron" on the grass is called "iron" in the menu; everything else is
       // its own word with the hyphens taken out, which is what the world
       // calls it (§5s).
-      _pressName = NODE_NAME[n.type] ?? say1(n.type)
+      // §7ek: AND SOMEBODY WHO HAS A NAME IS CALLED BY IT. The keepers, the
+      // guards and the criers all carry one, and the head said "keeper" to
+      // every one of them: the window knew the name, printed it in the feed
+      // when you talked to them, and threw it away one line earlier.
+      //
+      // A name takes no article either. "look at the Sim Crossingman" is what
+      // you get for treating a person as a kind of thing.
+      _pressName = n.name ?? NODE_NAME[n.type] ?? say1(n.type)
       _pressLook = () => lookAtNode(n)
+      if (n.name) _pressLookAs = 'look at ' + n.name
       if (me.action?.nodeId === id) return                     // already working it: silent
       // §7ei: a thing with ONE action offers it rather than doing it, when it
       // is the right button being pressed. `chooseAction` adds `walk here`,
@@ -21192,7 +21207,12 @@ function worldPress(e, asLeft) {
         // banker, a shepherd and somebody's neighbour all sounded alike.
         const nm9 = n.name ?? kFromId(id)
         const call9 = n.kind && CALLING_NAMES[n.kind]
-        const who9 = call9 ? nm9 + ', ' + call9 : nm9
+        // §7ek: AND IT IS NOT SAID TWICE. The bridge-keeper was given the
+        // calling as a name, so the world introduced him as "the
+        // bridge-keeper, the bridge-keeper". The founding gives him a name of
+        // his own now; this is what the window does with any keeper whose
+        // name and trade are the same word, in this world or an older one.
+        const who9 = (call9 && call9 !== nm9) ? nm9 + ', ' + call9 : nm9
         const line9 = (n.kind && CALLING_LINE_W[n.kind])
           ? CALLING_LINE_W[n.kind]:
           ['\u201cFine day for it.\u201d', '\u201cMind the step.\u201d',

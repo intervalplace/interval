@@ -1742,11 +1742,28 @@ test('the bank and the counter open a list, like the stall does', () => {
 // yard, a beach eating a bank. A floor ends at a wall, which is a built edge
 // and a straight one, and boards crumbling into the street look like a ruin
 // rather than a room.
-test('a floor does not fray into the street', () => {
+// §7ek: AND NEITHER DOES A BRIDGE, nor a causey. The same argument: a built
+// edge is straight because somebody made it straight, and boards crumbling
+// into the river look like a ruin rather than a crossing. The paving stays
+// frayed on purpose, because a yard really does wear into the grass round it.
+//
+// PINNED TO THE FACT, NOT THE SHAPE. This read the seam function for the
+// literal `=== 'floor'` and broke the day the exemption became a set, which
+// is a test about how the code is written rather than about what it does.
+test('nothing somebody laid frays into its neighbour', () => {
   const at = win.indexOf('const seamAt = (qx, qy, side)')
   assert.ok(at > 0, 'window-web no longer frays its seams')
-  const fn = win.slice(at, at + 1200)
-  assert.ok(/=== 'floor'/.test(fn), 'the fray does not exempt a floor')
+  const i = win.indexOf('const BUILT_EDGE = new Set(')
+  assert.ok(i > 0, 'window-web has no list of built ground')
+  const a = win.indexOf('[', i)
+  const built = new Set(Function('return ' + win.slice(a, win.indexOf(']', a) + 1))())
+  for (const k of ['floor', 'bridge', 'causey'])
+    assert.ok(built.has(k), k + ' is laid by somebody and should not fray')
+  // and the paving is NOT exempt: that join is the one the fraying exists for
+  for (const k of ['flag', 'cobble', 'plaza'])
+    assert.ok(!built.has(k), k + ' is a yard and wears into what is beside it')
+  const fn = win.slice(at, at + 1400)
+  assert.ok(/BUILT_EDGE\.has/.test(fn), 'the seam no longer asks whether the ground was laid')
 })
 
 // §7ef: A SHEEP STANDING IN A FIELD IS NOT OFFERING YOU A NUMBER.

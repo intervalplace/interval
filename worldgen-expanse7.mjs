@@ -5556,18 +5556,22 @@ export function buildWorld(genesis) {
       for (let dx = 1; dx <= 8 && !seated; dx++) for (const dy of [0, -1, 1]) {
         const x = gx + dx, y = gy + dy
         if (!inB(x, y) || isWater(g, x, y) || blockedAt(g, x, y) || taken.has(key(x, y))) continue
-        put('toll-keeper-millbrook', 'keeper', x, y, { kind: 'toll', name: 'the bridge-keeper' })
+        // §7ek: AND HE HAS A NAME. He was given his own trade as a name, so
+        // the world introduced him as "the bridge-keeper, the bridge-keeper".
+        // Every other keeper on the island goes through `keeperName`; this
+        // one was written by hand and missed it, and `BYNAMES.toll` has been
+        // sitting there with six bynames in it the whole time.
+        put('toll-keeper-millbrook', 'keeper', x, y,
+          { kind: 'toll', name: keeperName('millbrook-bridge', 'toll', 'toll') })
         seated = true; break
       }
-      // and ONE board, for the reason the bridge signs above give: this put
-      // the same sentence on two posts eight tiles apart.
-      for (const dx of [-4, 4]) {
-        const x = gx + dx, y = gy
-        if (inB(x, y) && !taken.has(key(x, y)) && !isWater(g, x, y) && !blockedAt(g, x, y)) {
-          put('toll-sign', 'signpost', x, y, { text: 'the bridge is kept, a log to cross' })
-          break
-        }
-      }
+      // §7ek: AND NO BOARD AT ALL. It said "the bridge is kept, a log to
+      // cross", four tiles from a bar that says "the Millbrook Bridge, one
+      // log" and from a keeper who says "The keeper wants a log for the
+      // deck" the moment you walk up to it. Three sentences for one rule,
+      // and the gate's own two are the ones a citizen cannot miss: they are
+      // in the way. A sign that repeats the thing it is standing next to is
+      // the duplicate-milestone fault wearing a different hat.
       if (!bar.length) console.warn('WORLDGEN: the Millbrook Bridge took no toll gate')
     }
   }

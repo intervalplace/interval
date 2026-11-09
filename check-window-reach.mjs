@@ -947,6 +947,33 @@ console.log('\n--- 8b. hold a spell, then click what it lands on ---')
   })
 }
 
+console.log('\n--- 8e. somebody with a name is called by it ---')
+{
+  // THE HEAD SAID "KEEPER" TO EVERY KEEPER ON THE ISLAND. The window knew
+  // their names -- it printed them in the feed the moment you talked to one
+  // -- and threw them away one line earlier, because the head was built from
+  // the node's TYPE. A hundred and fifty-seven people called "keeper".
+  const named = []
+  for (const [type, nm] of [['keeper', 'Sim Crossingman'], ['guard', 'Ebb Watchful'],
+    ['crier', 'Wat Loudly']]) {
+    const st = fresh()
+    E.addNode(st, 'n1', type, 10, 11)
+    st.nodes.n1.name = nm
+    if (type === 'keeper') st.nodes.n1.kind = 'toll'
+    ctx.__h.set(st, ID)
+    ctx.__h.press(10, 11, true)
+    const opts = takeMenu() ?? []
+    const head = opts.find((o) => o && o.head)?.head
+    const labels = opts.filter((o) => o && o.label).map((o) => o.label)
+    if (head !== nm) named.push(type + ' is headed "' + head + '" and not "' + nm + '"')
+    // and a name takes no article
+    const art = labels.find((l) => l.includes('the ' + nm))
+    if (art) named.push(type + ': "' + art + '"')
+  }
+  ok(named.length === 0, named.length ? named.join('; ')
+    : 'a keeper, a guard and a crier are each headed with their own name, and no article')
+}
+
 console.log('\n--- 8c. every creature has a look, and no look is a stat line ---')
 {
   // §6bv: A LOOK SAYS WHAT A THING IS, NOT WHAT IT HITS FOR. The first cut
