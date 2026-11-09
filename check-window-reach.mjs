@@ -28,7 +28,7 @@
 import { readFileSync } from 'fs'
 import vm from 'vm'
 import E from './engine.js'
-import { makeDocument, penSaid } from './window-dom.mjs'
+import { makeDocument, penSaid, penInk } from './window-dom.mjs'
 
 if (E.initCrypto) await E.initCrypto()
 
@@ -160,6 +160,9 @@ vm.runInContext(body + `
   bridge: (a) => BRIDGE_TO_INPUT(a),
   held: () => (spellHeld ? spellHeld.v : null),
   hover: (x, y) => { hoverT = x === null ? null : { x, y } },
+  seams: (list) => { _seamsTold = list },
+  chart: (now) => drawSunMap(curState, now),
+  ink: () => SEAM_INK,
   draw: () => drawScene(performance.now()),
   bookNow: () => bookOf(world?.players?.[myId]),
   openBook: () => { bookOpen = true; drawBook() },
@@ -945,6 +948,78 @@ console.log('\n--- 8b. hold a spell, then click what it lands on ---')
     set: (st) => { st.players[ID].inventory[5] = { item: 'logs', qty: 1 } },
     press: () => ctx.__h.inv('5', false),
   })
+}
+
+console.log('\n--- 8g. the chart marks the seams ---')
+{
+  // THE ISLAND CARRIES ONE CLUSTER PER TIER ON PURPOSE and somebody walked
+  // the Greenwood end to end without finding a single cuttable tree. Nine
+  // plain trees stand on the whole island, in a copse seven tiles wide,
+  // among two thousand decorative ones that look the same at a distance.
+  //
+  // The marks went into `drawMini` first, which is thirty-five lines that
+  // nothing has ever called: the live chart is `drawSunMap`, its own canvas
+  // over the view. Dead code that looks like the thing you are reading is
+  // worse than no code. This reads back the INK the chart actually laid down.
+  const st = fresh()
+  ctx.__h.msg({ type: 'state', state: st, worldId: WID })
+  await new Promise((r) => setImmediate(r))
+  ctx.__h.set(st, ID)
+  const INK = ctx.__h.ink()
+  ctx.__h.seams([['tree', 11, 10], ['iron-rock', 12, 10], ['fishing-spot', 9, 10]])
+  penInk.length = 0
+  let threw = null
+  try { ctx.__h.chart(CLOCK + 9999) } catch (e) { threw = e.message }
+  ok(!threw, threw ? 'drawing the chart threw: ' + threw : 'the chart draws')
+  const want = [INK.tree, INK.rock, INK['fishing-spot']]
+  const got = want.filter((c) => penInk.includes(c))
+  ok(got.length === want.length,
+    got.length === want.length
+      ? 'and a tree, a seam and a fishing spot are each marked on it in their own ink'
+      : 'the chart laid down ' + got.length + ' of the 3 seam inks (it used: '
+        + [...new Set(penInk)].slice(0, 10).join(' ') + ')')
+  // and the window asks the pillar for them rather than working them out
+  ok(/api\/seams/.test(html), 'and it asks the pillar where they are')
+  ctx.__h.seams(null)
+}
+
+console.log('\n--- 8f. the oath is where somebody would look for it ---')
+{
+  // ONE MASTERY TO A CITIZEN is the centre of this world, and swearing was
+  // three presses inside a panel: open SKILLS, find the trade, read to the
+  // bottom. It is the one deed whose target is who you are, so it belongs on
+  // yourself.
+  const st = fresh()
+  for (const k of Object.keys(st.players[ID].skills)) st.players[ID].skills[k] = 0
+  st.players[ID].skills.woodcraft = E.XP_TABLE[90]
+  st.players[ID].walked = ['a', 'b', 'c', 'd', 'e', 'f']
+  delete st.players[ID].calling
+  ctx.__h.set(st, ID)
+  ctx.__h.press(10, 10, true)
+  const opts = takeMenu() ?? []
+  const row = opts.find((o) => o && /swear a calling/.test(o.label ?? ''))
+  ok(!!row && !row.dim, 'right-clicking where you stand offers the oath: '
+    + opts.filter((o) => o && o.label).map((o) => o.label).join(' / '))
+  if (row && !row.dim) {
+    sent.length = 0
+    row.act()
+    const page = takeMenu() ?? []
+    const one = page.find((o) => o && /^swear /.test(o.label ?? ''))
+    ok(!!one, 'and it opens the callings that trade has earned: '
+      + page.filter((o) => o && o.label).map((o) => o.label).join(' / '))
+    if (one) {
+      one.act()
+      const ask = takeMenu() ?? []
+      const yes = ask.find((o) => o && /^swear it/.test(o.label ?? ''))
+      if (yes) yes.act()
+      const a = sent[sent.length - 1]
+      const inp = a ? ctx.__h.bridge(a) : null
+      const why = inp ? E.validateInputShape({ playerId: ID, worldId: WID, tick: 1,
+        sig: 'c'.repeat(128), ...inp }) : 'nothing was sent'
+      ok(typeof why !== 'string', 'and swearing it goes out as ' + JSON.stringify(inp ?? a)
+        + (typeof why === 'string' ? ' which the engine refuses: ' + why : ''))
+    }
+  }
 }
 
 console.log('\n--- 8e. somebody with a name is called by it ---')

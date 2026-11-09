@@ -5917,6 +5917,27 @@ const bucksAllowedW = (lv) => { let n = 0; for (const [at, k] of BUCKS_AT) if (l
 // §7ek: THE GROUND SOMEBODY LAID, which ends where they stopped laying it.
 // Nothing here wears into its neighbour, so nothing here frays (see seamAt).
 const BUILT_EDGE = new Set(['floor', 'bridge', 'causey'])
+// §7ek: WHERE THE SEAMS ARE, TOLD.
+//
+// The island carries ONE cluster per tier on purpose, and the generator says
+// so in its own margin: "this island already carries two or three clusters
+// per tier rather than the one a Schelling point wants. It cannot afford
+// five." That is right, and what it needs to work is that the cluster can be
+// FOUND. An anvil is found because it stands in a town. Six cuttable trees in
+// a wood of two thousand decorative ones are found by walking the whole wood,
+// which is what somebody did: the Greenwood end to end, and not one tree.
+//
+// So the chart is told where they are. Nothing is added and nothing is moved.
+// A Schelling point only works if everybody knows the place.
+let _seamsTold = null
+// What colour each family reads as at four world tiles to the pixel. The
+// families, not the kinds: a chart that needs a legend is a chart nobody
+// reads, and at this size an oak and an ironbark are the same green anyway.
+const SEAM_INK = {
+  tree: '#6fae3a', rock: '#c98a3a', 'quick-rock': '#8ce0ff', 'fishing-spot': '#3f9ad8',
+  'salt-pan': '#d8cdb4', 'muck-heap': '#8a6a44', 'brimstone-vent': '#d8a23a',
+  rockfall: '#9a9288', 'grove-plot': '#4f8a46',
+}
 const NAME_RANGE = 7   // as far as you could read a thing by looking at it
 // §5i: mirrors engine WALK_MAX_STEPS. The engine refuses anything longer, so a
 // window that planned further would simply have its journeys rejected.
@@ -7243,7 +7264,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b95'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b96'  // stamp: if your screen says an older build, hard-refresh
 // ===========================================================================
 // WHAT A CITIZEN IS SEEN TO BE DOING
 //
@@ -7394,6 +7415,9 @@ const send = a => {
   // still says so in the feed; a deed that answers half a second late feels
   // like a window that is not listening.
   actionSound(a.do)
+  // §7ek: and the box over the thing you pressed goes red, because something
+  // happened. See flashClick.
+  if (_clickEf) _clickEf.act = true
   if (ws.readyState !== 1) return
   if (ownKey && a.do === 'chat') { signChat(a.text); return }
   if (ownKey && BRIDGE_TO_INPUT(a)) { signAndSend(a); return }
@@ -8480,8 +8504,31 @@ function worthRank(item) {
 const BTN = 'margin:1px;background:#3a3126;color:#e8d9a0;border:1px solid #6e5433;'
   + 'padding:3px 6px;font-family:inherit;font-size:10px;cursor:pointer'
 const layerArr = []   // reused render layer (perf)
+// §7ek: THE BOX IS RED WHEN THE PRESS DID SOMETHING.
+//
+// Forty-one presses raise one of these and four of them passed `true`, so
+// almost everything a citizen does flashed the WALKING colour: buying at a
+// stall, smelting, ringing the bell, lifting a buck. The distinction is worth
+// having -- yellow means I am going there, red means I did a thing -- and it
+// was being made by hand at forty-one call sites, which is how it came to be
+// wrong at thirty-seven of them.
+//
+// So it decides for itself. `send` is the one door every deed goes through
+// and an intent that is not a plain walk is a deed on its way, so the flash
+// raised during a press is marked red if either happens before the press is
+// over. A call site may still say `true` outright, for the deeds that are
+// filed several ticks later when the citizen arrives.
+let _clickEf = null
 function flashClick(tx, ty, isAct) {
-  effects.push({ kind: 'click', x: tx, y: ty, act: isAct, at: performance.now() })
+  const ef = { kind: 'click', x: tx, y: ty, act: isAct === true, at: performance.now() }
+  effects.push(ef)
+  _clickEf = ef
+  return ef
+}
+// called when the press is over, by the listeners that own one
+function settleFlash() {
+  if (_clickEf && intent && intent.kind !== 'walk') _clickEf.act = true
+  _clickEf = null
 }
 // the goal marker: pulsing corner brackets on wherever the citizen is headed.
 // Yellow means walking; ember means about to ACT. No more mystery strolls.
@@ -8551,7 +8598,6 @@ function buildMini() {
   }
   miniReady = true
 }
-let miniRect = null            // where the minimap last landed, for hit-testing
 let travelMark = null          // { x, y } the far place the citizen is walking to
 // §7ef: the tile under the cursor, or null. Declared HERE rather than beside
 // the listener that fills it, because `drawScene` reads it three thousand
@@ -8598,41 +8644,20 @@ function drawTravel(s) {
   }
   cx.restore()
 }
-function drawMini(s) {
-  if (!miniReady && W) buildMini()
-  if (!miniReady) return
-  // bigger, because it is now a thing you AIM with and not only a thing you
-  // glance at: on a 896-wide island 120px put four world tiles in a pixel
-  const MW = 168, MH = Math.round(MW * H / W)
-  const mx = cv.width - MW - 6, my = 6
-  miniRect = { mx, my, MW, MH }
-  cx.globalAlpha = 0.85
-  cx.fillStyle = '#1c1710'; cx.fillRect(mx - 2, my - 2, MW + 4, MH + 4)
-  cx.drawImage(miniCv, mx, my, MW, MH)
-  const sx2 = MW / W, sy2 = MH / H
-  cx.fillStyle = 'rgba(42,95,125,.9)'
-  for (const n of (s._nodesV ?? [])) if (famOf(n.type) === 'fishing-spot') cx.fillRect(mx + n.x * sx2, my + n.y * sy2, 1.4, 1.4)
-  cx.strokeStyle = 'rgba(255,255,255,.5)'; cx.lineWidth = 1
-  cx.strokeRect(mx + cam.x * sx2, my + cam.y * sy2, (cv.width / TILE) * sx2, (cv.height / TILE) * sy2)
-  const meP2 = s.players[myId]
-  // the mark, and the line to it. A destination you cannot see is a
-  // destination you lose faith in three minutes into the walk.
-  if (travelMark) {
-    const tx = mx + travelMark.x * sx2, ty = my + travelMark.y * sy2
-    if (meP2) {
-      cx.strokeStyle = 'rgba(216,180,90,.55)'; cx.lineWidth = 1
-      cx.setLineDash([3, 3])
-      cx.beginPath(); cx.moveTo(mx + meP2.x * sx2, my + meP2.y * sy2); cx.lineTo(tx, ty); cx.stroke()
-      cx.setLineDash([])
-    }
-    const pulse = 0.55 + 0.45 * Math.abs(1 - ((performance.now() % 1400) / 700))
-    cx.strokeStyle = 'rgba(216,180,90,' + pulse.toFixed(2) + ')'; cx.lineWidth = 1.5
-    cx.beginPath(); cx.arc(tx, ty, 4.5, 0, 7); cx.stroke()
-    cx.fillStyle = '#d8b45a'; cx.fillRect(tx - 1, ty - 1, 2, 2)
-  }
-  if (meP2) { cx.fillStyle = '#ffffff'; cx.fillRect(mx + meP2.x * sx2 - 1, my + meP2.y * sy2 - 1, 3, 3) }
-  cx.globalAlpha = 1
-}
+// §7ek: `drawMini` STOOD HERE AND NOTHING CALLED IT.
+//
+// Thirty-five lines drawing a whole-island chart in the corner of the world
+// canvas, with the fishing spots marked on it, defined and never once
+// invoked: the live chart is `drawSunMap`, which is its own canvas element
+// over the view. Dead code that LOOKS like the thing you are reading is worse
+// than no code, and it cost a wrong fix: the seam marks went into it first
+// and did nothing at all.
+//
+// `miniRect` went with it. It was set here and read by two hit-tests in
+// `worldPress` that stopped a press on the chart reaching the world; the live
+// chart is a DOM element with its own listener, so the press never reaches
+// the world canvas in the first place and the guard had been testing a
+// variable that is always null.
 let pendingLight = null // { slot, tick } while coaxing a fire
 let _invSig = '', _wornSig = '', _namedItem = '' // last-rendered inventory signature: only rebuild slots on change (keeps taps responsive)
 let nameTries = 0
@@ -10098,6 +10123,12 @@ function _onState(s, worldId, local) {
     // settling, and when it truly cannot be told it SAYS the window is
     // showing a guess instead of letting somebody find out by walking into a
     // wall that is not there.
+    // asked once, beside the ground and for the same reason: it is the world's
+    // own answer and every window that works it out itself gets it wrong.
+    fetch(api('/api/seams'), { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((sd) => { if (Array.isArray(sd?.seams) && sd.seams.length) _seamsTold = sd.seams })
+      .catch(() => {})
     const askGround = (tries) => {
       fetch(api('/api/ground'), { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(gd => {
         if (takeGroundTold(gd)) {
@@ -10449,7 +10480,12 @@ function _onState(s, worldId, local) {
       }
       if (k === 'mourning' && me.skills[k] > old.skills[k]) { tone(520, 0.3, { type: 'sine', vol: 0.05 }); tone(390, 0.4, { type: 'sine', vol: 0.04, at: 0.05 }) }
       if (!['prowess', 'prowess', 'prowess', 'marksmanship'].includes(k)) { // combat trains QUIETLY, ranged included: the arrow is the feedback now
-        xpDrops.push({ amt: me.skills[k] - old.skills[k], x: me.x, y: me.y, at: performance.now() })
+        // §7ek: AND WHICH TRADE IT WENT TO. "+20 xp" in a world with eighteen
+        // skills tells you that something was paid and not what for; burying
+        // a set of bones pays MOURNING, which is a thing worth knowing while
+        // you are deciding whether to carry the next lot home.
+        xpDrops.push({ amt: me.skills[k] - old.skills[k], skill: k,
+          x: me.x, y: me.y, at: performance.now() })
         if (xpDrops.length > 12) xpDrops.shift()
       }
       if (l2 > l1) {
@@ -17062,7 +17098,7 @@ function drawScene(now) {
     const age = (now - d.at) / 1100
     cx.globalAlpha = 1 - age
     cx.fillStyle = '#e2b63e'; cx.font = 'bold 11px Verdana'; cx.textAlign = 'center'
-    cx.fillText('+' + d.amt + ' xp', px(d.x) + 20, py(d.y) - 6 - age * 16)
+    cx.fillText('+' + d.amt + ' ' + (d.skill ?? 'xp'), px(d.x) + 20, py(d.y) - 6 - age * 16)
     cx.globalAlpha = 1
   }
 
@@ -18324,6 +18360,26 @@ function drawSunMap(s, now) {
   g.fillStyle = "#0e120b"; g.fillRect(0, 0, MW, MH)
   g.drawImage(miniCv, CX - pxr * scale, CY - pyr * scale, W * scale, H * scale)
   const at = (wx, wy) => [CX + (wx - pxr) * scale, CY + (wy - pyr) * scale]
+  // §7ek: THE SEAMS, from the pillar, which is what a chart is for.
+  //
+  // The island carries one cluster per tier on purpose: the generator's own
+  // margin says it "cannot afford" more, and that is right. What a design
+  // like that needs is for the cluster to be KNOWN. An anvil is found because
+  // it stands in a town; six cuttable trees in a wood of two thousand
+  // decorative ones are found by walking the whole wood, which is what
+  // somebody did, end to end, and found nothing.
+  //
+  // This adds no resource and moves none. It says where the ones that exist
+  // are standing, which is the thing everybody who wants logs has to agree on
+  // before they can meet at them.
+  if (_seamsTold) {
+    for (const [t, wx, wy] of _seamsTold) {
+      const [ax, ay] = at(wx, wy)
+      if (ax < pad || ay < pad || ax > MW - pad || ay > MH - pad) continue
+      g.fillStyle = SEAM_INK[famOf(t)] ?? SEAM_INK[t] ?? '#d8cdb4'
+      g.fillRect(ax - 1, ay - 1, 2, 2)
+    }
+  }
   // the trades, on the radar. The chart shows the shape of a town; this
   // shows what is IN it, which is what you are actually looking for.
   for (const k in s.nodes) {
@@ -19121,8 +19177,11 @@ const NODE_LOOK = {
   'fishing-spot': 'A place to cast from.', 'eel-spot': 'An eel run.',
   'deep-fish-spot': 'Deep water, and something in it.',
   'gibbet-shoal': 'The shoal under the gibbet. Two to a cast, and deep.',
-  plot: 'Tilled ground. Each row is sown and pulled by whoever sowed it.',
-  'grove-plot': 'A grove plot, waiting for a sapling of its own kind.',
+  plot: 'A tilled row. You sow seeds in it and pull the crop yourself, and so '
+    + 'does everybody else: the row is shared, the crop is not. It is not where '
+    + 'a tree goes, which is a grove plot.',
+  'grove-plot': 'A grove plot, waiting for a sapling. It decides its own species, '
+    + 'so each of the two stands is a place for one kind of tree.',
   'eel-buck': 'A willow buck set in a run. Whoever set it comes back for it.',
   smokerack: 'A rack over a slow fire. It holds a catch and hands it back changed.',
   hoard: 'A barrow hoard. One reach into one of these, once in a life.',
@@ -19180,6 +19239,62 @@ function lookAtCitizen(pid, p) {
   if ((p.brandedUntil ?? 0) > (world?.tick ?? 0)) bits.push('marked: no keeper will deal with them')
   if ((p.stilledUntil ?? 0) > (world?.tick ?? 0)) bits.push('stilled')
   feed(nm + ': ' + bits.join(', ') + '.')
+}
+// §7ek: SWEARING, WHERE SOMEBODY WOULD LOOK FOR IT.
+//
+// The oath went into the skill guide, which is the page that explains a
+// trade: correct, and reachable only by opening SKILLS, finding the right
+// trade, and reading to the bottom. One mastery to a citizen is the centre of
+// this world and it was three presses behind a panel nobody opens twice.
+//
+// It belongs on yourself. It is the one deed in the world whose target is
+// who you are, and right-clicking where you stand is now how you ask about
+// that. The guide keeps its own copy, because that is where the callings are
+// explained and somebody reading about a trade should be able to swear it
+// there.
+function oathOpts(me) {
+  if (!me || typeof me.calling === 'string') return []
+  const ready = []
+  const near = []
+  for (const [skill, callings] of Object.entries(CALLINGS_OF)) {
+    const lv = XP_TO_LVL(me.skills?.[skill] ?? 0)
+    if (lv < SWEAR_LEVEL) continue
+    for (const c of callings) (ready.length < 8 ? ready : near).push({ c, skill, lv })
+  }
+  if (!ready.length) return []
+  const walked = me.walked?.length ?? 0
+  if (walked < SWEAR_COUNTRIES_W) return [{ label: 'swear a calling', dim: true,
+    act: () => feed('You have the trade for it. Before you may swear you have to have '
+      + 'seen something of the island: ' + SWEAR_COUNTRIES_W + ' countries walked, and you '
+      + 'have walked ' + walked + '.') }]
+  return [{
+    label: 'swear a calling',
+    act: () => chooseAction([
+      { head: 'said once, and never again' },
+      ...ready.map(({ c, skill }) => ({ label: 'swear ' + say1(c) + ', on your ' + skill,
+        act: () => swearIt(c) })),
+      { label: 'not yet', act: () => feed('Your own trade loses its ceiling when you swear, '
+        + 'and every other trade stops at ' + CAP_OTHER + ' for the rest of your life.') },
+    ]),
+  }]
+}
+// §5w: AN ATTESTED SWEARING, where there is somebody to attest it. Said in one
+// place so the guide and the self menu cannot offer two different oaths.
+function swearIt(c) {
+  const master = Object.entries(world?.players ?? {}).find(([pid2, q]) =>
+    pid2 !== myId && typeof q.calling === 'string'
+    && Object.prototype.hasOwnProperty.call(q.apprentices ?? {}, myId))
+  chooseAction([
+    { head: 'swear ' + say1(c) + ', once and for ever' },
+    ...(master ? [{ label: 'swear it, and name ' + (master[1].name ?? 'your master')
+        + ' as the one who taught you',
+      act: () => { send({ do: 'swear', calling: c, attester: master[0] })
+        feed('You swear ' + say1(c) + ', attested. The mark is in the record for good.') } }] : []),
+    { label: master ? 'swear it unattested' : 'swear it',
+      act: () => { send({ do: 'swear', calling: c })
+        feed('You swear ' + say1(c) + '. It is said once.') } },
+    { label: 'not yet', act: () => {} },
+  ])
 }
 // §7ek: WHAT A CREATURE IS, ASKED OF THE CREATURE.
 //
@@ -19737,10 +19852,6 @@ const _hoverFrom = (e) => {
   const px = (e.clientX - r.left) * (cv.width / r.width)
   const py = (e.clientY - r.top) * (cv.height / r.height)
   // the chart is not the world, the same way the click handler has it
-  if (miniRect) {
-    const { mx, my, MW, MH } = miniRect
-    if (px >= mx - 2 && px <= mx + MW + 2 && py >= my - 2 && py <= my + MH + 2) return null
-  }
   const x = Math.floor((px / ZR) / TILE + cam.x), y = Math.floor((py / ZR) / TILE + cam.y)
   if (x < 0 || x >= W || y < 0 || y >= H) return null
   return { x, y }
@@ -19840,25 +19951,6 @@ function worldPress(e, asLeft) {
   // citizen sets off, with the mark to steer by. This has to be tested
   // BEFORE the world hit-test or a tap on the chart would swing an axe at
   // whatever happened to be under it in the viewport.
-  if (miniRect) {
-    const { mx, my, MW, MH } = miniRect
-    if (px >= mx - 2 && px <= mx + MW + 2 && py >= my - 2 && py <= my + MH + 2) {
-      const wx = Math.max(1, Math.min(W - 2, Math.round((px - mx) * W / MW)))
-      const wy = Math.max(1, Math.min(H - 2, Math.round((py - my) * H / MH)))
-      const meM = world.players[myId]
-      if (meM) {
-        travelMark = { x: wx, y: wy }
-        intent = { kind: 'walk', x: wx, y: wy }
-        nudgeIntent()
-        const d = Math.round(Math.hypot(wx - meM.x, wy - meM.y))
-        const where = (typeof localeAt4 === 'function' && IS_EXPANSE4())
-          ? (localeAt4(wx, wy) ?? '') : ''
-        feed('Setting out' + (where ? ' for ' + where : '') + ', about '
-          + (d * 0.6 / 60).toFixed(1) + ' minutes\u2019 walk.')
-      }
-      return
-    }
-  }
   const sx = px / ZR, sy = py / ZR
   const x = Math.floor(sx / TILE + cam.x), y = Math.floor(sy / TILE + cam.y)
   if (x < 0 || x >= W || y < 0 || y >= H) return
@@ -19870,6 +19962,7 @@ function worldPress(e, asLeft) {
   const rightPress = !asLeft && e.type === 'contextmenu'
   _pressTile = { x, y }
   _pressName = null; _pressLook = null; _pressLookAs = null
+  _clickEf = null
 
   // a new order interrupts the old work by REPLACING it: the engine
   // honors the latest input natively. (An explicit stop sent alongside
@@ -19951,7 +20044,7 @@ function worldPress(e, asLeft) {
     // chosen: there is nothing to aim, so there is nothing to click
     flashClick(meSelf.x, meSelf.y, false)
     if (!rightPress) { lookAtCitizen(myId, meSelf); return }
-    chooseAction([])
+    chooseAction([...oathOpts(meSelf)])
     return
   }
   if (best?.kind === 'mob') {
@@ -20202,7 +20295,17 @@ function worldPress(e, asLeft) {
           act: () => { intent = { kind: 'plant', id, slot: seedR }; nudgeIntent() } })
         if (sownR && elR >= 1200) opts.push({ label: 'pull the crop',
           act: () => { intent = { kind: 'harvest', id }; nudgeIntent() } })
-        opts.push({ label: 'look at the row', act: () => worldPress(e, true) })
+        // §7ek: AND IT SAYS WHY WHEN THERE IS NOTHING TO DO. A row with no
+        // seeds in your pack and nothing sown offered one line, "look at the
+        // row", which is a menu that answers "what is this" with "it is a
+        // row". Dimmed rows say what the row wants.
+        if (!sownR && seedR === -1) opts.push({ label: 'sow the row', dim: true,
+          act: () => feed('Bare, tilled earth. It waits for seeds, and you carry none. '
+            + 'The seedsman sells them.') })
+        if (sownR && elR < 1200) opts.push({ label: 'pull the crop', dim: true,
+          act: () => feed(elR < 400 ? 'A sprout. The interval provides, slowly.'
+            : elR < 800 ? 'Green rows, knee-high. Patience.' : 'Flowering. Nearly.') })
+        opts.push({ label: 'look at the row', act: () => lookAtNode(n) })
         chooseAction(opts)
         return
       }
@@ -20239,7 +20342,13 @@ function worldPress(e, asLeft) {
       //
       // A name takes no article either. "look at the Sim Crossingman" is what
       // you get for treating a person as a kind of thing.
-      _pressName = n.name ?? NODE_NAME[n.type] ?? say1(n.type)
+      // §7ek: AND A LANDMARK IS CALLED WHAT IT IS. Four thousand of the
+      // island's things are landmarks and every one of them was headed
+      // "landmark", which names the TABLE it is in rather than the thing: an
+      // old oak, a drowned bell, a shipwreck and a barrel all answered with
+      // the same word. The kind is on the node and always has been.
+      _pressName = n.name ?? (n.type === 'landmark' && n.kind ? say1(n.kind) : null)
+        ?? NODE_NAME[n.type] ?? say1(n.type)
       _pressLook = () => lookAtNode(n)
       if (n.name) _pressLookAs = 'look at ' + n.name
       if (me.action?.nodeId === id) return                     // already working it: silent
@@ -20251,7 +20360,7 @@ function worldPress(e, asLeft) {
         // the callback runs long after this press is over, so it owns the
         // tile for its own run and clears it again
         chooseAction([{ label: ONE_ACTION[n.type],
-          act: () => { try { worldPress(e, true) } finally { _pressTile = null; _pressName = null; _pressLook = null; _pressLookAs = null } } },
+          act: () => { try { worldPress(e, true) } finally { settleFlash(); _pressTile = null; _pressName = null; _pressLook = null; _pressLookAs = null } } },
           // §7ek: AND A STONE THAT WILL TAKE A NAME SAYS SO HERE.
           //
           // This gate answers the right button INSTEAD of the type's own
@@ -21388,7 +21497,7 @@ cv.addEventListener('click', (e) => {
   // registration order, so the swallower -- declared below, with the long
   // press it belongs to -- would have fired after this.
   if (_lpFired) { _lpFired = false; return }
-  try { worldPress(e) } finally { _pressTile = null; _pressName = null; _pressLook = null; _pressLookAs = null }
+  try { worldPress(e) } finally { settleFlash(); _pressTile = null; _pressName = null; _pressLook = null; _pressLookAs = null }
 })
 // §7ei: THE LONG PRESS IS THE RIGHT BUTTON, because a phone has no other one.
 //
@@ -21417,7 +21526,7 @@ cv.addEventListener('pointerdown', (e) => {
     // different things
     _menuAt = { x: e.clientX, y: e.clientY }
     try { worldPress({ type: 'contextmenu', clientX: e.clientX, clientY: e.clientY }) }
-    finally { _menuAt = null; _pressTile = null; _pressName = null; _pressLook = null; _pressLookAs = null }
+    finally { settleFlash(); _menuAt = null; _pressTile = null; _pressName = null; _pressLook = null; _pressLookAs = null }
   }, LONG_PRESS_MS)
 })
 cv.addEventListener('pointermove', (e) => {
@@ -21433,7 +21542,7 @@ cv.addEventListener('contextmenu', (e) => {
   // long press on some platforms), so this says it plainly rather than
   // relying on the press having happened.
   _menuAt = { x: e.clientX, y: e.clientY }
-  try { worldPress(e) } finally { _menuAt = null; _pressTile = null; _pressName = null; _pressLook = null; _pressLookAs = null }
+  try { worldPress(e) } finally { settleFlash(); _menuAt = null; _pressTile = null; _pressName = null; _pressLook = null; _pressLookAs = null }
 })
 </script>
 <script>

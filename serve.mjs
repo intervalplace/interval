@@ -389,6 +389,7 @@ let AUDIO_WARNED = false
 const announced = new Map() // peerId -> { addr, at }: the mesh directory
 let GENESIS, migrated = 0
 let _roadsCache = null   // /api/roads: the founded world's road tiles, computed once
+let _seamsCache = null
 let _groundCache = null  // /api/ground: every tile whose ground the world names
 let _settleCache = null  // /api/settlements: the towns as the founder seated them
 const saved = fs.existsSync(WORLD_FILE) ? JSON.parse(fs.readFileSync(WORLD_FILE)) : null
@@ -1264,6 +1265,33 @@ const server = http.createServer((req, res) => {
     // Run-length encoded by row, because ground comes in runs: 15,759 named
     // tiles, 94KB of JSON, 13KB gzipped, fetched once per world. A tile this
     // does not name has no named ground and the window may draw its biome.
+    // §7ek: WHERE THE SEAMS ARE, because a Schelling point nobody can find is
+    // not a Schelling point.
+    //
+    // The island carries ONE cluster per tier on purpose: the generator's own
+    // margin says "this island already carries two or three clusters per tier
+    // rather than the one a Schelling point wants. It cannot afford five."
+    // That is the design and it is right. What it needs to work is for the
+    // cluster to be KNOWN: an anvil is found because it is in a town, and a
+    // copse of six trees in a forest of two thousand decorative ones is found
+    // by walking the whole forest, which is what happened.
+    //
+    // So the chart is told. This adds no resource and moves none; it says
+    // where the ones that exist are standing, which is the thing everybody
+    // who wants logs has to agree on before they can meet at them.
+    if (path === '/api/seams') {
+      if (!_seamsCache) {
+        const GATHERABLE = new Set(['tree', 'oak-tree', 'ironbark-tree', 'heartwood-tree',
+          'gallows-oak', 'rock', 'iron-rock', 'coal-rock', 'gold-rock', 'quick-rock',
+          'mother-lode', 'fishing-spot', 'eel-spot', 'deep-fish-spot', 'gibbet-shoal',
+          'salt-pan', 'muck-heap', 'brimstone-vent', 'rockfall', 'grove-plot'])
+        const out = []
+        for (const n of Object.values(node.state?.nodes ?? {}))
+          if (GATHERABLE.has(n.type)) out.push([n.type, n.x, n.y])
+        _seamsCache = { seams: out }
+      }
+      return json(_seamsCache)
+    }
     if (path === '/api/ground') {
       if (!_groundCache) {
         try {

@@ -210,14 +210,20 @@ class El {
 // words. What a window writes on the world is the one thing about a frame
 // that can be read back and held to a rule, so every `fillText` is kept.
 export const penSaid = []
-const ctx2d = () => new Proxy({ measureText: () => ({ width: 10 }), canvas: null,
+// and what colour it filled with, for the marks that are not words: a chart's
+// dots cannot be read back any other way.
+export const penInk = []
+const ctx2d = () => {
+  const o = { measureText: () => ({ width: 10 }), canvas: null,
   fillText: (t) => { penSaid.push(String(t)) },
   strokeText: (t) => { penSaid.push(String(t)) },
+  fillRect: () => { penInk.push(String(o.fillStyle ?? '')) },
   createRadialGradient: () => ({ addColorStop () {} }),
   createLinearGradient: () => ({ addColorStop () {} }),
   createPattern: () => null, getImageData: () => ({ data: new Uint8ClampedArray(4) }),
-  putImageData () {}, drawImage () {},
-}, { get: (t, k) => (k in t ? t[k] : () => {}), set: (t, k, v) => (t[k] = v, true) })
+  putImageData () {}, drawImage () {} }
+  return new Proxy(o, { get: (t, k) => (k in t ? t[k] : () => {}), set: (t, k, v) => (t[k] = v, true) })
+}
 
 export function makeDocument (html = '') {
   const doc = {

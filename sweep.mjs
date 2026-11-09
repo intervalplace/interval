@@ -218,7 +218,7 @@ const BEFORE_TPL = `<script>
   const SERVED = __SERVED__
   window.fetch = (u) => {
     const k = String(u)
-    for (const name of ['settlements', 'roads', 'ground'])
+    for (const name of ['settlements', 'roads', 'ground', 'seams'])
       if (k.includes('/api/' + name))
         return Promise.resolve({ ok: true, json: async () => SERVED[name] })
     return Promise.resolve({ ok: false, json: async () => null, arrayBuffer: async () => new ArrayBuffer(0) })
@@ -376,6 +376,11 @@ const AFTER = (plan, state, myId) => `<script>
           const bb = document.getElementById('bookbtn')
           if (bb) { bb.click(); await settle(300) }
         }
+        const errM = document.getElementById('frameerr')
+        if (errM) { say('SWEEPFAIL the window could not draw: '
+          + errM.textContent.replace(/\\s+/g, ' ').slice(0, 200)); return }
+        window.__picked = (window.__picked ? window.__picked + ' | ' : '')
+          + 'seams ' + (typeof _seamsTold !== 'undefined' && _seamsTold ? _seamsTold.length : 'none')
         const m = document.getElementById('ctxmenu')
         const bp = document.getElementById('bookpanel')
         say(m ? ('MENUOK ' + (window.__picked ? '[' + window.__picked + '] ' : '')
@@ -620,6 +625,15 @@ const served = (() => {
   return {
     settlements: { settlements: WG.settlementsOf(g).map((t) => ({ tag: t.tag, name: t.name, x: t.x, y: t.y, w: t.w, h: t.h })) },
     roads: { tiles: [...WG.roadTilesOf(g)], bridges: [], bends: [] },
+    // §7ek: and the seams, so a swept chart shows the same marks a citizen's
+    // does. A sweep that withholds one of the three answers photographs the
+    // fallback rather than the world (§7ec).
+    seams: { seams: Object.values(world.nodes)
+      .filter((n) => new Set(['tree', 'oak-tree', 'ironbark-tree', 'heartwood-tree',
+        'gallows-oak', 'rock', 'iron-rock', 'coal-rock', 'gold-rock', 'quick-rock',
+        'mother-lode', 'fishing-spot', 'eel-spot', 'deep-fish-spot', 'gibbet-shoal',
+        'salt-pan', 'muck-heap', 'brimstone-vent', 'rockfall', 'grove-plot']).has(n.type))
+      .map((n) => [n.type, n.x, n.y]) },
     ground: { w: g.worldW, h: g.worldH, rows, dark: WG.darkTilesOf ? WG.darkTilesOf(g) : [],
       // §7ek: and where the water is, run-length encoded by row, because the
       // window is told that too now and a sweep that withholds it photographs
