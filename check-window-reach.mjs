@@ -176,14 +176,19 @@ vm.runInContext(body + `
   // tick discharges it rather than by reaching into the machinery
   msg: (m) => onMessage({ data: JSON.stringify(m) }),
   enter: () => { try { entered = true } catch (e) {} },
-  probe2: () => ({ entered: typeof entered === 'undefined' ? '?' : entered,
-    curWorldId: typeof curWorldId === 'undefined' ? '?' : curWorldId,
-    hasCur: !!curState, intent: intent ? intent.kind : null }),
   clearIntent: () => { intent = null },
   tables: () => ({ marketPlanks: MARKET_PLANKS, marketOre: MARKET_ORE,
     grovePlantLevel: GROVE_PLANT_LEVEL, bucksAt: BUCKS_AT, gravable: [...GRAVABLE],
     nodeGate: NODE_GATE, swearCountries: SWEAR_COUNTRIES_W, prices: Object.keys(PRICES).length }),
-  probe: () => ({ pressAt: _pressAt, menuAt: _menuAt, pressTile: _pressTile, pressName: _pressName, mini: miniRect }),
+  // §7ek: the told walls, and what the window does with them. walled is
+  // the window's own reader, tile is its own drawing, and said is the feed it
+  // actually wrote: all three asked through the window's doors rather than
+  // reasoned about. NO BACKTICKS IN THIS BLOCK, it is a template literal.
+  walled: (x, y) => groundWalled(x, y),
+  tile: (x, y) => { const c9 = document.createElement('canvas')
+    c9.width = 64; c9.height = 64; paintGroundTile(c9.getContext('2d'), x, y) },
+  said: () => feedLines.slice(),
+  hush: () => { feedLines.length = 0; lastFeed = { text: '', at: -1e9 } },
   anims: () => ({ doing: DOING_ANIM, silent: [...ACTION_SILENT], voice: Object.keys(ACTION_VOICE),
     still: [...ACTION_STILL] }),
   sound: (verb) => actionSound(verb),
@@ -1160,6 +1165,123 @@ console.log('\n--- 8d. what the window writes on a creature ---')
     ? glyphs.length + ' things the window writes on the world are symbols: ' + glyphs.join(' | ')
     : 'and nothing it writes on the world is a symbol')
   ctx.__h.hover(null)
+}
+
+console.log('\n--- 8i. the ground a citizen cannot walk on says so ---')
+{
+  // "I arrive at the Crags and then I just am unable to walk basically, it
+  // looks like just rocky ground. Actually I am just stuck and it is really
+  // bad there, I am even walking on the grass next to the biome now and still
+  // am getting stuck for seemingly no reason."
+  //
+  // Three thousand and forty-nine tiles of the island are dry land nobody can
+  // stand on, and the window knew about NONE of them: its `blockedAt` read
+  // the node list and nothing else. The world says so plainly -- `blockedAt`
+  // is in the geography hash and `groundKindAt` answers null on 3,039 of them
+  // because a cliff is not a surface -- and the window drew its fallback,
+  // which is grass. The Barrow is a solid ellipse 52 tiles by 30 with no way
+  // into it, and it was painted as a meadow.
+  //
+  // Three things have to hold, and each is asked of the window rather than
+  // reasoned about: it is TOLD, it DRAWS it, and it SAYS SO when pressed.
+  const st = fresh()
+  ctx.__h.msg({ type: 'state', state: st, worldId: WID })
+  await new Promise((r) => setImmediate(r))
+  ctx.__h.set(st, ID)
+  // a ridge two tiles wide down the middle of the little harness island
+  const took = ctx.__h.takeGround({ w: 40, h: 30, rows: [],
+    biomes: [[10, [[0, 40, 'crags']]], [11, [[0, 40, 'crags']]]],
+    blocked: [[10, [[18, 2]]], [11, [[18, 2]]]] })
+  ok(took, took ? 'the window takes the walls the pillar serves'
+    : 'the window refused a ground payload carrying walls')
+  ok(ctx.__h.walled(18, 10) && !ctx.__h.walled(17, 10),
+    ctx.__h.walled(18, 10) && !ctx.__h.walled(17, 10)
+      ? 'and it knows the ridge is a ridge and the ground beside it is not'
+      : 'the window reads the walls back wrong: 18,10 walled='
+        + ctx.__h.walled(18, 10) + ' 17,10 walled=' + ctx.__h.walled(17, 10))
+  // AND IT DRAWS IT. The first draft of the step painted into `cx`, the live
+  // world canvas, while every other line of paintGroundTile paints into the
+  // bake: the lip went onto the frame and the baked patch covered it on the
+  // same tick, so the window reported 138 walls under the citizen and the
+  // photograph showed plain grass. Ink laid on a wall tile, against ink laid
+  // on the ground beside it.
+  penInk.length = 0
+  ctx.__h.tile(17, 10)
+  const plain = [...new Set(penInk)]
+  penInk.length = 0
+  ctx.__h.tile(18, 10)
+  const wall = [...new Set(penInk)]
+  const extra = wall.filter((c) => !plain.includes(c))
+  ok(extra.length > 0, extra.length
+    ? 'and it draws the wall in ' + extra.length + ' inks it never uses on open ground'
+    : 'a wall tile is drawn in exactly the inks of the ground beside it, so it is invisible')
+  // the lip is the part a player learns once, so it has to be there
+  ok(wall.includes('rgba(10,9,7,0.78)') || wall.includes('rgba(10,9,7,.78)'),
+    wall.some((c) => /10, ?9, ?7/.test(c))
+      ? 'and the step has its lip where it meets ground somebody can stand on'
+      : 'the step has no lip (it drew: ' + wall.slice(0, 8).join(' ') + ')')
+  // AND IT SAYS SO. A press that returns in silence is indistinguishable
+  // from a window that has stopped listening.
+  ctx.__h.hush()
+  sent.length = 0
+  ctx.__h.press(18, 10, false)
+  const said = ctx.__h.said().join(' ')
+  ok(/too steep/.test(said), /too steep/.test(said)
+    ? 'and a press on it answers: ' + ctx.__h.said()[0]
+    : 'a press on a wall did not say why (feed: ' + (said || 'empty') + ')')
+  ok(!sent.some((a) => a && a.do === 'walk'),
+    !sent.some((a) => a && a.do === 'walk')
+      ? 'and it files no walk into a place the engine will refuse'
+      : 'the window filed a walk into a wall')
+  ctx.__h.takeGround({ w: 40, h: 30, rows: [], biomes: [], blocked: [] })
+}
+
+console.log('\n--- 8j. a citizen can stop following ---')
+{
+  // "I clicked fall in behind another citizen and I cannot interrupt it. I
+  // try clicking elsewhere but I just keep following, and then suddenly
+  // teleporting a little and it is just really bugged."
+  //
+  // The engine moves a follower one step a tick toward whoever they are
+  // behind AND CLEARS THEIR ACTION doing it, so a following citizen cannot
+  // walk anywhere: every step they file is undone before it lands, and the
+  // catch-up step reads as a teleport. Nothing in the window ever sent
+  // `unfollow` except one row of a menu on the other citizen, who by then is
+  // walking away. Pressing the ground is somebody saying they want to go
+  // somewhere themselves, so it ends the follow.
+  const st = fresh()
+  const them = E.generateIdentity()
+  E.addPlayer(st, them.playerId, 12, 10)
+  st.players[ID].following = them.playerId
+  ctx.__h.msg({ type: 'state', state: st, worldId: WID })
+  await new Promise((r) => setImmediate(r))
+  ctx.__h.set(st, ID)
+  ctx.__h.hush()
+  sent.length = 0
+  ctx.__h.press(15, 15, false)
+  ok(sent.some((a) => a && a.do === 'unfollow'),
+    sent.some((a) => a && a.do === 'unfollow')
+      ? 'pressing the ground while following sends unfollow'
+      : 'pressing the ground while following sent ' + JSON.stringify(sent.map((a) => a && a.do)))
+  ok(/stop following/.test(ctx.__h.said().join(' ')),
+    /stop following/.test(ctx.__h.said().join(' '))
+      ? 'and says so: ' + ctx.__h.said().find((l) => /stop following/.test(l))
+      : 'and said nothing about it')
+  // and it is on your own menu too, because somebody who wants to stop may
+  // not be able to reach the citizen they are behind
+  const st2 = fresh()
+  st2.players[ID].following = them.playerId
+  E.addPlayer(st2, them.playerId, 30, 20)
+  ctx.__h.msg({ type: 'state', state: st2, worldId: WID })
+  await new Promise((r) => setImmediate(r))
+  ctx.__h.set(st2, ID)
+  const grab = ctx.__h.spy()
+  ctx.__h.press(10, 10, true)
+  const mine = grab() ?? []
+  const row = mine.find((o) => o && /stop following/i.test(o.label ?? ''))
+  ok(!!row, row ? 'and your own menu offers to stop'
+    : 'your own menu does not offer to stop following (it offered: '
+      + mine.map((o) => o && (o.head ?? o.label)).filter(Boolean).join(', ') + ')')
 }
 
 console.log('\n--- 9. the spellbook says what the engine asks ---')

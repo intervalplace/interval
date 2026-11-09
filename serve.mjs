@@ -236,7 +236,7 @@ function carriedThroughRenames(list) {
 import { IntervalNode } from './node.mjs'
 import { DEFAULT_STARTUP_VERIFY_RECENT_N } from './errors.mjs'
 import { IntervalClient } from './sdk.mjs'
-import { buildWorld, foundGenesis, roadDataOf, groundKindOf, biomeOf, waterOf, localesOf, darkTilesOf, seatsImports } from './worldgen-any.mjs'
+import { buildWorld, foundGenesis, roadDataOf, groundKindOf, biomeOf, waterOf, blockedOf, localesOf, darkTilesOf, seatsImports } from './worldgen-any.mjs'
 import { readFounding, writeFounding } from './worldcache.mjs'
 import { carry, provenance } from './crossing.mjs'
 import { IncomingTree } from './incoming.mjs'
@@ -1329,6 +1329,20 @@ const server = http.createServer((req, res) => {
             }
             if (runs.length) wRows.push([y, runs])
           }
+          // §7ek: and what cannot be walked on. The window's own idea of a
+          // blocked tile is NODES and nothing else, so it planned paths into
+          // ridges and cliffs and the engine refused each step in silence.
+          const wallAt = blockedOf(gg)
+          const bl = []
+          for (let y = 0; y < gg.worldH; y++) {
+            const runs = []
+            let cur = false, start = 0
+            for (let x = 0; x <= gg.worldW; x++) {
+              const k = x < gg.worldW ? wallAt(x, y) : false
+              if (k !== cur) { if (cur) runs.push([start, x - start]); cur = k; start = x }
+            }
+            if (runs.length) bl.push([y, runs])
+          }
           const biomeAt = biomeOf(gg)
           const bRows = []
           for (let y = 0; y < gg.worldH; y++) {
@@ -1346,7 +1360,7 @@ const server = http.createServer((req, res) => {
           _groundCache = { w: gg.worldW, h: gg.worldH, rows, biomes: bRows,
             // §7dq-iv: and where it is dark, so a window draws by the light a
             // citizen carries rather than guessing which places are caves
-            locales: localesOf(gg), dark: darkTilesOf(gg), water: wRows }
+            locales: localesOf(gg), dark: darkTilesOf(gg), water: wRows, blocked: bl }
         } catch (e) { _groundCache = { w: 0, h: 0, rows: [], error: e.message } }
       }
       return json(_groundCache)

@@ -814,6 +814,18 @@ const isDarkAt = (x, y) => _darkTold.size > 0 && _darkTold.has(x + ',' + y)
 //
 // A bitmap, not a set: there are thousands of water tiles, unlike the hundred
 // and fifty-one dark ones.
+// §7ek: AND WHAT CANNOT BE WALKED ON, TOLD.
+//
+// This window's `blockedAt` knows about NODES and nothing else. It had no
+// idea a ridge is a ridge, so `nextStep` planned paths straight through the
+// Crags, the engine refused every step in silence, and a citizen stood there
+// pressing the ground: "I arrive at the Crags and then I just am unable to
+// walk." It happens on open grass too, wherever a wall runs through it.
+//
+// `blockedAt` is in the GEOGRAPHY HASH, so this is the world's own answer and
+// the window may only read it. Two and a half thousand tiles of the island
+// are wall rather than water.
+let _blockedTold = null
 let _waterTold = null
 const isWetAt = (x, y) => !!_waterTold && x >= 0 && y >= 0 && x < W && y < H
   && _waterTold[y * W + x] === 1
@@ -869,6 +881,17 @@ function takeGroundTold(gd) {
   // which is what every world before this one was.
   if (Array.isArray(gd.dark)) {
     _darkTold = new Set(gd.dark.map((t) => t[0] + ',' + t[1]))
+  }
+  if (Array.isArray(gd.blocked) && gd.blocked.length) {
+    const bf = new Uint8Array(W * H)
+    for (const [y, runs] of gd.blocked) {
+      if (y < 0 || y >= H) continue
+      for (const [x0, len] of runs) {
+        const end = Math.min(W, x0 + len)
+        for (let x = Math.max(0, x0); x < end; x++) bf[y * W + x] = 1
+      }
+    }
+    _blockedTold = bf
   }
   if (Array.isArray(gd.water) && gd.water.length) {
     const wf = new Uint8Array(W * H)
@@ -7269,7 +7292,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b99'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b100'  // stamp: if your screen says an older build, hard-refresh
 // ===========================================================================
 // WHAT A CITIZEN IS SEEN TO BE DOING
 //
@@ -7566,7 +7589,15 @@ function nodesNear(s, x0, y0, x1, y1) {
   }
   return out
 }
-const blockedAt = (s, x, y) => s._nodeTiles ? s._nodeTiles.has(x + ',' + y) : Object.values(s.nodes).some(n => n.x === x && n.y === y)
+// §7ek: A WALL IS BLOCKED, AND SO IS A NODE. This asked only about nodes, so
+// the pathfinder routed through ridges and cliffs and the engine refused
+// every step without saying why. The terrain half is told (see _blockedTold);
+// a window that has not been told falls back to what it always knew, which is
+// nodes, and walks into walls as it always did.
+const groundWalled = (x, y) => !!_blockedTold && x >= 0 && y >= 0 && x < W && y < H
+  && _blockedTold[y * W + x] === 1
+const blockedAt = (s, x, y) => groundWalled(x, y)
+  || (s._nodeTiles ? s._nodeTiles.has(x + ',' + y) : Object.values(s.nodes).some(n => n.x === x && n.y === y))
 const DIRS8 = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]
 
 // BFS over the whole grid: returns the first step of a shortest path to
@@ -11431,6 +11462,85 @@ function paintGroundTile(g, x, y) {
           else g.fillRect(px(x) + TILE - deep, py(y) + along, deep, wide)
         }
       }
+      // §7ek: A RIDGE LOOKS LIKE A RIDGE, AND IT IS NOT MADE OF GRASS.
+      //
+      // Three thousand tiles of this island cannot be walked on, and the world
+      // says so plainly: `groundKindAt` answers NULL on 3,039 of them, because
+      // a cliff is not a surface and has no named ground. The window read that
+      // null and drew its fallback, which is grass. So the Barrow is a solid
+      // ellipse 52 tiles by 30 with no way into it at all, and it was painted
+      // as a meadow: a citizen walked at it, stopped, and had nothing in the
+      // picture to tell them why. "I am even walking on the grass next to the
+      // biome and still am getting stuck for seemingly no reason."
+      //
+      // A tint over the grass is not enough either, and that was the first
+      // try. Standing INSIDE the mound there is no edge anywhere on the screen
+      // and a darker green reads as weather. So the face is painted OPAQUE, in
+      // stone, and the tile stops being ground at all. The lip goes on every
+      // side that meets somewhere a citizen can stand, with the sun on the
+      // crest above it, so the mass reads as rising rather than as a hole.
+      //
+      // DRY WALL ONLY. Water is blocked too and water already looks like
+      // water: a cliff lip round every bay would draw the coast as a quarry.
+      if (groundWalled(x, y) && !isWetAt(x, y)) {
+        const wall9 = (qx, qy) => groundWalled(qx, qy) && !isWetAt(qx, qy)
+        const up9 = !wall9(x, y - 1), dn9 = !wall9(x, y + 1)
+        const lf9 = !wall9(x - 1, y), rt9 = !wall9(x + 1, y)
+        // AND IT PAINTS INTO `g`, NOT `cx`. `cx` is the live world canvas at
+        // module scope, so the first draft of this drew every lip straight
+        // onto the frame, in bake coordinates, and the baked patch covered it
+        // on the same tick. The window reported 138 dry walls under the
+        // citizen and the photograph showed plain grass. Everything else in
+        // this function takes `g` for the same reason.
+        // THE STEP SPEAKS THE SAME LANGUAGE EVERYWHERE AND IS MADE OF THE
+        // PLACE. These walls are not all crag: of the 3,049, the heartlands
+        // hold 1,424, the Downs 763, the Greenwood 480 and the Crags only 382.
+        // One grey for the lot turns the Barrow, which is a burial mound in
+        // the heartlands, into a quarry. So the lip, the crest and the broken
+        // stone are the same wherever you meet them, because that is the part
+        // a player has to learn once, and only the stuff of the bank changes:
+        // chalk on the Downs, grey stone in the Crags, dark earth under the
+        // Greenwood and the heartlands, which is what a cut bank there is.
+        const BANK9 = {
+          crags:      ['#56534b', '#5d5a51', '#514e47', '#605c53'],
+          downs:      ['#9a9478', '#a39d80', '#8e886f', '#a8a287'],
+          greenwood:  ['#4a4032', '#524736', '#443a2d', '#584c3b'],
+          heartlands: ['#564832', '#5e4f38', '#4e412d', '#655540']
+        }
+        // THE TONE VARIES OVER PATCHES, NOT PER TILE. Picking one of four by
+        // `tileHash(x, y)` gave every tile its own shade and the mound came
+        // out as a checkerboard of blocks: a built wall rather than a mass of
+        // rock. The coarse hash shares a tone between a patch about four tiles
+        // across, and the per-tile jitter underneath is small enough to break
+        // the patch edge without drawing it.
+        const set9 = BANK9[biomeToldAt(x, y)] ?? BANK9.crags
+        g.fillStyle = set9[tileHash(x >> 2, y >> 2, 68) % 4]
+        g.fillRect(px(x), py(y), TILE, TILE)
+        g.fillStyle = tileHash(x, y, 69) % 2 ? 'rgba(255,255,255,.028)' : 'rgba(0,0,0,.035)'
+        g.fillRect(px(x), py(y), TILE, TILE)
+        // broken stone across the face, so it is rock and not a flat colour
+        g.fillStyle = 'rgba(0,0,0,.20)'
+        for (let q9 = 0; q9 < 4; q9++)
+          g.fillRect(px(x) + 2 + tileHash(x, y, 70 + q9 * 2) % 30,
+            py(y) + 2 + tileHash(x, y, 71 + q9 * 2) % 32,
+            4 + tileHash(x, y, 72 + q9) % 9, 2.6)
+        g.fillStyle = 'rgba(255,248,230,.09)'
+        for (let q9 = 0; q9 < 2; q9++)
+          g.fillRect(px(x) + 3 + tileHash(x, y, 78 + q9 * 2) % 28,
+            py(y) + 3 + tileHash(x, y, 79 + q9 * 2) % 30,
+            3 + tileHash(x, y, 80 + q9) % 7, 1.6)
+        // the lip, on every side that meets ground a citizen can stand on
+        g.fillStyle = 'rgba(10,9,7,.78)'
+        if (dn9) g.fillRect(px(x), py(y) + TILE - 5, TILE, 5)
+        if (up9) g.fillRect(px(x), py(y), TILE, 2.2)
+        if (rt9) g.fillRect(px(x) + TILE - 2.6, py(y), 2.6, TILE)
+        if (lf9) g.fillRect(px(x), py(y), 2.6, TILE)
+        // the sun on the crest, so the mass reads as rising
+        if (up9) {
+          g.fillStyle = 'rgba(255,246,222,.22)'
+          g.fillRect(px(x), py(y) + 2.2, TILE, 2.2)
+        }
+      }
       seamAt(x, y - 1, 'up')
       seamAt(x, y + 1, 'down')
       seamAt(x - 1, y, 'left')
@@ -11484,12 +11594,20 @@ function paintGroundTile(g, x, y) {
       g.fillStyle = '#b0722a'; g.fillRect(fx - 0.5, fy - 0.5, 1, 1)
     }
 }
-function buildGround() { groundReady = true } // mobile-safe: ground now paints per visible tile each frame
+let gCacheKey = ''
+// §7ek: AND IT THROWS THE BAKED PATCH AWAY.
+//
+// The ground is baked into a viewport-sized patch and re-baked only when the
+// camera crosses a tile. `buildGround` is what the window calls the moment
+// the pillar finally tells it the island, and it set a flag and nothing else:
+// the patch already on the screen stayed exactly as it was, drawn from
+// whatever the window had guessed, until the citizen happened to walk far
+// enough to cross a tile boundary. Everything told arrives one step late.
+function buildGround() { groundReady = true; gCacheKey = '' }
 // ...but painting every tile every frame is expensive in HD (all those grass
 // strokes). So we bake a viewport-sized patch into `ground` and only re-bake it
 // when the camera crosses a tile, blitting the rest of the time. Small canvas
 // (never the whole world), cheap frames.
-let gCacheKey = ''
 function ensureGroundCache() {
   const M = 2
   const ox = Math.max(0, Math.floor(cam.x) - M), oy = Math.max(0, Math.floor(cam.y) - M)
@@ -20144,7 +20262,16 @@ function worldPress(e, asLeft) {
     // chosen: there is nothing to aim, so there is nothing to click
     flashClick(meSelf.x, meSelf.y, false)
     if (!rightPress) { lookAtCitizen(myId, meSelf); return }
-    chooseAction([...oathOpts(meSelf)])
+    chooseAction([
+      // §7ek: and the way OUT of a follow, where you can find it. "fall out"
+      // is on the menu of whoever you are following, which means finding
+      // them first -- and they are walking away from you, which is why you
+      // are following them.
+      ...(meSelf.following ? [{ label: 'stop following '
+        + (world.players?.[meSelf.following]?.name ?? 'them'),
+        act: () => { send({ do: 'unfollow' }); feed('You stop following them.') } }] : []),
+      ...oathOpts(meSelf),
+    ])
     return
   }
   if (best?.kind === 'mob') {
@@ -21579,7 +21706,30 @@ function worldPress(e, asLeft) {
       return
     }
 
-  if (blockedAt(world, x, y)) return
+  // §7ek: AND IT SAYS SO. A press on a wall returned in silence, which is
+  // indistinguishable from a window that has stopped listening: it is exactly
+  // what "I am just stuck and it is really bad there" feels like from the
+  // inside. Now the ground answers.
+  if (blockedAt(world, x, y)) {
+    // AND IT NAMES NO COUNTRY. This said "The " + country + " rises", which
+    // comes out as "The crags rises" and "The downs rises": every country on
+    // this island but the Greenwood is a plural. The sentence a player needs
+    // is why they stopped, not where they are standing, and they can see
+    // where they are standing.
+    feed(groundWalled(x, y)
+      ? 'The ground is too steep there. You will have to go round.'
+      : 'Something is standing on that tile.')
+    return
+  }
+  // §7ek: AND A NEW ERRAND ENDS A FOLLOW. The engine moves a follower one
+  // step a tick toward whoever they are behind, and clears their action doing
+  // it ("a step is a step"), so a citizen who is following cannot walk
+  // anywhere at all: every step they file is undone before it lands. Clicking
+  // the ground is somebody saying they want to go somewhere themselves.
+  if (me.following) {
+    send({ do: 'unfollow' })
+    feed('You stop following ' + (world.players?.[me.following]?.name ?? 'them') + '.')
+  }
   flashClick(x, y, false)
   intent = { kind: 'walk', x, y }
   // §feel: a walk replaces the one action slot, so it needs no stop and can go

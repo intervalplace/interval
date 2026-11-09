@@ -140,6 +140,21 @@ export function waterOf(genesis) {
   return (x, y) => !!gen.isWater(genesis, x, y)
 }
 
+// §7ek: AND WHAT CANNOT BE WALKED ON, which is the thing a window most needs
+// and has never been told.
+//
+// `blockedAt` is in the GEOGRAPHY HASH, so it is the world's own answer and a
+// window may only read it. window-web's own `blockedAt` knows about NODES and
+// nothing else: it has no idea a ridge is a ridge. So every path it plans can
+// run straight into one, the engine refuses each step in silence, and the
+// citizen stands there pressing the ground. "I arrive at the Crags and then I
+// just am unable to walk."
+export function blockedOf(genesis) {
+  const gen = generatorFor(genesis)
+  if (typeof gen.blockedAt !== 'function') return () => false
+  return (x, y) => !!gen.blockedAt(genesis, x, y)
+}
+
 // §7ec-iii: THE NAMED PLACES WITHIN A COUNTRY, so a window can say where you
 // are rather than only which country you are in. Twenty records with a centre
 // and two radii: small enough to send whole, so there is nothing to encode and

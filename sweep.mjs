@@ -171,7 +171,11 @@ const DOING = arg('--doing')
 // this project that reads a menu reads the option list rather than the thing
 // a person sees. A list that is correct and ugly is still a fault here. This
 // opens one over the real world and lets Chrome photograph the page.
-const MENU = arg('--menu')
+const MENU = arg('--menu') || arg('--at')
+// --at <x,y>: the same picture with no press at all, for looking at GROUND.
+// --menu wants a menu and fails without one, which is right when the subject
+// is a menu and useless when the subject is a ridge.
+const NOPRESS = !!arg('--at')
 // --pick <n>: press the nth option on the menu and photograph what it opened.
 // A verb with several variants is ONE line that opens a second page (§7y), so
 // a picture of the first page says nothing about the page that matters.
@@ -241,6 +245,7 @@ const AFTER = (plan, state, myId) => `<script>
   const SMOKE = ${JSON.stringify(SMOKE)}
   const DOING = ${JSON.stringify(DOING)}
   const MENU = ${JSON.stringify(MENU)}
+  const NOPRESS = ${JSON.stringify(NOPRESS)}
   const PICK = ${JSON.stringify(PICK)}
   const BOOK = ${JSON.stringify(process.argv.includes('--book'))}
   const METER = ${JSON.stringify(METER)}
@@ -337,9 +342,9 @@ const AFTER = (plan, state, myId) => `<script>
         const r = cv.getBoundingClientRect()
         const sx = r.left + ((mx - cam.x + 0.5) * TILE * ZR) * (r.width / cv.width)
         const sy = r.top + ((my - cam.y + 0.5) * TILE * ZR) * (r.height / cv.height)
-        cv.dispatchEvent(new MouseEvent('pointerdown',
+        if (!NOPRESS) cv.dispatchEvent(new MouseEvent('pointerdown',
           { clientX: sx, clientY: sy, bubbles: true }))
-        cv.dispatchEvent(new MouseEvent('contextmenu',
+        if (!NOPRESS) cv.dispatchEvent(new MouseEvent('contextmenu',
           { clientX: sx, clientY: sy, bubbles: true, cancelable: true }))
         // AND LIFT THE FINGER. A MouseEvent carries no pointerType, so the
         // window's long-press timer does not recognise it as a mouse and
@@ -381,11 +386,20 @@ const AFTER = (plan, state, myId) => `<script>
           + errM.textContent.replace(/\\s+/g, ' ').slice(0, 200)); return }
         window.__picked = (window.__picked ? window.__picked + ' | ' : '')
           + 'seams ' + (typeof _seamsTold !== 'undefined' && _seamsTold ? _seamsTold.length : 'none')
+          + ', walls ' + (typeof _blockedTold !== 'undefined' && _blockedTold
+            ? _blockedTold.reduce((a, b) => a + b, 0) : 'NOT TOLD')
+          + ', dry walls near ' + (() => { let n = 0
+            for (let dy = -8; dy <= 8; dy++) for (let dx = -8; dx <= 8; dx++)
+              if (groundWalled(mx + dx, my + dy) && !isWetAt(mx + dx, my + dy)) n++
+            return n })()
+          + ', country ' + (biomeToldAt(mx, my) ?? 'NOT TOLD')
         const m = document.getElementById('ctxmenu')
         const bp = document.getElementById('bookpanel')
         say(m ? ('MENUOK ' + (window.__picked ? '[' + window.__picked + '] ' : '')
                 + m.textContent.replace(/\\s+/g, ' ').slice(0, 240))
-              : (BOOK && bp ? 'MENUOK book ' + bp.textContent.replace(/\\s+/g, ' ').slice(0, 240)
+              : (NOPRESS ? 'MENUOK (no press) at ' + mx + ',' + my
+                 + ' [' + (window.__picked ?? '') + ']'
+                 : BOOK && bp ? 'MENUOK book ' + bp.textContent.replace(/\\s+/g, ' ').slice(0, 240)
                  : 'SWEEPFAIL no menu opened at ' + mx + ',' + my))
         // AND A GHOST ON THE LEFT, in --book pictures only: a right-aligned
         // copy of each row's cost, painted where the canvas is. The canvas
@@ -635,6 +649,21 @@ const served = (() => {
         'salt-pan', 'muck-heap', 'brimstone-vent', 'rockfall', 'grove-plot']).has(n.type))
       .map((n) => [n.type, n.x, n.y]) },
     ground: { w: g.worldW, h: g.worldH, rows, dark: WG.darkTilesOf ? WG.darkTilesOf(g) : [],
+      // §7ek: and the walls, which the window is told now
+      blocked: (() => {
+        if (typeof WG.blockedAt !== 'function') return []
+        const br = []
+        for (let y = 0; y < g.worldH; y++) {
+          const runs = []
+          let cur = false, start = 0
+          for (let x = 0; x <= g.worldW; x++) {
+            const k = x < g.worldW ? !!WG.blockedAt(g, x, y) : false
+            if (k !== cur) { if (cur) runs.push([start, x - start]); cur = k; start = x }
+          }
+          if (runs.length) br.push([y, runs])
+        }
+        return br
+      })(),
       // §7ek: and where the water is, run-length encoded by row, because the
       // window is told that too now and a sweep that withholds it photographs
       // a fallback rather than the world
@@ -651,6 +680,29 @@ const served = (() => {
           if (runs.length) wr.push([y, runs])
         }
         return wr
+      })(),
+      // §7ek: AND WHICH COUNTRY EACH TILE IS IN. This was the one answer of
+      // the pillar's four that the sweep did not serve, so `biomeToldAt` was
+      // null on every tile of every photograph and anything drawn by country
+      // came out as its fallback. It showed up when the banks were given the
+      // stuff of the place: the Barrow is in the heartlands and photographed
+      // as grey crag stone. A sweep that withholds an answer photographs the
+      // fallback rather than the world, and this one was withholding it in
+      // silence.
+      biomes: (() => {
+        if (typeof WG.biomeAt !== 'function') return []
+        const br = []
+        for (let y = 0; y < g.worldH; y++) {
+          const runs = []
+          let cur = null, start = 0
+          for (let x = 0; x <= g.worldW; x++) {
+            const wet = x < g.worldW && typeof WG.inSea === 'function' && WG.inSea(g, x, y)
+            const k = x < g.worldW && !wet ? WG.biomeAt(g, x, y) : null
+            if (k !== cur) { if (cur !== null) runs.push([start, x - start, cur]); cur = k; start = x }
+          }
+          if (runs.length) br.push([y, runs])
+        }
+        return br
       })() },
   }
 })()
