@@ -7264,7 +7264,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b96'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b97'  // stamp: if your screen says an older build, hard-refresh
 // ===========================================================================
 // WHAT A CITIZEN IS SEEN TO BE DOING
 //
@@ -19174,7 +19174,17 @@ const NODE_LOOK = {
   'muck-heap': 'A muck heap. A spade turns it and it pays a farmer.',
   'salt-pan': 'Salt pans, raked flat and drying.',
   rockfall: 'A rockfall. Loose stone, no seam.',
-  'fishing-spot': 'A place to cast from.', 'eel-spot': 'An eel run.',
+  'fishing-spot': 'A place to cast from.',
+  // §13h: THE ONLY BAREHANDED RUNG IN THE WHOLE GATHERING ECONOMY, and the
+  // engine says so in its own margin: "a newcomer with nothing can eat." You
+  // do not angle for eels, you lift a trap somebody wove, and that takes
+  // hands. It is the answer to the question a citizen who dies with nothing
+  // asks, and the window never said it, so the answer was invisible.
+  //
+  // A gate, not a yield. Whether a tool is wanted cannot be found out by
+  // trying: trying without one is refused in silence.
+  'eel-spot': 'An eel run. The trap is already set, so this takes hands and no rod: '
+    + 'it is the one thing on the island anybody can work with nothing at all.',
   'deep-fish-spot': 'Deep water, and something in it.',
   'gibbet-shoal': 'The shoal under the gibbet. Two to a cast, and deep.',
   plot: 'A tilled row. You sow seeds in it and pull the crop yourself, and so '
