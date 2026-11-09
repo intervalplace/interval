@@ -7269,7 +7269,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b98'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b99'  // stamp: if your screen says an older build, hard-refresh
 // ===========================================================================
 // WHAT A CITIZEN IS SEEN TO BE DOING
 //
@@ -11955,9 +11955,27 @@ function drawCitizen(X, Y, o) {
     }
   }
   cx.fillStyle = tunicDk; cx.fillRect(X + 13, Y + 22, 14, 1.6) // belt
-  // rear arm
-  cx.fillStyle = skin
-  cx.fillRect(X + (F > 0 ? 12 : 25), Y + 17, 3, 8 + swing * 2)
+  // §7ek: THE REAR ARM IS THE SAME ARM.
+  //
+  // §7f gave the tool arm three shapes -- a sleeve in the tunic's dark, its
+  // lit edge, and a hand at the end -- because three pixels of bare skin read
+  // as a stick. The arm on the other side never came along, so a citizen wore
+  // a sleeve on one side and nothing on the other, which is what it looked
+  // like: two different arms.
+  //
+  // The same three shapes, a shade narrower and a shade darker, because it is
+  // the far one. Nothing here moves the shoulder; it swings with the body as
+  // it always did.
+  {
+    const rax = X + (F > 0 ? 12 : 25.6)
+    const ray = Y + 17, rl = 7 + swing * 2
+    cx.globalAlpha = 0.88
+    cx.fillStyle = tunicDk; cx.fillRect(rax, ray, 3.4, rl)
+    cx.fillStyle = tunic; cx.fillRect(rax, ray, 3.4, 1.2)
+    cx.fillStyle = skin
+    cx.beginPath(); cx.arc(rax + 1.7, ray + rl + 1.1, 1.9, 0, 7); cx.fill()
+    cx.globalAlpha = 1
+  }
   // 6ce: THE SHIELD, ON THE OFF ARM. Drawn on the REAR side and before the
   // tool arm, so it reads as held behind the body and can never cover the axe,
   // the bow or the blow -- which is the one thing a window must not do to a
@@ -20010,6 +20028,9 @@ const ONE_ACTION = {
 // so pressing a fence sent the engine `gather` on a fence. The engine refuses
 // it, the citizen gets nothing, and nothing anywhere says why. A span is in
 // here because crossing one is WALKING over it, not pressing it.
+// §7ek: the things on this island that are somebody rather than something.
+// They are talked to, and talking is how you find out who they are.
+const PEOPLE = new Set(['keeper', 'guard', 'crier', 'smith'])
 const SCENERY = {
   fence: 'A split-rail fence. It says where one holding ends and the next begins.',
   hedge: 'A hedge, grown thick and laid over. Older than the fence beside it.',
@@ -20422,8 +20443,16 @@ function worldPress(e, asLeft) {
       // the same word. The kind is on the node and always has been.
       _pressName = n.name ?? (n.type === 'landmark' && n.kind ? say1(n.kind) : null)
         ?? NODE_NAME[n.type] ?? say1(n.type)
-      _pressLook = () => lookAtNode(n)
-      if (n.name) _pressLookAs = 'look at ' + n.name
+      // §7ek: A PERSON IS TALKED TO, and the talk IS the look. "talk" and
+      // "look" on a keeper were two rows saying nearly the same sentence:
+      // one gave the name, the trade and a line, the other gave the name and
+      // "somebody who lives here and has a trade". Nobody needs both, and a
+      // menu with a near-duplicate in it reads as a menu nobody thought
+      // about.
+      if (!PEOPLE.has(n.type)) {
+        _pressLook = () => lookAtNode(n)
+        if (n.name) _pressLookAs = 'look at ' + n.name
+      }
       if (me.action?.nodeId === id) return                     // already working it: silent
       // §7ei: a thing with ONE action offers it rather than doing it, when it
       // is the right button being pressed. `chooseAction` adds `walk here`,
