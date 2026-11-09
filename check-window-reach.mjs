@@ -983,6 +983,41 @@ console.log('\n--- 8g. the chart marks the seams ---')
   ctx.__h.seams(null)
 }
 
+console.log('\n--- 8h. the chart marks what is worth being afraid of ---')
+{
+  // THE BOSS LIST IS ARITHMETIC, NOT A LIST SOMEBODY KEEPS. A creature the
+  // world takes twenty minutes or more to put back is not one you meet twice
+  // in an evening, and that is the whole definition. Held to the engine's own
+  // numbers so a beast whose respawn is retuned joins or leaves the set on
+  // the day it is retuned.
+  const mobs = ctx.__h.mobs()
+  const want = new Set(Object.entries(mobs)
+    .filter(([, v]) => (v.respawn ?? 0) >= 1200).map(([k]) => k))
+  const mine = (() => {
+    const i = html.indexOf('const BOSSES = new Set(')
+    const a = html.indexOf('[', i)
+    return new Set(Function('return ' + html.slice(a, html.indexOf(']', a) + 1))())
+  })()
+  const off = [...want].filter((b) => !mine.has(b)).map((b) => b + ' is not marked')
+    .concat([...mine].filter((b) => !want.has(b)).map((b) => b + ' is marked and comes back inside twenty minutes'))
+  ok(off.length === 0, off.length ? off.join('; ')
+    : 'the chart marks the ' + want.size + ' the world is slowest to put back: ' + [...want].join(', '))
+  // and it marks one, in your own country, and not one across a border
+  const st = fresh()
+  const boss = [...want][0]
+  st.mobs.b1 = { type: boss, x: 11, y: 10, health: 9, hp: 9 }
+  ctx.__h.msg({ type: 'state', state: st, worldId: WID })
+  await new Promise((r) => setImmediate(r))
+  ctx.__h.set(st, ID)
+  ctx.__h.seams(null)
+  penInk.length = 0
+  try { ctx.__h.chart(CLOCK + 31337) } catch (e) { ok(false, 'the chart threw: ' + e.message) }
+  ok(penInk.includes('#e8452e'), penInk.includes('#e8452e')
+    ? 'and a ' + boss + ' standing beside you is marked on it'
+    : 'a ' + boss + ' beside you is not marked (the chart used: '
+      + [...new Set(penInk)].slice(0, 8).join(' ') + ')')
+}
+
 console.log('\n--- 8f. the oath is where somebody would look for it ---')
 {
   // ONE MASTERY TO A CITIZEN is the centre of this world, and swearing was

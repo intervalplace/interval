@@ -5933,6 +5933,11 @@ let _seamsTold = null
 // What colour each family reads as at four world tiles to the pixel. The
 // families, not the kinds: a chart that needs a legend is a chart nobody
 // reads, and at this size an oak and an ironbark are the same green anyway.
+// §7ek: WHAT IS WORTH BEING AFRAID OF, by the engine's own arithmetic rather
+// than a list somebody keeps: a creature the world takes twenty minutes or
+// more to put back is not one you meet twice in an evening. Four of them.
+// Generated from engine.js MOB_STATS; see check-window-reach.mjs section 8h.
+const BOSSES = new Set(['siren', 'great-spider', 'dragon', 'gibbet-king'])
 const SEAM_INK = {
   tree: '#6fae3a', rock: '#c98a3a', 'quick-rock': '#8ce0ff', 'fishing-spot': '#3f9ad8',
   'salt-pan': '#d8cdb4', 'muck-heap': '#8a6a44', 'brimstone-vent': '#d8a23a',
@@ -7264,7 +7269,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b97'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b98'  // stamp: if your screen says an older build, hard-refresh
 // ===========================================================================
 // WHAT A CITIZEN IS SEEN TO BE DOING
 //
@@ -8762,6 +8767,8 @@ let _pressLook = null
 // and what to CALL that option. "look at the X" is right for a thing and
 // wrong for a person: a citizen called alder is looked at, not looked at the.
 let _pressLookAs = null
+// §7ek: the node a menu option named, while that option re-runs the press.
+let _onlyNode = null
 // `closest` is an ELEMENT method and a pointer event does not always carry
 // one: a synthetic event, or one that lands on the document or the window
 // itself, has a target with no such function and the handler throws. Both
@@ -8807,9 +8814,14 @@ function chooseAction(opts, at) {
   // way, or thirty option lists drift into offering different things. Skipped
   // where the list already offers a look or a read, which is what the things
   // that are only ever read already do.
+  //
+  // §7ek: AND IT SAYS "look", not "look at the tree". The heading already
+  // says TREE, an inch above it; a menu that names the thing in every row is
+  // a menu reading itself back to you. A person keeps their name, because a
+  // name is not an article away from a noun.
   if (_pressLook && !opts.some((o) => o && o.label && /^(look|read|listen)\b/.test(o.label))) {
     const lk = _pressLook
-    opts = [...opts, { label: _pressLookAs ?? ('look at the ' + (_pressName ?? 'it')), act: lk }]
+    opts = [...opts, { label: _pressLookAs ?? 'look', act: lk }]
   }
   // §7ei: and every menu raised over the world carries `walk here`.
   if (_pressTile) {
@@ -18380,6 +18392,33 @@ function drawSunMap(s, now) {
       g.fillRect(ax - 1, ay - 1, 2, 2)
     }
   }
+  // §7ek: AND THE FOUR THINGS WORTH BEING AFRAID OF.
+  //
+  // Every creature is the same orange dot, so the chart says a wood is busy
+  // and never says what is in it. These four are not busy, they are the
+  // reason a country has a reputation: the engine's own numbers tell them
+  // apart from the rest without a list to keep, because a beast that takes
+  // twelve hours to come back is not a beast you meet twice in an evening.
+  //
+  // ONLY IN YOUR OWN COUNTRY. A mark that reaches across a border is a
+  // warning you cannot act on and a warning you stop reading; one that
+  // appears as you cross into the Crags is the thing itself.
+  {
+    const meB = s.players[myId]
+    const myCountry = meB ? biomeToldAt(meB.x, meB.y) : null
+    for (const k in s.mobs) {
+      const q = s.mobs[k]
+      if (!BOSSES.has(q.type) || (q.hp ?? 1) <= 0) continue
+      if (myCountry && biomeToldAt(q.x, q.y) !== myCountry) continue
+      const [bx, by] = at(q.x, q.y)
+      if (bx < pad || by < pad || bx > MW - pad || by > MH - pad) continue
+      const beat = 0.45 + 0.55 * Math.abs(1 - ((now % 1100) / 550))
+      g.fillStyle = 'rgba(200,40,28,' + (0.35 * beat).toFixed(2) + ')'
+      g.fillRect(bx - 3, by - 3, 6, 6)
+      g.fillStyle = '#e8452e'
+      g.fillRect(bx - 1.5, by - 1.5, 3, 3)
+    }
+  }
   // the trades, on the radar. The chart shows the shape of a town; this
   // shows what is IN it, which is what you are actually looking for.
   for (const k in s.nodes) {
@@ -19095,11 +19134,13 @@ function drawBook() {
         + sp.name + '</div>'
     }).join('')
     + '</div>'
-    + '<div style="padding:4px 7px;border-top:1px solid var(--edge);color:var(--dim);'
-    + 'font-size:10px;line-height:1.5">'
-    + (barred ? 'No spell is cast in the Lists.'
-      : 'Hold a spell, then click what it lands on.')
-    + '<br>Right-click a spell to hear what it does.</div>'
+    // §7ek: AND NO STANDING INSTRUCTION. Two lines telling you how to use the
+    // panel, under the panel, for ever: read once and then clutter. Pressing
+    // a spell says what to do with it, in the feed, at the moment it is worth
+    // knowing; and right-click-to-hear is the rule the whole window follows.
+    // The one thing that is NOT general gets said and nothing else does.
+    + (barred ? '<div style="padding:4px 7px;border-top:1px solid var(--edge);'
+      + 'color:var(--dim);font-size:10px">No spell is cast in the Lists.</div>' : '')
   pan.querySelectorAll('[data-sp]').forEach((el) => {
     const sp = SPELLBOOK[book][Number(el.dataset.sp)]
     el.onclick = () => holdSpell(sp, world?.players?.[myId])
@@ -19305,6 +19346,28 @@ function swearIt(c) {
         feed('You swear ' + say1(c) + '. It is said once.') } },
     { label: 'not yet', act: () => {} },
   ])
+}
+// §7ek: GOING FOR A CREATURE, BY NAME.
+//
+// The menu's attack re-ran the PRESS, which resolves whatever is under the
+// cursor NOW. A goblin walks. So between opening the menu and choosing from
+// it the goblin stepped away, the re-run found bare ground where it had been,
+// and the citizen walked to an empty tile with a box flashing on it: the deed
+// went to a place rather than to a thing.
+//
+// Everything a menu offers should act on what it was opened ON. The id is
+// captured when the list is built and the position is read fresh at the
+// moment it fires, so the mark lands on the creature wherever it has got to.
+function goForMob(id) {
+  const m2 = world?.mobs?.[id]
+  const me2 = world?.players?.[myId]
+  if (!me2) return
+  if (!m2 || m2.hp <= 0) { feed('It is not there any more.'); return }
+  flashClick(m2.x, m2.y, true)
+  if (me2.action?.mobId === id) return                        // already fighting it: silent
+  if (Math.abs(me2.x - m2.x) + Math.abs(me2.y - m2.y) === 1) {
+    send({ do: 'prowess', mobId: id }); feed('You attack the ' + say1(m2.type) + '!')
+  } else intent = { kind: 'prowess', id }                      // hunt it down, then engage
 }
 // §7ek: WHAT A CREATURE IS, ASKED OF THE CREATURE.
 //
@@ -19897,19 +19960,19 @@ cv.addEventListener('pointerleave', () => { hoverT = null })
 // it does it: the bell "goes out over the whole town", so you ring it; the
 // pell "takes a BLOW", so you strike it; the sigil "is made".
 const ONE_ACTION = {
-  altar: 'make a sigil', anvil: 'smith', bellwork: 'ring the bell',
-  campfire: 'cook', fire: 'cook', dummy: 'strike the pell', ferry: 'sail',
-  fountain: 'look into it', guard: 'talk to the guard',
-  keeper: 'talk to them', landmark: 'look at it', 'looking-glass': 'change your look',
-  rockfall: 'mine it', sawpit: 'saw', smith: 'talk to the smith',
-  stamp: 'crush stone', tollgate: 'pay the toll', waystone: 'read it', well: 'drink',
+  altar: 'make a sigil', anvil: 'smith', bellwork: 'ring',
+  campfire: 'cook', fire: 'cook', dummy: 'strike', ferry: 'sail',
+  fountain: 'look into it', guard: 'talk',
+  keeper: 'talk', landmark: 'look', 'looking-glass': 'change your look',
+  rockfall: 'mine', sawpit: 'saw', smith: 'talk',
+  stamp: 'crush stone', tollgate: 'pay the toll', waystone: 'read', well: 'drink',
   // and the six the first pass of this missed, which is exactly why the test
   // asks the HANDLER what it answers rather than trusting this list: `bell`
   // is the same rope as `bellwork` under a second name, `butt` is the pell's
   // archery twin, and the three that are only ever READ were invisible to a
   // search for branches that act.
-  bell: 'ring the bell', butt: 'shoot the butt', crier: 'listen',
-  signpost: 'read it', palisade: 'look at it', wall: 'look at it',
+  bell: 'ring', butt: 'shoot', crier: 'listen',
+  signpost: 'read', palisade: 'look', wall: 'look',
   // §7ek: AND THE TWENTY-ONE THINGS A CITIZEN SPENDS MOST OF THEIR LIFE ON.
   //
   // Every tree, every seam, every fishing spot and the four worked grounds
@@ -19923,18 +19986,22 @@ const ONE_ACTION = {
   // Each verb is the plain one for what that ground gives. The names come
   // from NODE_NAME, which is the table the ground labels already use, so a
   // seam is called the same thing in the menu as on the grass.
-  tree: 'chop it', 'oak-tree': 'chop the oak', 'ironbark-tree': 'chop the ironbark',
-  'heartwood-tree': 'chop the heartwood', 'gallows-oak': 'chop the gallows oak',
-  rock: 'mine it', 'iron-rock': 'mine the iron', 'coal-rock': 'mine the coal',
-  'gold-rock': 'mine the gold', 'quick-rock': 'mine the magic stone',
-  'mother-lode': 'mine the lode', 'brimstone-vent': 'cut brimstone',
-  'muck-heap': 'dig the muck heap', 'salt-pan': 'rake the salt',
-  'fishing-spot': 'fish here', 'eel-spot': 'fish for eels',
-  'deep-fish-spot': 'fish the deep water', 'gibbet-shoal': 'fish the shoal',
+  // §7ek: THE VERB, AND NOT THE NOUN AGAIN. These read "chop the oak" and
+  // "mine the iron" under a heading that already says OAK and IRON, which is
+  // the menu saying the same word twice in two lines. A verb is enough when
+  // the list is about one thing; the noun earns its place only where a row
+  // has to be told from another row, as the wares on a stall do.
+  tree: 'chop', 'oak-tree': 'chop', 'ironbark-tree': 'chop',
+  'heartwood-tree': 'chop', 'gallows-oak': 'chop',
+  rock: 'mine', 'iron-rock': 'mine', 'coal-rock': 'mine',
+  'gold-rock': 'mine', 'quick-rock': 'mine', 'mother-lode': 'mine',
+  'brimstone-vent': 'cut', 'muck-heap': 'dig', 'salt-pan': 'rake',
+  'fishing-spot': 'fish', 'eel-spot': 'fish', 'deep-fish-spot': 'fish',
+  'gibbet-shoal': 'fish',
   // and the things that are scenery and nothing else. They had no verb
   // because they have none; what they lacked was a way to be ASKED.
   fence: 'look at it', hedge: 'look at it', railing: 'look at it',
-  banner: 'look at it', span: 'look at it',
+  banner: 'look', span: 'look',
 }
 // §7ek: A FENCE IS NOT A SEAM.
 //
@@ -19985,7 +20052,9 @@ function worldPress(e, asLeft) {
   const tc = renderT(performance.now())
   const lp = (a, b) => a + (b - a) * tc
   let best = null
-  for (const [id, m] of Object.entries(world.mobs)) {
+  // §7ek: a menu option re-running this press names the node it was opened
+  // on, and nothing standing on that tile may answer instead.
+  for (const [id, m] of Object.entries(_onlyNode ? {} : world.mobs)) {
     if (m.hp <= 0) continue
     const o = prevState?.mobs?.[id]
     const ix = o ? lp(o.x, m.x) : m.x, iy = o ? lp(o.y, m.y) : m.y
@@ -20004,7 +20073,7 @@ function worldPress(e, asLeft) {
       : { x: lp(oS.x, meSelf.x), y: lp(oS.y, meSelf.y) }
     if (Math.hypot(sxS.x + 0.5 - fxT, sxS.y + 0.5 - fyT) < 0.8) best = { d: 0, kind: 'self' }
   }
-  for (const [pid, p] of Object.entries(world.players)) {
+  for (const [pid, p] of Object.entries(_onlyNode ? {} : world.players)) {
     if (pid === myId) continue
     const o = prevState?.players?.[pid]
     const _hp2 = (!o || teleported(o, p)) ? { x: p.x, y: p.y } : { x: lp(o.x, p.x), y: lp(o.y, p.y) }
@@ -20076,7 +20145,7 @@ function worldPress(e, asLeft) {
       const pile = Object.entries(world.ground ?? {}).filter(([, g3]) => g3.x === m.x && g3.y === m.y)
       const st9 = MOB_STATS[m.type] ?? {}
       chooseAction([
-        { label: 'attack the ' + say1(m.type), act: () => worldPress(e, true) },
+        { label: 'attack', act: () => goForMob(id) },
         ...pile.slice(0, 5).map(([gid, g3]) => ({ label: 'take the ' + say1(g3.item),
           act: () => { send({ do: 'pickup', groundId: gid, confirm: false })
             feed('You pick up the ' + say1(g3.item) + '.') } })),
@@ -20084,13 +20153,7 @@ function worldPress(e, asLeft) {
       ])
       return
     }
-    flashClick(m.x, m.y, true)
-    // §7cq: an armed spell lands on a beast too. Three of the four barrow
-    // spells work on anything with hitpoints, and the gibbet-dead behind its
-    // railing can be reached by nothing else.
-    if (me.action?.mobId === id) return                        // already fighting it: silent
-    if (adj(m)) { send({ do: 'prowess', mobId: id }); feed('You attack the ' + m.type + '!') }
-    else intent = { kind: 'prowess', id }                       // hunt it down, then engage
+    goForMob(id)
     return
   }
   if (best?.kind === 'citizen') {
@@ -20368,9 +20431,13 @@ function worldPress(e, asLeft) {
       // thing, and the right one lets you go to the tile instead.
       if (rightPress && ONE_ACTION[n.type]) {
         // the callback runs long after this press is over, so it owns the
-        // tile for its own run and clears it again
+        // tile for its own run and clears it again. §7ek: and it NAMES the
+        // node, so a creature that wandered onto the tile while the menu was
+        // open cannot take the press meant for the thing underneath it.
         chooseAction([{ label: ONE_ACTION[n.type],
-          act: () => { try { worldPress(e, true) } finally { settleFlash(); _pressTile = null; _pressName = null; _pressLook = null; _pressLookAs = null } } },
+          act: () => { _onlyNode = id
+            try { worldPress(e, true) }
+            finally { _onlyNode = null; settleFlash(); _pressTile = null; _pressName = null; _pressLook = null; _pressLookAs = null } } },
           // §7ek: AND A STONE THAT WILL TAKE A NAME SAYS SO HERE.
           //
           // This gate answers the right button INSTEAD of the type's own
