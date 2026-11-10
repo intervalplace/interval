@@ -205,3 +205,58 @@ for (const file of IN_SERVICE) {
     'swapSet clears before it checks the replacement is a non-empty list')
   })
 }
+
+// §7p-iv: NOTHING THE WORLD HANDS OUT MAY BE A WORD IT DOES NOT MAKE.
+//
+// Four creatures dropped plain `ore`. The node that yields it is `rock`, and
+// the margin over `rock` says plainly that this founding has iron-rock,
+// coal-rock, gold-rock, quick-rock and mother-lode and NO PLAIN ROCK AT ALL:
+// the entry only survives so an old saved world still validates. No recipe
+// consumes `ore` either. So a kill paid out something that looks exactly like
+// a smelting material, and carrying it to the furnace does nothing at all.
+//
+// A retired word is not found by reading a drop table, because it reads
+// exactly like a live one. It is found by asking where a thing can COME FROM
+// and where it can GO, which is what this does: every item a creature drops
+// must be made by the world somewhere, or be usable in it, or be a thing
+// whose only job is to be sold.
+test('nothing is dropped that this world neither makes nor uses', () => {
+  const made = new Set()
+  for (const y of Object.values(E.NODE_YIELD ?? {})) if (y?.item) made.add(y.item)
+  for (const r of Object.keys(E.RECIPES ?? {})) made.add(r)
+  const used = new Set()
+  for (const r of Object.values(E.RECIPES ?? {})) {
+    for (const k of Object.keys(r ?? {})) used.add(k)
+    for (const k of Object.keys(r?.needs ?? r?.cost ?? {})) used.add(k)
+  }
+  // a thing whose whole job is to be worn, eaten, buried or carried is live
+  for (const k of E.EQUIPPABLE ?? []) used.add(k)
+  for (const k of Object.keys(E.HEALS ?? {})) used.add(k)
+  for (const k of E.GRAVABLE ?? []) used.add(k)
+  // AND THE ONE THING THAT IS LIVE AND LOOKS DEAD. `forage` has no price, no
+  // recipe and no entry in the larder, because it never enters a pack at all:
+  // taking it IS eating it, where it lies, and it rots in fifty intervals. It
+  // is deliberately the one unpriced thing that really is worth nothing, and
+  // the engine says so over `worthRank`. Named here with the reason rather
+  // than loosened out of the rule.
+  used.add('forage')
+  // AND THE GRAVER, which no keeper sells and no recipe makes: the SIREN is
+  // its only source in the world. That is the whole of it. Cutting your name
+  // into this island for good is gated behind one of the four things worth
+  // being afraid of, and an item with exactly one source reads to a check
+  // like an item with none.
+  used.add('graver')
+  // and the nodes a founding never places cannot make anything: `rock` is the
+  // one of those, and `ore` is the whole of what it made
+  const dead = new Set(['ore'])
+  const offences = []
+  for (const [mob, v] of Object.entries(E.MOB_STATS ?? {})) {
+    for (const d of v?.drops ?? []) {
+      if (!d?.item) continue
+      if (dead.has(d.item)) offences.push(`${mob} drops ${d.item}, which this founding does not mine`)
+      else if (!made.has(d.item) && !used.has(d.item) && !(E.PRICES ?? {})[d.item])
+        offences.push(`${mob} drops ${d.item}, which nothing makes, uses or buys`)
+    }
+  }
+  assert.deepEqual(offences, [], '\n  ' + offences.join('\n  '))
+})

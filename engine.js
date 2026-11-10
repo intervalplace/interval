@@ -3753,12 +3753,32 @@ const INCURSION_FACE_DROPS = {
 // and at two spit to a barb there will never be more than 224 barbs.
 const LAMPREY_LIVES = 64;
 const LAMPREY_COUNT = 7;
+// §7p-iv: AND NOTHING DROPS A WORD THIS FOUNDING DOES NOT MINE.
+//
+// Four creatures paid out plain `ore`. The node that yields it is `rock`, and
+// the margin over `rock` says plainly that this founding has iron-rock,
+// coal-rock, gold-rock, quick-rock and mother-lode and NO PLAIN ROCK AT ALL:
+// the entry only survives so an old saved world still validates. No recipe
+// consumes `ore` either. So a citizen killed a troll, picked up something
+// that looks exactly like a smelting material, carried it to the furnace at
+// Cragfoot and found that it is worth five gold and nothing else. A word that
+// looks like a material and is not one is worse than no drop.
+//
+// The three that gave it are rare and far out -- a troll, the dragon, and the
+// skeleton knight whose own margin already called this "scavenged metal" --
+// so they give IRON ORE, which is what scavenged metal is here.
+//
+// THE GOBLIN GIVES NOTHING IN ITS PLACE. It is the commonest creature on the
+// island and it stands on roads, so iron at one in four from a goblin is a
+// mine nobody has to walk to, and the walk is the whole of what mining costs.
+// Scarcity is the design (§7aa): the common creature pays bones, seed and
+// forage, and no material at all.
 const MOB_STATS = {
   // §6aa: `aggro` is how many tiles away a beast will notice you and come.
   // A goblin sees three -- close enough to matter on a road, far enough short
   // of the eighteen a citizen can see that nothing charges out of the dark.
   goblin: { maxHealth: 5, atk: 1, def: 1, maxHit: 1, respawn: 16, aggro: 3,
-            drops: [{ item: 'bones' }, { item: 'ore', chance: 16384 }, { item: 'seeds', chance: 16384 },
+            drops: [{ item: 'bones' }, { item: 'seeds', chance: 16384 },
                     { item: 'forage', chance: 20480 }] },
   // §12d: THE SCREE-IMP. Something small lives in the rockfall at the South
   // Pass and objects to being dug out of it. It hits for one, it cannot
@@ -3785,7 +3805,7 @@ const MOB_STATS = {
   // keeper and only ever passes between citizens. The best weapon here is the
   // one thing gold cannot be turned into except by asking someone who has one.
   troll:  { maxHealth: 20, atk: 4, def: 4, maxHit: 3, respawn: 300, aggro: 4,
-            drops: [{ item: 'bones' }, { item: 'ore' }, { item: 'iron-plate', chance: 6144 },
+            drops: [{ item: 'bones' }, { item: 'iron-ore' }, { item: 'iron-plate', chance: 6144 },
                     { item: 'old-chain', chance: 2 }] },
   bear:   { maxHealth: 14, atk: 3, def: 3, maxHit: 2, respawn: 220, aggro: 3,  // territorial, not a hunter
             drops: [{ item: 'bones' }, { item: 'bones', chance: 32768 }, { item: 'iron-hatchet', chance: 4096 },
@@ -4116,7 +4136,7 @@ const MOB_STATS = {
                     // life and reading the beacon -- and it falls into the same
                     // shared pile as the stones, to be fought over at the pickup.
                     { item: 'cinder-crown', chance: 2048 },
-                    { item: 'ore' }] },
+                    { item: 'iron-ore' }] },
   // §7cn: THE MERE-LAMPREY, and the first creature in this world that can be
   // USED UP.
   //
@@ -4161,7 +4181,7 @@ const MOB_STATS = {
             drops: [{ item: 'lamprey-spit' }, { item: 'bones' }] },
   'skeleton-knight': { maxHealth: 18, atk: 5, def: 6, maxHit: 4, respawn: 120, aggro: 5,   // the Wilds is dangerous in itself now
             drops: [{ item: 'bones' }, { item: 'bones' },   // double bones, the warrior's due
-                    { item: 'ore', chance: 12288 },            // scavenged metal
+                    { item: 'iron-ore', chance: 12288 },      // scavenged metal
                     { item: 'quick-helm', chance: 328 }, { item: 'hollow-bow', chance: 131 }] },    // rare: the horned helm itself
   // §6ao (v6): THE INCURSION. A thing that walks out of the dark, fixes on ONE
   // citizen, and takes a while to put down -- long enough that the neighbours

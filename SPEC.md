@@ -17888,6 +17888,49 @@ the exact good first, the substitute after, so what was cheaper to come by
 is spent before what was dearer, exactly as `consumeLogs` spends ordinary
 logs before heartwood.
 
+## 7p-iv. Nothing The World Hands Out May Be A Word It Does Not Make
+
+**Four creatures dropped plain `ore`.** A goblin at one in four, a troll and
+the dragon every time, a skeleton knight at one in five. The node that yields
+`ore` is `rock`, and the margin over `rock` in the engine says plainly that
+this founding stands up iron-rock, coal-rock, gold-rock, quick-rock and the
+mother lode and NO PLAIN ROCK AT ALL: its entry survives only so an old saved
+world still validates. No recipe consumes `ore` either.
+
+So a citizen killed a troll, picked up something that looks exactly like a
+smelting material, carried it the two hundred and thirty-eight tiles to the
+furnace at Cragfoot and found it is worth five gold and nothing else. **A word
+that looks like a material and is not one is worse than no drop**, because the
+walk is the cost and the walk was wasted.
+
+**The three that are rare and far out give IRON ORE.** A troll, the dragon,
+and the skeleton knight whose own margin already called this "scavenged
+metal", which is what scavenged metal is in this founding.
+
+**The goblin gives nothing in its place.** It is the commonest creature on the
+island and it stands on roads, so iron at one in four from a goblin is a mine
+nobody has to walk to, and the walk is the whole of what mining costs (§7aa).
+The common creature pays bones, seed and forage, and no material at all.
+
+**A retired word is not found by reading a drop table**, because it reads
+exactly like a live one: `ore` sat beside `bones` and `seeds` looking no
+different. It is found by asking where a thing can COME FROM and where it can
+GO. `test/tables.test.mjs` asks that of every drop in the world: each must be
+made by a seam or a recipe, or be usable, or be a thing whose only job is to
+be sold.
+
+**Two live words look dead to that question and are named with their reasons**,
+the way §7ek names a deed that is not a button:
+
+- `forage` has no price, no recipe and no entry in the larder, because it never
+  enters a pack at all. Taking it IS eating it, where it lies, and it rots. It
+  is deliberately the one unpriced thing that really is worth nothing.
+- `graver` has no price and no recipe either, and the SIREN is its only source
+  in the world. Cutting your name into this island for good is gated behind one
+  of the four things worth being afraid of. An item with exactly one source
+  reads to a check like an item with none.
+
+
 ## 7q. A Round Log Is Not A Plank
 
 > **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:10838` by `spec-stubs.mjs`.

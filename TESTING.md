@@ -1,7 +1,7 @@
 # Interval. Testing & Freeze Evidence
 
 Release 1.0.6, protocol spec v1.05, consensus spec v1.10, rules hash
-`100ddb4abd7172b0…`.
+`9cb4ea4e0a3a140c…`.
 
 This document states exactly what is tested, with what inputs, for how
 long. Coverage is **finite and enumerated**, the claims below are about
@@ -10,7 +10,7 @@ possible executions.
 
 ## Unit + property suite (`npm test`)
 
-`node --test test/*.test.mjs`, 681 tests across:
+`node --test test/*.test.mjs`, 682 tests across:
 
 - `leak.test.mjs`, §21c: no write reaches the caller's state. Exercises the
   paths where one citizen touches another (striking, being hunted, trading,
@@ -326,6 +326,15 @@ possible executions.
   of those tables are Sets, `JSON.stringify(new Set())` is `{}`, and
   /api/tables served all four whole -- so a window that trusted them would
   have learned that nothing in the world can be worn
+  And §7p-iv: that nothing the world hands out is a word it does not make.
+  Four creatures dropped plain `ore`, whose seam this founding never places
+  and whose name no recipe takes, so a kill paid out something that looks
+  exactly like a smelting material and is worth five gold. A retired word
+  reads exactly like a live one in a drop table; it is found by asking where
+  a thing can come from and where it can go. Two live words look dead to
+  that question and are named with their reasons: `forage`, eaten where it
+  lies and never entering a pack, and `graver`, whose only source in the
+  world is the siren
 - `check-window-photo-landmarks.mjs`, wrapped in `photo.test.mjs`: every one of
   the ninety-seven landmark kinds the engine will accept, BUILT against the
   real three.js, and asked four things. Does it build; did it make anything; is
