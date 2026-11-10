@@ -2363,7 +2363,17 @@ function runWays(st, name, own, joins, x, y) {
   // set get a say
   const down = (ou || od) !== (ol || or) ? (ou || od)
     : (u || d) && !(l || r)
-  return { l, r, u, d, down }
+  // AND AN ARM IS ITS OWN KIND'S TOO. The hedge along the north side of the
+  // apiary has the houses' own WALLS running under it, and a wall is in the
+  // joining family, so every tile of that hedge grew a branch southward into
+  // the side of a building: a row of green tabs hanging off a hedge. A hedge
+  // meeting a wall does not sprout into it.
+  //
+  // So the wider family keeps the one job it is good for: a run that butts
+  // against stonework reaches the tile edge instead of showing a rounded end,
+  // because it has run up to something rather than stopped in the open.
+  return { l: ol, r: or, u: ou, d: od, down,
+    toL: l, toR: r, toU: u, toD: d }
 }
 // and the same question for the lighter boundaries, which join each other
 // and anything heavier. One index, rebuilt when the interval changes.
@@ -7410,7 +7420,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b105'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b106'  // stamp: if your screen says an older build, hard-refresh
 // ===========================================================================
 // WHAT A CITIZEN IS SEEN TO BE DOING
 //
@@ -12978,32 +12988,56 @@ function drawScene(now) {
         // The fence crossing the sand road outside Anchor vanished: only the
         // darker posts came through, so the run read as two loose stakes
         // standing in the road with nothing between them.
+        // §7ef: AND A CORNER IS AN ARM EACH WAY, NOT ONE ARM AND A POST.
+        //
+        // A corner tile has neighbours on both axes, so `down` is false and
+        // it drew the ACROSS sprite: a full band left to right and nothing
+        // going down at all. The run below started at its own tile edge, so
+        // the two arms of every corner on the island stopped short of each
+        // other with a tile of daylight between them, and the post dropped in
+        // the middle did not reach either of them.
+        //
+        // Instead: an arm from the middle of the tile out to each side the
+        // fence continues on. A straight run is two opposite arms, which is
+        // the same band as before; a corner is an L that meets in the middle;
+        // a T junction is a T and a crossing is a cross, and none of those
+        // needed their own branch. A side that does NOT continue ends the run
+        // near the far edge when it is the end of a straight line, and at the
+        // middle when there is an arm the other way, because a line that runs
+        // past its own corner is a line with a spur on it.
         const POST = '#54401f', RAIL = '#8a6f44', EDGE = 'rgba(38,28,14,.5)'
-        if (down) {
-          const y0f = fu ? Y : Y + 5, hf = (fd ? TILE : TILE - 5) - (fu ? 0 : 5)
+        const hasH = fl || fr, hasV = fu || fd, END = 5
+        const x0f = (fl || fw.toL) ? X : (hasV ? X + 16 : X + END)
+        const x1f = (fr || fw.toR) ? X + TILE : (hasV ? X + 24 : X + TILE - END)
+        const y0f = (fu || fw.toU) ? Y : (hasH ? Y + 16 : Y + END)
+        const y1f = (fd || fw.toD) ? Y + TILE : (hasH ? Y + 24 : Y + TILE - END)
+        if (hasV) {
           cx.fillStyle = EDGE
-          cx.fillRect(X + 13, y0f, 5.2, hf); cx.fillRect(X + 21, y0f, 5.2, hf)
+          cx.fillRect(X + 13, y0f, 5.2, y1f - y0f); cx.fillRect(X + 21, y0f, 5.2, y1f - y0f)
           cx.fillStyle = RAIL
-          cx.fillRect(X + 14, y0f, 3.2, hf)
-          cx.fillRect(X + 22, y0f, 3.2, hf)
-          cx.fillStyle = POST
-          cx.fillRect(X + 12, Y + 18, 16, 3.4)                 // the post this tile stands on
-          if (!fu) cx.fillRect(X + 12, Y + 5, 16, 3.4)
-          if (!fd) cx.fillRect(X + 12, Y + TILE - 8, 16, 3.4)
-        } else {
-          const x0f = fl ? X : X + 5, wf = (fr ? TILE : TILE - 5) - (fl ? 0 : 5)
-          cx.fillStyle = EDGE
-          cx.fillRect(x0f, Y + 13, wf, 5.2); cx.fillRect(x0f, Y + 21, wf, 5.2)
-          cx.fillStyle = RAIL
-          cx.fillRect(x0f, Y + 14, wf, 3.2)
-          cx.fillRect(x0f, Y + 22, wf, 3.2)
-          cx.fillStyle = POST
-          cx.fillRect(X + 18, Y + 12, 3.4, 16)
-          if (!fl) cx.fillRect(X + 5, Y + 12, 3.4, 16)
-          if (!fr) cx.fillRect(X + TILE - 8, Y + 12, 3.4, 16)
+          cx.fillRect(X + 14, y0f, 3.2, y1f - y0f)
+          cx.fillRect(X + 22, y0f, 3.2, y1f - y0f)
         }
-        // and a corner gets its post, or the two runs meet in mid air
-        if ((fl || fr) && (fu || fd)) { cx.fillStyle = POST; cx.fillRect(X + 16, Y + 16, 8, 8) }
+        if (hasH || !hasV) {   // a fence standing alone lies across, as it always has
+          cx.fillStyle = EDGE
+          cx.fillRect(x0f, Y + 13, x1f - x0f, 5.2); cx.fillRect(x0f, Y + 21, x1f - x0f, 5.2)
+          cx.fillStyle = RAIL
+          cx.fillRect(x0f, Y + 14, x1f - x0f, 3.2)
+          cx.fillRect(x0f, Y + 22, x1f - x0f, 3.2)
+        }
+        cx.fillStyle = POST
+        if (hasV && !hasH) {
+          cx.fillRect(X + 12, Y + 18, 16, 3.4)                 // the post this tile stands on
+          if (!fu && !fw.toU) cx.fillRect(X + 12, Y + 5, 16, 3.4)
+          if (!fd && !fw.toD) cx.fillRect(X + 12, Y + TILE - 8, 16, 3.4)
+        } else if (!hasV) {
+          cx.fillRect(X + 18, Y + 12, 3.4, 16)
+          if (!fl && !fw.toL) cx.fillRect(X + 5, Y + 12, 3.4, 16)
+          if (!fr && !fw.toR) cx.fillRect(X + TILE - 8, Y + 12, 3.4, 16)
+        }
+        // and the corner itself takes a stout post, which is what a real
+        // fence turns on and what holds the two arms together to the eye
+        if (hasH && hasV) cx.fillRect(X + 15, Y + 15, 10, 10)
         return
       }
       // §7e: THE EIGHT THE WINDOW HAD NEVER HEARD OF.
@@ -13251,33 +13285,40 @@ function drawScene(now) {
           cx.fillStyle = c
           cx.beginPath(); cx.ellipse(bx, by, rx, ry, 0, 0, 7); cx.fill()
         }
-        if (hw.down) {
-          const y0 = hw.u ? Y : Y + 3, y1 = hw.d ? Y + TILE : Y + TILE - 3
-          cx.fillStyle = BODY; cx.fillRect(X + 8, y0, 19, y1 - y0)
-          if (!hw.u) blob(X + 17.5, y0 + 1, 9.5, 3.5, BODY)
-          if (!hw.d) blob(X + 17.5, y1 - 1, 9.5, 3.5, BODY)
-          for (let q = 0; q < 7; q++) {
+        // §7ef: AND A CORNER IS AN ARM EACH WAY. A hedge that turns had
+        // neighbours on both axes, so it fell to the across drawing and the
+        // run coming up to it from below ended in open grass. An arm out to
+        // each side it continues on makes the L, the T and the crossing fall
+        // out of one rule, and a hedge that stands alone keeps its bush.
+        const hasH = hw.l || hw.r, hasV = hw.u || hw.d
+        const x0 = (hw.l || hw.toL) ? X : (hasV ? X + 8 : X + 3)
+        const x1 = (hw.r || hw.toR) ? X + TILE : (hasV ? X + 27 : X + TILE - 3)
+        const y0 = (hw.u || hw.toU) ? Y : (hasH ? Y + 6 : Y + 3)
+        const y1 = (hw.d || hw.toD) ? Y + TILE : (hasH ? Y + 24 : Y + TILE - 3)
+        cx.fillStyle = BODY
+        if (hasV) cx.fillRect(X + 8, y0, 19, y1 - y0)
+        if (hasH || !hasV) cx.fillRect(x0, Y + 6, x1 - x0, 18)
+        // the rounded ends, only where the hedge really stops
+        if (hasV && !hw.u && !hw.toU) blob(X + 17.5, y0 + 1, 9.5, 3.5, BODY)
+        if (hasV && !hw.d && !hw.toD) blob(X + 17.5, y1 - 1, 9.5, 3.5, BODY)
+        if (!hasV && !hw.l && !hw.toL) blob(x0 + 1, Y + 15, 3.5, 9, BODY)
+        if (!hasV && !hw.r && !hw.toR) blob(x1 - 1, Y + 15, 3.5, 9, BODY)
+        // and the crown over the whole of it, however many ways it goes
+        for (let q = 0; q < 7; q++) {
+          if (hasV) {
             const by = y0 + ((tileHash(n.x, 0, 31 + q) + q * 13) % Math.max(1, (y1 - y0)))
             const k = tileHash(n.x, Math.floor(by), 37 + q)
-            blob(X + 12 + (k % 9), by, 4 + (k >> 3) % 4, 3.5 + (k >> 5) % 3,
-              k & 1 ? TOP : BODY)
+            blob(X + 12 + (k % 9), by, 4 + (k >> 3) % 4, 3.5 + (k >> 5) % 3, k & 1 ? TOP : BODY)
           }
-          cx.fillStyle = UNDER
-          cx.fillRect(X + 22, y0, 5, y1 - y0)
-        } else {
-          const x0 = hw.l ? X : X + 3, x1 = hw.r ? X + TILE : X + TILE - 3
-          cx.fillStyle = BODY; cx.fillRect(x0, Y + 6, x1 - x0, 18)
-          if (!hw.l) blob(x0 + 1, Y + 15, 3.5, 9, BODY)
-          if (!hw.r) blob(x1 - 1, Y + 15, 3.5, 9, BODY)
-          for (let q = 0; q < 7; q++) {
+          if (hasH || !hasV) {
             const bx = x0 + ((tileHash(0, n.y, 31 + q) + q * 13) % Math.max(1, (x1 - x0)))
             const k = tileHash(Math.floor(bx), n.y, 37 + q)
-            blob(bx, Y + 10 + (k % 7), 4 + (k >> 3) % 4, 3.5 + (k >> 5) % 3,
-              k & 1 ? TOP : BODY)
+            blob(bx, Y + 10 + (k % 7), 4 + (k >> 3) % 4, 3.5 + (k >> 5) % 3, k & 1 ? TOP : BODY)
           }
-          cx.fillStyle = UNDER
-          cx.fillRect(x0, Y + 20, x1 - x0, 4.5)
         }
+        cx.fillStyle = UNDER
+        if (hasV) cx.fillRect(X + 22, y0, 5, y1 - y0)
+        if (hasH || !hasV) cx.fillRect(x0, Y + 20, x1 - x0, 4.5)
         return
       }
       if (n.type === 'fountain' || (n.type === 'well' && isFountain4(n.x, n.y))) {
@@ -14803,30 +14844,49 @@ function drawScene(now) {
         // drawn as rungs of a ladder lying on the grass, with the uprights
         // marching the wrong way.
         const rw = runWays(s, 'railing', RAIL_OWN, RAIL_JOINS, n.x, n.y)
+        // §7ef: AND A CORNER IS AN ARM EACH WAY, as with the fence and the
+        // hedge. A churchyard railing that turns had neighbours both ways and
+        // drew only the across sprite, so every corner of every yard was two
+        // runs ending in mid air.
         const rr = ((n.x * 7 + n.y * 13) & 3)
-        cx.strokeStyle = '#2f3338'; cx.lineWidth = 2
-        if (rw.down) {
-          const y0 = rw.u ? Y : Y + 2, y1 = rw.d ? Y + TILE : Y + TILE - 2
+        const hasH = rw.l || rw.r, hasV = rw.u || rw.d
+        cx.strokeStyle = '#2f3338'
+        if (hasV) {
+          const y0 = (rw.u || rw.toU) ? Y : (hasH ? Y + 14 : Y + 2)
+          const y1 = (rw.d || rw.toD) ? Y + TILE : (hasH ? Y + 26 : Y + TILE - 2)
+          cx.lineWidth = 2
           cx.beginPath(); cx.moveTo(X + 14, y0); cx.lineTo(X + 14, y1); cx.stroke()
           cx.beginPath(); cx.moveTo(X + 26, y0); cx.lineTo(X + 26, y1); cx.stroke()
           cx.lineWidth = 2.6
           for (let i = 0; i < 4; i++) {
             const py = Y + 6 + i * 10
+            if (py < y0 || py > y1) continue
             cx.beginPath(); cx.moveTo(X + 8 + (i === rr % 4 ? 1 : 0), py); cx.lineTo(X + 32, py); cx.stroke()
             cx.fillStyle = '#3b4046'
             cx.beginPath(); cx.arc(X + 7, py, 1.8, 0, 7); cx.fill()
           }
-        } else {
-          const x0 = rw.l ? X : X + 2, x1 = rw.r ? X + TILE : X + TILE - 2
+        }
+        if (hasH || !hasV) {
+          const x0 = (rw.l || rw.toL) ? X : (hasV ? X + 14 : X + 2)
+          const x1 = (rw.r || rw.toR) ? X + TILE : (hasV ? X + 26 : X + TILE - 2)
+          cx.lineWidth = 2
           cx.beginPath(); cx.moveTo(x0, Y + 16); cx.lineTo(x1, Y + 16); cx.stroke()
           cx.beginPath(); cx.moveTo(x0, Y + 30); cx.lineTo(x1, Y + 30); cx.stroke()
           cx.lineWidth = 2.6
           for (let i = 0; i < 4; i++) {
             const px = X + 6 + i * 10
+            if (px < x0 || px > x1) continue
             cx.beginPath(); cx.moveTo(px, Y + 8 + (i === rr % 4 ? 1 : 0)); cx.lineTo(px, Y + 36); cx.stroke()
             cx.fillStyle = '#3b4046'
             cx.beginPath(); cx.arc(px, Y + 7, 1.8, 0, 7); cx.fill()
           }
+        }
+        // the standard the two arms are bolted to
+        if (hasH && hasV) {
+          cx.fillStyle = '#3b4046'
+          cx.fillRect(X + 16, Y + 16, 8, 8)
+          cx.strokeStyle = '#20242a'; cx.lineWidth = 1
+          cx.strokeRect(X + 16, Y + 16, 8, 8)
         }
         return
       }

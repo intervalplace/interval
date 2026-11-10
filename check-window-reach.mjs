@@ -1585,6 +1585,40 @@ console.log('\n--- 8o. everything that comes in a run is drawn along it ---')
       : 'a ' + type + ' does not turn with its run (down it, the longest mark is '
         + vm[0][0] + 'x' + vm[0][1] + '; across it, ' + hm[0][0] + 'x' + hm[0][1] + ')')
   }
+  // AND A CORNER CARRIES BOTH ARMS. A tile where a run turns has neighbours
+  // on both axes, so every one of them fell to the across drawing and put
+  // down no mark at all toward the arm coming up from below: 1,074 corner and
+  // junction tiles on this island, each of them two runs ending in mid air a
+  // tile apart. A corner that turns adds marks BOTH ways, which an isolated
+  // tile of the same kind does not.
+  const cornerOf = async (type) => {
+    const st = fresh()
+    st.nodes.c0 = { type, x: 11, y: 11 }   // the corner
+    st.nodes.c1 = { type, x: 10, y: 11 }   // its west arm
+    st.nodes.c2 = { type, x: 11, y: 12 }   // its south arm
+    ctx.__h.msg({ type: 'state', state: st, worldId: WID })
+    await new Promise((r) => setImmediate(r))
+    ctx.__h.set(st, ID); ctx.__h.useCur(); ctx.__h.hover(null)
+    penRect.length = 0
+    try { ctx.__h.draw() } catch (e) { return { threw: e.message } }
+    let down = 0, across = 0
+    for (const [, , w, h] of penRect) {
+      if (!(w >= 0) || !(h >= 0)) continue
+      if (Math.max(w, h) < 12 || Math.max(w, h) > 130) continue
+      if (h > w) down++; else if (w > h) across++
+    }
+    return { down, across }
+  }
+  for (const type of ['fence', 'hedge', 'railing']) {
+    const C = await cornerOf(type)
+    if (C.threw) { ok(false, 'a ' + type + ' corner threw: ' + C.threw); continue }
+    ok(C.down > 0 && C.across > 0, C.down > 0 && C.across > 0
+      ? 'a ' + type + ' corner carries both arms (' + C.down + ' down, ' + C.across + ' across)'
+      : 'a ' + type + ' corner has only one arm (' + C.down + ' down, ' + C.across + ' across)')
+  }
+  // and an arm is its OWN kind's, or a hedge sprouts into the house beside it
+  ok(/toL: l, toR: r, toU: u, toD: d/.test(html),
+    'and a run butting against something heavier reaches it without growing an arm into it')
   // a bed is a whole tile either way, so its SHAPE cannot answer: its furrows
   // are strokes, and the question is which way they lie
   ok(/runWays\(s, 'plot'/.test(html) && /pw\.down/.test(html),
