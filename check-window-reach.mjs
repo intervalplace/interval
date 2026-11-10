@@ -1459,6 +1459,44 @@ console.log('\n--- 8m. one word to a cluster, not one to a tile ---')
       : 'two kinds side by side wrote: ' + [...new Set(penSaid)].join(' | ').slice(0, 80))
 }
 
+console.log('\n--- 8n. the toll bar lies across the way ---')
+{
+  // "The toll on the bridge does not look like a toll, it is rotated
+  // sideways." It was. The sprite drew one gate per tile, always east to
+  // west, and the Millbrook bar is TWO tiles stacked north to south across a
+  // road that runs east to west: a pair of gates lying flat along the
+  // direction of travel. The way is read off the world now, and a run of
+  // tiles is one bar with a post at each END rather than a gate per tile.
+  //
+  // Four states, because each is a branch and a branch that throws takes the
+  // whole frame with it: a run of two either way, a gate standing alone, and
+  // the bar lifted.
+  const lay = async (tiles, paid) => {
+    const st = fresh()
+    for (let i = 0; i < tiles.length; i++)
+      st.nodes['tg' + i] = { type: 'tollgate', x: tiles[i][0], y: tiles[i][1] }
+    if (paid) st.players[ID].paidUntil = (st.tick ?? 0) + 120
+    ctx.__h.msg({ type: 'state', state: st, worldId: WID })
+    await new Promise((r) => setImmediate(r))
+    ctx.__h.set(st, ID); ctx.__h.useCur(); ctx.__h.hover(null)
+    let threw = null
+    try { ctx.__h.draw() } catch (e) { threw = e.message }
+    return threw
+  }
+  for (const [what, tiles, paid] of [
+    ['a bar two tiles north to south', [[11, 9], [11, 10]], false],
+    ['a bar two tiles east to west', [[10, 11], [11, 11]], false],
+    ['a bar standing alone', [[11, 10]], false],
+    ['a bar that has been paid and lifted', [[11, 9], [11, 10]], true],
+  ]) {
+    const threw = await lay(tiles, paid)
+    ok(!threw, threw ? what + ' threw: ' + threw : what + ' draws')
+  }
+  // and the window decides it from the world rather than carrying one answer
+  ok(/_gateAt/.test(html) && /gAt\(n\.x, n\.y - 1\)/.test(html),
+    'and it takes the direction from the gates the world put beside it')
+}
+
 console.log('\n--- 8k. the world does not spell itself out ---')
 {
   // "I do not think it should say that it takes two minutes to go around.

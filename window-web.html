@@ -7345,7 +7345,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b103'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b104'  // stamp: if your screen says an older build, hard-refresh
 // ===========================================================================
 // WHAT A CITIZEN IS SEEN TO BE DOING
 //
@@ -10083,6 +10083,11 @@ function _onState(s, worldId, local) {
   // right), never by who is nearest, because a label that changes tile as you
   // walk past is worse than the repetition it replaced. Computed once a tick
   // with the rest of the state's indexes, not once a frame.
+  // §14: and where the toll bars stand, as a set of tiles, so a gate can see
+  // whether it is one of a run and which way that run lies. Two lookups a
+  // frame rather than a scan of every node on the island.
+  s._gateAt = new Set()
+  for (const n of s._nodesV) if (n.type === 'tollgate') s._gateAt.add(n.x + ',' + n.y)
   {
     const lead = new Set()
     const taken = {}
@@ -15042,25 +15047,79 @@ function drawScene(now) {
       // the gate, so what this draws is your own way being open and not
       // everybody's.
       if (n.type === 'tollgate') {
+        // §14: AND A BAR LIES ACROSS THE WAY, NOT ALONG IT.
+        //
+        // This drew one gate per tile, always east to west, posts left and
+        // right. The Millbrook bar is TWO tiles stacked north to south across
+        // a road that runs east to west, so what stood on the bridge was a
+        // pair of gates lying flat along the direction of travel: "rotated
+        // sideways", and nothing you would walk up to and stop at.
+        //
+        // The way is read off the world rather than assumed. A gate with
+        // another gate above or below it is part of a north-south run, so its
+        // bar runs north-south; one with a gate beside it runs east-west; a
+        // gate standing alone takes the direction the made ground runs in,
+        // since a bar crosses a road rather than following it.
+        //
+        // And a run is ONE gate. Each tile draws its length of the bar and
+        // only the tiles at the ends of the run carry a post, so a two-tile
+        // bar is a two-tile bar rather than two short ones.
         const meG = s.players?.[myId]
         const up = (meG?.paidUntil ?? 0) > s.tick
-        shadow(X, Y, 10)
-        // the two posts
-        for (const pxp of [X + 5, X + 31]) {
-          cx.fillStyle = '#5a452a'; cx.fillRect(pxp, Y + 6, 4, 26)
-          cx.fillStyle = 'rgba(255,255,255,.07)'; cx.fillRect(pxp, Y + 6, 1.4, 26)
+        const gAt = (qx, qy) => !!s._gateAt?.has(qx + ',' + qy)
+        const MADE = new Set(['bridge', 'causey', 'trail', 'road', 'cobble', 'flag', 'gravel'])
+        const run9 = (dx, dy) => { let k = 0
+          for (let i = 1; i <= 4; i++) if (MADE.has(terrainOf(n.x + dx * i, n.y + dy * i))) k++
+          return k }
+        const vert = (gAt(n.x, n.y - 1) || gAt(n.x, n.y + 1)) ? true
+          : (gAt(n.x - 1, n.y) || gAt(n.x + 1, n.y)) ? false
+          : run9(-1, 0) + run9(1, 0) >= run9(0, -1) + run9(0, 1)
+        // AND A BAR DOES NOT CAST A BLOB. `shadow` drops the round pool every
+        // standing prop gets, and two of those under a two-tile bar read as
+        // puddles on the deck. A bar lying across a way throws a bar.
+        // THE POST IS SEEN FROM ABOVE, not stood up in front of you. The
+        // first pass at the north-south bar kept the old upright post, a
+        // four-by-twenty-six rising out of the bar's far end, and on a deck
+        // drawn flat from overhead that is not a gatepost, it is a mast. A
+        // stout square with a lit top face is what a post looks like when you
+        // are standing over it, and it works whichever way the bar lies.
+        const POST = (bx, by) => {
+          cx.fillStyle = 'rgba(0,0,0,.22)'; cx.fillRect(bx - 5, by - 3, 11, 9)
+          cx.fillStyle = '#4a3821'; cx.fillRect(bx - 5, by - 5, 10, 10)
+          cx.fillStyle = '#6b5331'; cx.fillRect(bx - 4, by - 4, 8, 8)
+          cx.fillStyle = 'rgba(255,246,222,.14)'; cx.fillRect(bx - 4, by - 4, 8, 2.4)
+          cx.strokeStyle = '#2e2419'; cx.lineWidth = 1; cx.strokeRect(bx - 5, by - 5, 10, 10)
         }
-        // the bar, pivoted on the near post: across the way, or lifted
-        cx.save()
-        cx.translate(X + 7, Y + 18)
-        cx.rotate(up ? -1.08 : 0)
-        cx.fillStyle = '#7a6038'; cx.fillRect(0, -2.2, 28, 4.4)
-        cx.fillStyle = '#d8cdb4'
-        for (let b = 0; b < 4; b++) cx.fillRect(2 + b * 7, -2.2, 3.2, 4.4)
-        cx.strokeStyle = '#2e2419'; cx.lineWidth = 1; cx.strokeRect(0, -2.2, 28, 4.4)
-        cx.restore()
-        cx.fillStyle = '#3b2f1e'
-        cx.beginPath(); cx.arc(X + 7, Y + 18, 2.4, 0, 7); cx.fill()
+        // the bar itself: a length of it for this tile, with the pale blocks
+        // that make it a toll bar and not a fence rail
+        const BAR = (len, thick) => {
+          cx.fillStyle = '#7a6038'; cx.fillRect(0, -thick / 2, len, thick)
+          cx.fillStyle = '#d8cdb4'
+          for (let b = 0; b * 9 + 2 < len - 3; b++) cx.fillRect(2 + b * 9, -thick / 2, 3.2, thick)
+          cx.strokeStyle = '#2e2419'; cx.lineWidth = 1; cx.strokeRect(0, -thick / 2, len, thick)
+        }
+        if (vert) {
+          const capN = !gAt(n.x, n.y - 1), capS = !gAt(n.x, n.y + 1)
+          // the bar runs down the tile, so the lengths of a run meet
+          if (!up) {
+            cx.fillStyle = 'rgba(0,0,0,.20)'; cx.fillRect(X + 17, Y + 3, 6, TILE)
+            cx.save(); cx.translate(X + 20, Y); cx.rotate(Math.PI / 2)
+            BAR(TILE, 6); cx.restore() }
+          else if (capN) { // swung aside, leaning on the post it hangs from
+            cx.save(); cx.translate(X + 20, Y + 5); cx.rotate(Math.PI / 2 - 1.0)
+            BAR(26, 6); cx.restore() }
+          if (capN) POST(X + 20, Y + 5)
+          if (capS) POST(X + 20, Y + TILE - 5)
+        } else {
+          const capW = !gAt(n.x - 1, n.y), capE = !gAt(n.x + 1, n.y)
+          if (!up) {
+            cx.fillStyle = 'rgba(0,0,0,.20)'; cx.fillRect(X, Y + 20, TILE, 6)
+            cx.save(); cx.translate(X, Y + 17); BAR(TILE, 6); cx.restore() }
+          else if (capW) { cx.save(); cx.translate(X + 5, Y + 20); cx.rotate(-1.0)
+            BAR(26, 6); cx.restore() }
+          if (capW) POST(X + 5, Y + 20)
+          if (capE) POST(X + TILE - 5, Y + 20)
+        }
       }
 
       // THE BLOOMERY, and there is one on the island. A stone stack with a
