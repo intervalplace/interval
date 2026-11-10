@@ -17554,6 +17554,59 @@ It is played off the citizen having MOVED, not off a `walk` being sent: one
 input carries a citizen across many tiles, so the input is one event and the
 footfalls are many.
 
+## 7em. A gate may be shown; a yield is the player's to find
+
+**"I do not think it should say that it takes two minutes to go around.
+Discovery, you know. Things should not be spelled out like that, it should be
+discovered by the player."** The keeper at the Millbrook bar priced the detour
+for you, in minutes, in the same breath as he refused you.
+
+**The window already had half of this rule and had been keeping it since the
+skill guide was written: a look says names and levels, never yields, odds or
+tactics (§6bv).** What it did not have was the other half. A DURATION, a
+DISTANCE and a COUNT OF HOW MANY EXIST are the same kind of telling as a
+yield, and they were everywhere. The well said how many seconds before it drew
+again. The eel rack and the willow buck each counted minutes at you, twice:
+once when you set them and once when you asked. Four spells printed how much
+they take and how long it lasts. A fire announced that it would burn for a
+minute. Raising a stall quoted twenty intervals. Six looks gave away a yield
+or a tally: "two to a cast", "worth a quarter more", "there are seven on the
+island", "there is one, and this is it". An item's look said how far a weapon
+reached, which had already been struck from the spellbook for exactly this
+reason, and how much a food mends and at what rate.
+
+**Where the line falls.**
+
+- **A GATE may be shown.** A gate is a door somebody would otherwise rattle in
+  the dark: the level a deed wants, what it costs, which tool it needs, how
+  many bucks you may have out at once, what a thing is FOR. Hiding a gate does
+  not make it discoverable, it makes it a silent refusal, and this window has
+  been burned by silent refusals before (§7ek).
+- **A YIELD may not.** How much it gives, how long it takes, how far it
+  reaches, how many of it there are. All of these a player learns by doing the
+  thing once.
+- **An item's stats stay.** Damage, accuracy, armour, two-handedness and
+  whether it goes round armour are what somebody compares two swords with, and
+  that comparison is the equipment screen of every game of this kind. Reach
+  went, and what a food mends went, because those are discovery.
+- **Feedback after the deed is not telling beforehand**, but it must not teach
+  the mechanism either: eating says you ate, and the bar says the rest.
+
+**The world may still tell you, in the world's own voice.** Cragfoot's
+signpost says the anvil is at Thornbury. That is a sign somebody put up, which
+a citizen finds by walking to Cragfoot, and it is worth more than the same
+sentence in a right-click menu, because finding it is the game. The look on
+the anvil now says only that anybody may stand at it.
+
+**`check-window-reach.mjs` section 8k reads the window's own prose** for the
+shapes a tell takes, and names its six exceptions with a reason each, in the
+manner of section 1: the login page, the vigil before a new citizen may enter
+(which nobody could discover by waiting, they would only think the window had
+hung), and four false positives of the idiom "on the island". A line added
+next year is caught the day it is added. `NODE_LOOK` and `MOB_LOOK` are held
+to carrying no number at all.
+
+
 ## 7h. Who Lives Here
 
 > **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:4470` by `spec-stubs.mjs`.

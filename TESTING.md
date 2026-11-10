@@ -1,7 +1,7 @@
 # Interval. Testing & Freeze Evidence
 
 Release 1.0.6, protocol spec v1.05, consensus spec v1.10, rules hash
-`a7ffcd3386bae974…`.
+`1da455082e3f5b45…`.
 
 This document states exactly what is tested, with what inputs, for how
 long. Coverage is **finite and enumerated**, the claims below are about

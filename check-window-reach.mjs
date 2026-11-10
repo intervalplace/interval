@@ -1284,6 +1284,75 @@ console.log('\n--- 8j. a citizen can stop following ---')
       + mine.map((o) => o && (o.head ?? o.label)).filter(Boolean).join(', ') + ')')
 }
 
+console.log('\n--- 8k. the world does not spell itself out ---')
+{
+  // "I do not think it should say that it takes two minutes to go around.
+  // Discovery, you know. Things should not be spelled out like that, it
+  // should be discovered by the player."
+  //
+  // The window already had the rule for a LOOK and had been keeping it since
+  // the skill guide was written: names and levels, never yields, odds or
+  // tactics. What it did not have was the rest of the sentence. A duration, a
+  // distance and a count of how many of a thing exist are the same kind of
+  // telling, and they were everywhere: the toll keeper priced the detour at
+  // two minutes, the well said how many seconds it wanted, the eel rack and
+  // the willow buck both counted minutes at you, four spells printed how much
+  // they take and how long it lasts, and six looks gave away a yield or a
+  // tally ("two to a cast", "worth a quarter more", "there are seven on the
+  // island").
+  //
+  // THE LINE. A gate may be shown, because a gate is a door a player would
+  // otherwise rattle in the dark: the level, the cost, the tool, the number
+  // of bucks you may have out, what a thing is FOR. A yield may not: how much
+  // it gives, how long it takes, how far it reaches, how many there are. An
+  // item's look still carries damage, accuracy and armour, because those are
+  // the stats a player compares two swords with, and it no longer carries
+  // reach or what a food mends, which are discovery.
+  //
+  // This reads the window's own prose rather than any list of what was
+  // changed, so a line added next year is caught the same day.
+  const NUM = '(?:\\d+|one|two|three|four|five|six|seven|eight|nine|ten|twelve|sixteen|twenty|thirty|forty)'
+  const TELL = new RegExp('(?:' + NUM + '[- ](?:second|minute|interval|tick|tile|pace|step)s?\\b'
+    + '|\\b' + NUM + ' (?:second|minute|interval|tick|tile|pace|step)s?\\b'
+    + '|\\bgives back\\b|\\bto a cast\\b|\\ba quarter more\\b|\\bthirds the time\\b'
+    + '|\\bon the island\\b|\\breaches \\d|\\bthere (?:is|are) ' + NUM + '\\b'
+    + '|\\bin about \\b|\\bper cent\\b)', 'i')
+  // what is deliberately excepted, and why, in the manner of section 1
+  const ALLOWED = [
+    ['There are two worlds here.', 'the login page, telling you which world you are about to enter'],
+    ['In about ten minutes you can cross.', 'the vigil before a new citizen may enter the real world: nobody could discover it by waiting, they would only think the window had hung'],
+    ['Take one step, or any deed, and the leg counts.', 'a rule about the walk, not a quantity'],
+    ['It is on the island for as long as the island is.', 'a dedication saying it is permanent'],
+    ['The best timber on the island.', 'what a heartwood IS'],
+    ['the stone gives back flour', 'the mill saying what it does'],
+  ]
+  const told = []
+  for (const line of html.split('\n')) {
+    const t = line.trim()
+    if (t.startsWith('//') || t.startsWith('*')) continue
+    for (const m of line.matchAll(/'((?:[^'\\]|\\.){8,240})'/g)) {
+      const v = m[1]
+      if (!/[a-z] [a-z]/.test(v)) continue
+      if (!TELL.test(v)) continue
+      if (ALLOWED.some(([a]) => v.includes(a))) continue
+      if (!told.includes(v)) told.push(v)
+    }
+  }
+  ok(told.length === 0, told.length === 0
+    ? 'nothing the window says gives away a yield, a duration, a distance or a tally, '
+      + 'past the ' + ALLOWED.length + ' named exceptions'
+    : told.length + ' line(s) spell the world out: ' + told.map((v) => '"' + v.slice(0, 90) + '"').join('; '))
+  // and the two tables a look comes out of hold no numbers at all
+  const looks = (name) => { const i = html.indexOf('const ' + name + ' = {')
+    return html.slice(i, html.indexOf('\n}', i)) }
+  for (const tbl of ['NODE_LOOK', 'MOB_LOOK']) {
+    const bad = looks(tbl).split('\n').filter((l) => !l.trim().startsWith('//') && /\b\d+\b/.test(l))
+    ok(bad.length === 0, bad.length === 0
+      ? 'and ' + tbl + ' carries no number at all'
+      : tbl + ' still counts at the player: ' + bad.map((l) => l.trim().slice(0, 70)).join(' | '))
+  }
+}
+
 console.log('\n--- 9. the spellbook says what the engine asks ---')
 {
   // THE BOOK IS A TABLE OF CONSTITUTIONAL NUMBERS and it had drifted twice.

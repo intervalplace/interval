@@ -374,8 +374,14 @@ const AFTER = (plan, state, myId) => `<script>
           try { b.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })) }
           catch (e) { window.__picked += ' THREW ' + e.message }
           await settle(300)
+          // A PRESS THAT ONLY SPEAKS IS NOT A FAILED PRESS. Most of what a
+          // refusal does is write one line in the feed: the toll keeper
+          // turning you away, a seam that is spent, a buck that is not full.
+          // This called every one of them 'opened nothing' and gave up, so
+          // the one kind of answer worth photographing could not be reached.
           const after = document.getElementById('ctxmenu')
-          if (!after) { say('SWEEPFAIL option ' + PICK + ' opened nothing'); return }
+          if (!after && !feedLines.length)
+            { say('SWEEPFAIL option ' + PICK + ' opened nothing and said nothing'); return }
         }
         if (BOOK) {
           const bb = document.getElementById('bookbtn')
@@ -393,6 +399,9 @@ const AFTER = (plan, state, myId) => `<script>
               if (groundWalled(mx + dx, my + dy) && !isWetAt(mx + dx, my + dy)) n++
             return n })()
           + ', country ' + (biomeToldAt(mx, my) ?? 'NOT TOLD')
+          // and what the window SAID, which is where a refusal lands: a menu
+          // is not the only answer a press can give
+          + (feedLines.length ? ' | said: ' + feedLines.slice(-2).join(' / ') : '')
         const m = document.getElementById('ctxmenu')
         const bp = document.getElementById('bookpanel')
         say(m ? ('MENUOK ' + (window.__picked ? '[' + window.__picked + '] ' : '')
@@ -400,6 +409,12 @@ const AFTER = (plan, state, myId) => `<script>
               : (NOPRESS ? 'MENUOK (no press) at ' + mx + ',' + my
                  + ' [' + (window.__picked ?? '') + ']'
                  : BOOK && bp ? 'MENUOK book ' + bp.textContent.replace(/\\s+/g, ' ').slice(0, 240)
+                 // AND PICKING AN OPTION CLOSES THE MENU, which is what an
+                 // option is for. This reported every such press as a window
+                 // that failed to open a menu, so the whole class of answers
+                 // that arrive in the feed was unphotographable.
+                 : (PICK !== null && PICK !== undefined && feedLines.length)
+                   ? 'MENUOK picked [' + (window.__picked ?? '') + ']'
                  : 'SWEEPFAIL no menu opened at ' + mx + ',' + my))
         // AND A GHOST ON THE LEFT, in --book pictures only: a right-aligned
         // copy of each row's cost, painted where the canvas is. The canvas

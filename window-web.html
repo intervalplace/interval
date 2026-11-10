@@ -5887,7 +5887,7 @@ const NODE_NAME = {
   // is the exact fault the labels were added to fix, committed in the table
   // that fixes it. A name has to say what you get.
   'fishing-spot': 'fish', 'eel-spot': 'eels', 'deep-fish-spot': 'deep fish',
-  'gibbet-shoal': 'the shoal, deep fish, two to a cast', 'salt-pan': 'salt pans',
+  'gibbet-shoal': 'the shoal, deep fish', 'salt-pan': 'salt pans',
 }
 // §7ek: WHAT A SEAM WANTS, which the pillar has served since §7f-viii and this
 // window never read. Gates only: a level and a trade. NOT yields, odds or
@@ -6083,8 +6083,6 @@ const HEALS = {
   'bread': 7, 'ale': 4,
 }
 // and how fast it mends, which is the other half of what a food is
-const FEED_RATE = (it) => it === 'cooked-deep-fish' ? 3
-  : (it === 'cooked-fish' || it === 'cooked-eel' || it === 'bread') ? 2 : 1
 // the three a fire turns into food (engine isRawFood). The eel and the deep
 // fish were not here either, so neither could be cooked from the pack.
 const isRawFoodW = (it) => it === 'raw-fish' || it === 'deep-fish' || it === 'eel'
@@ -7292,7 +7290,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b100'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b101'  // stamp: if your screen says an older build, hard-refresh
 // ===========================================================================
 // WHAT A CITIZEN IS SEEN TO BE DOING
 //
@@ -10718,7 +10716,7 @@ function _onState(s, worldId, local) {
       if (GAIN[item]) feed(GAIN[item])
       SFX[item]?.()
     }
-    if (me.skills.woodcraft > old.skills.woodcraft) feed('The fire catches. It will burn for a minute.')
+    if (me.skills.woodcraft > old.skills.woodcraft) feed('The fire catches.')
     // your foe fell → its loot is lying there
     if (onACreature(old.action)) {
       const mob = s.mobs[old.action.mobId], mobOld = prev.mobs[old.action.mobId]
@@ -18950,9 +18948,8 @@ function socialOpts(pid, p, me) {
   } else {
     out.push({ label: 'remember ' + nm, act: () => {
       if (d > FRIEND_RANGE) {
-        feed('You have not been anywhere with ' + nm + '. To keep somebody\u2019s name you must '
-          + 'have stood where they were standing: within twelve tiles, which is as far as '
-          + 'you can follow them before you lose them. They are ' + d + ' away.')
+        feed('You have not been anywhere with ' + nm + '. To keep somebody\u2019s name '
+          + 'you must have stood where they were standing.')
         return
       }
       if (mine.length >= 64) { feed('You keep sixty-four names already. Forget one first.'); return }
@@ -19064,7 +19061,7 @@ const SPELLBOOK = {
       says: 'a thing in your pack, into what a keeper would have paid. The thing '
         + 'itself is the cost, and it is done in a town or in the Wilds, never at the spawn' },
     { v: 'mend', name: 'mend', lvl: 50, sigils: 1, on: 'self', every: 25,
-      says: 'your own wounds, twenty back, once in twenty-five intervals' },
+      says: 'your own wounds, with a wait before you can do it again' },
     { v: 'mendp', name: 'mend another', lvl: 75, sigils: 1, on: 'citizen',
       wand: 'wand', reach: 4,
       says: 'somebody else\u2019s wounds. A wand sends what a bare hand keeps' },
@@ -19080,16 +19077,16 @@ const SPELLBOOK = {
   barrow: [
     { v: 'rot', name: 'the rot', lvl: 40, sigils: 1, on: 'any',
       wand: 'bone-staff', reach: 5,
-      says: 'nothing now; twenty-four intervals of decay, and plate does not stop it' },
+      says: 'nothing now; they rot where they stand, and plate does not stop it' },
     { v: 'taking', name: 'the taking', lvl: 60, sigils: 2, on: 'any',
       wand: 'bone-staff', reach: 3, every: 12,
-      says: 'eight of their life becomes yours' },
+      says: 'some of their life becomes yours' },
     { v: 'waking', name: 'the waking', lvl: 75, sigils: 3, on: 'any',
       wand: 'bone-staff', reach: 6, every: 40,
       says: 'your mark and everything standing round it' },
     { v: 'withering', name: 'the withering', lvl: 88, sigils: 4, on: 'any',
       wand: 'bone-staff', reach: 2,
-      says: 'sixteen intervals in which nothing will heal them' },
+      says: 'nothing will heal them while it holds' },
   ],
 }
 // §7cs: AND NOBODY SPEAKS IN THE LISTS. The engine refuses every spell inside
@@ -19346,7 +19343,7 @@ const NODE_LOOK = {
   rock: 'A seam of plain stone.',
   'iron-rock': 'An iron seam.', 'coal-rock': 'A coal seam.',
   'gold-rock': 'Gold in the rock.', 'quick-rock': 'A magic stone, humming.',
-  'mother-lode': 'The mother lode. There is one, and this is it.',
+  'mother-lode': 'The mother lode.',
   'brimstone-vent': 'A brimstone vent, smoking.',
   'muck-heap': 'A muck heap. A spade turns it and it pays a farmer.',
   'salt-pan': 'Salt pans, raked flat and drying.',
@@ -19360,21 +19357,19 @@ const NODE_LOOK = {
   //
   // A gate, not a yield. Whether a tool is wanted cannot be found out by
   // trying: trying without one is refused in silence.
-  'eel-spot': 'An eel run. The trap is already set, so this takes hands and no rod: '
-    + 'it is the one thing on the island anybody can work with nothing at all.',
+  'eel-spot': 'An eel run. The trap is already set, so this takes hands and no rod.',
   'deep-fish-spot': 'Deep water, and something in it.',
-  'gibbet-shoal': 'The shoal under the gibbet. Two to a cast, and deep.',
+  'gibbet-shoal': 'The shoal under the gibbet. Deep water, and a bad place to stand.',
   plot: 'A tilled row. You sow seeds in it and pull the crop yourself, and so '
     + 'does everybody else: the row is shared, the crop is not. It is not where '
     + 'a tree goes, which is a grove plot.',
-  'grove-plot': 'A grove plot, waiting for a sapling. It decides its own species, '
-    + 'so each of the two stands is a place for one kind of tree.',
+  'grove-plot': 'A grove plot, waiting for a sapling. It decides its own species.',
   'eel-buck': 'A willow buck set in a run. Whoever set it comes back for it.',
   smokerack: 'A rack over a slow fire. It holds a catch and hands it back changed.',
   hoard: 'A barrow hoard. One reach into one of these, once in a life.',
-  ossuary: 'Consecrated ground. Bones laid here are worth a quarter more.',
+  ossuary: 'Consecrated ground. The right place to lay bones.',
   vault: 'A vault. What goes in here cannot be taken from you.',
-  anvil: 'The anvil. There is one on the island.',
+  anvil: 'The anvil. Anybody may stand at it.',
   furnace: 'A furnace. Ore and coal go in and bars come out.',
   sawpit: 'A sawpit. Logs go in and planks come out.',
   stamp: 'A crushing floor: a weighted beam under a roof.',
@@ -19386,7 +19381,7 @@ const NODE_LOOK = {
   brewpot: 'A brewpot. Grain makes ale, fish makes broth, and it takes its time.',
   house: 'A house. Somebody lives here.',
   store: 'A counter. A consignment is taken up here and discharged here.',
-  stall: 'A trade stall. There are seven on the island, one of each kind.',
+  stall: 'A trade stall. It keeps one trade.',
   market: 'A citizen’s own stall. One kind of good, at whatever they ask.',
   well: 'A well. You can drink from it.',
   fountain: 'A fountain.',
@@ -19571,8 +19566,11 @@ function whoWorksHere(n) {
 //
 // Everything said here comes out of a table the window already carries and
 // already checks against the engine (§7f): `WORN_STATS`, `PRICES`, `HEALS`,
-// `FEED_RATE`, `EQUIPPABLE`, `TWO_HANDED`. Nothing is invented and nothing is
-// a second copy.
+// `EQUIPPABLE`, `TWO_HANDED`. Nothing is invented and nothing is a second copy.
+//
+// §7em: AND IT SAYS WHAT A THING IS, NOT WHAT IT PAYS. It used to print the
+// heal and the rate a food mends at, and how far a weapon reaches. Those are
+// yields, and a yield is the player's to find out.
 function lookAtItem(item) {
   if (!item) return
   const w = say1(item)
@@ -19582,12 +19580,10 @@ function lookAtItem(item) {
   if (st.acc) bits.push((st.acc > 0 ? '+' : '') + st.acc + ' accuracy')
   if (st.armour) bits.push('+' + st.armour + ' armour')
   if (st.every) bits.push('swings every ' + st.every + (st.every === 1 ? ' interval' : ' intervals'))
-  if (st.reach && st.reach > 1) bits.push('reaches ' + st.reach + ' tiles')
   if (st.pierces) bits.push('goes round armour')
   const say = ['A ' + w + '.']
   if (bits.length) say.push(bits.join(', ') + '.')
-  if (HEALS[item]) say.push('Eaten, it gives back ' + HEALS[item]
-    + ' at ' + FEED_RATE(item) + ' an interval.')
+  if (HEALS[item]) say.push('Eaten, it mends you.')
   else if (isRawFoodW(item)) say.push('Raw. It wants a fire.')
   if (EQUIPPABLE.has(item)) say.push(TWO_HANDED.has(item)
     ? 'Two hands: nothing else may be held with it.' : 'It can be worn.')
@@ -19657,7 +19653,7 @@ function invOptions(i) {
   // §7cz: rubble is marl, and a citizen holding it should be told what it is for
   if (it.item === 'rubble') return { name, opts: [
     { label: 'look at the rubble', act: () => feed('Broken stone. Spread two on a row when you sow and '
-      + 'the crop comes on in two thirds the time: it drains the ground and warms it. It is the only '
+      + 'the crop comes on sooner: it drains the ground and warms it. It is the only '
       + 'thing a miner makes that a farmer wants.') },
     ...tail,
   ] }
@@ -19735,9 +19731,9 @@ function invOptions(i) {
     const canHaft = have >= 2 && bark >= 1 && fl >= 55
     return { name, opts: [
       { label: 'look at the dragon bones', act: () => feed('Five hundred at a counter, and a keeper who does not '
-        + 'know what else they are for. Buried they are the fastest prayer on the island. Hafted they are a spear '
+        + 'know what else they are for. Buried they are prayer. Hafted they are a spear '
         + 'that grows as you fail, and prayer will not save a thing that breaks in your hand.') },
-      { label: 'bury them (prayer, and the dearest road there is)', act: () => buryFrom(i, 'dragon') },
+      { label: 'bury them', act: () => buryFrom(i, 'dragon') },
       { label: canHaft ? 'haft a BONE SPEAR (2 bones + 1 ironbark)':
                        'haft a bone spear, ' + (fl < 55 ? 'fletching 55 (you have ' + fl + ')':
                          have < 2 ? 'you have ' + have + ' of 2 bones':
@@ -19819,7 +19815,7 @@ function invOptions(i) {
         ? { label: 'set an eel buck here (' + (out + 1) + ' of ' + allowed + ')', act: () => {
             send({ do: 'setbuck' })
             feed('You weave the log into a buck and set it in the run. '
-              + Math.round(BUCK_FILL / 60) + ' minutes to fill, and anybody may lift it.') } }
+              + 'It fills in its own time, and anybody may lift it.') } }
         : { label: 'set an eel buck here', dim: true, act: () => feed(
             allowed < 1 ? 'Setting a buck wants shorecraft 20. You have ' + sc + '.'
             : out >= allowed ? 'You have ' + out + ' bucks out, which is all shorecraft '
@@ -19837,7 +19833,7 @@ function invOptions(i) {
       opts.push({ label: 'raise a stall (needs 32 planks, 8 iron-ore)',
                   act: () => feed('You have ' + logs2 + ' logs and ' + ore2 + ' ore.') })
     else opts.push({ label: 'raise a stall here (32 planks, 8 iron-ore)', act: () => { send({ do: 'raise_market' })
-      feed('You begin raising a stall. Twenty intervals, and do not move.') } })
+      feed('You begin raising a stall. Do not move.') } })
     return { name, opts: [...opts, ...tail] }
   }
 
@@ -19858,8 +19854,7 @@ function invOptions(i) {
       const foe = onACreature(meNow.action) ? meNow.action.mobId : null
       send({ do: 'eat', slot: +i })
       if (foe) { intent = { kind: 'prowess', id: foe }; feed('You get it down and fight on.') }
-      else feed('You eat the ' + name + '. ' + HEALS[it.item] + ' back, '
-        + FEED_RATE(it.item) + ' an interval.') } },
+      else feed('You eat the ' + name + '.') } },
     look,
     ...tail,
   ] }
@@ -20687,7 +20682,7 @@ function worldPress(e, asLeft) {
         if (!hasLog) {
           feed(hasOther
             ? 'The keeper looks at what you are carrying and shakes his head. Ordinary logs mend a deck.':
-            'The keeper wants a log for the deck. You have none, and the long way round is two minutes.')
+            'The keeper wants a log for the deck. You have none.')
           return
         }
         send({ do: 'pay' })
@@ -20696,9 +20691,7 @@ function worldPress(e, asLeft) {
         return
       }
       if (n.type === 'well' && (n.depletedUntil ?? 0) > world.tick) {
-        const secs = Math.max(1, Math.round((n.depletedUntil - world.tick) * 0.6))
-        feed('The bucket comes up wet and empty. The well draws down again in about '
-          + secs + ' second' + (secs === 1 ? '' : 's') + '.')
+        feed('The bucket comes up wet and empty. Give it a moment.')
         flashClick(n.x, n.y, false)
         return
       }
@@ -21424,7 +21417,6 @@ function worldPress(e, asLeft) {
         if (!adj(n) && !(me.x === n.x && me.y === n.y)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }; return }
         const load = Object.entries(n.shelf ?? {})
           .sort((A, B) => worthRank(B[0]) - worthRank(A[0]) || (A[0] < B[0] ? -1 : 1))
-        const mins9 = Math.max(0, Math.round((n.expiresAt - (world?.tick ?? 0)) * 0.6 / 60))
         const opts = []
         if (load.length && me.inventory.some(sl => sl === null))
           opts.push({ label: 'take the ' + load[0][0].replace(/-/g, ' ')
@@ -21434,8 +21426,8 @@ function worldPress(e, asLeft) {
         else if (load.length)
           opts.push({ label: 'your pack is full', act: () => feed('No room. The cart keeps it.') })
         opts.push({ label: 'look it over (' + load.map(([it, q]) => q + ' ' + it.replace(/-/g, ' ')).join(', ') + ')',
-          act: () => feed('A spilled consignment, standing where it fell. It will be here about '
-            + mins9 + ' minutes yet.') })
+          act: () => feed('A spilled consignment, standing where it fell. '
+            + 'It will not lie there for ever.') })
         chooseAction(opts); return
       }
       if (n.type === 'dedication') {
@@ -21644,8 +21636,7 @@ function worldPress(e, asLeft) {
                 act: () => { send({ do: 'lift', nodeId: id })
                   feed(spoiled ? 'You lift it. An eel dead in a trap for a day is not supper.'
                     : 'You lift the buck.') } }
-            : { label: 'lift the buck', dim: true, act: () => feed('Not yet. A buck wants '
-                + Math.ceil((BUCK_FILL - age) / 60) + ' more minutes in the run.') },
+            : { label: 'lift the buck', dim: true, act: () => feed('Not yet. It is still filling.') },
           { label: 'look at the buck', act: () => feed('A willow buck set in a run, ' + whose + '. '
             + (ripe ? 'It is full.' : 'It is still filling.')) },
         ])
@@ -21669,14 +21660,13 @@ function worldPress(e, asLeft) {
                 : { label: 'take the smoked eel', dim: true, act: () => feed(
                     !mineR ? 'Somebody else\u2019s catch is on this rack.'
                     : gone ? 'It has hung too long. The smoke took it.'
-                    : 'Not yet. It wants ' + Math.ceil((doneAt - (world.tick ?? 0)) / 60)
-                      + ' more minutes over the fire.') }]
+                    : 'Not yet. Leave it over the fire.') }]
             : [eelI === -1
                 ? { label: 'hang an eel', dim: true, act: () => feed('The rack is empty and so are '
                     + 'you. It takes one eel at a time.') }
                 : { label: 'hang an eel', act: () => { send({ do: 'brew', nodeId: id, slot: eelI })
-                    feed('You hang the eel over the slow fire. '
-                      + Math.round(SMOKE_TICKS / 60) + ' minutes, and it keeps for good.') } }]),
+                    feed('You hang the eel over the slow fire. Smoked, it keeps, '
+                      + 'but do not leave it there.') } }]),
           { label: 'look at the rack', act: () => lookAtNode(n) },
         ])
         return
