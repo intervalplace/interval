@@ -28,7 +28,7 @@
 import { readFileSync } from 'fs'
 import vm from 'vm'
 import E from './engine.js'
-import { makeDocument, penSaid, penInk } from './window-dom.mjs'
+import { makeDocument, penSaid, penInk, penRect } from './window-dom.mjs'
 
 if (E.initCrypto) await E.initCrypto()
 
@@ -1495,6 +1495,104 @@ console.log('\n--- 8n. the toll bar lies across the way ---')
   // and the window decides it from the world rather than carrying one answer
   ok(/_gateAt/.test(html) && /gAt\(n\.x, n\.y - 1\)/.test(html),
     'and it takes the direction from the gates the world put beside it')
+}
+
+console.log('\n--- 8o. everything that comes in a run is drawn along it ---')
+{
+  // "Look at the fences though. Same issue as the toll gate, has to be
+  // rotated. I have seen many cases across the world of hedges and fences
+  // not facing correctly."
+  //
+  // The wall was taught this once and the fence was taught it once, each
+  // after somebody saw it, and the three kinds nobody had been back to were
+  // still drawing one east-west sprite whichever way their line went: 1,212
+  // hedges with 429 of them in north-south runs, 98 railings, and 1,227
+  // seedbeds whose furrows ran ACROSS the bed on the 1,026 that stand in a
+  // north-south strip.
+  //
+  // AND THE FENCE WAS WRONG AGAIN FOR A SECOND REASON. At the farm plots a
+  // north-south fence line has a north-south HEDGE line one tile east of it,
+  // and the window asked `fenceAt`, which answers for the whole joining
+  // family. So every fence there believed it had an east-west neighbour and
+  // drew broadside. A fence standing beside a hedge is not a fence running
+  // east-west: the direction is its own kind's question and the wider family
+  // only says where a tile should reach its edge.
+  //
+  // Asked of the drawing rather than of the source, because the source has
+  // said "a fence knows which way it runs" in a comment for months while the
+  // fences at the farm did not. Draw a run each way and measure the shape.
+  const shapeOf = async (type, vertical) => {
+    const st = fresh()
+    for (let i = 0; i < 3; i++)
+      st.nodes['r' + i] = { type, x: vertical ? 11 : 10 + i, y: vertical ? 9 + i : 11 }
+    ctx.__h.msg({ type: 'state', state: st, worldId: WID })
+    await new Promise((r) => setImmediate(r))
+    ctx.__h.set(st, ID); ctx.__h.useCur(); ctx.__h.hover(null)
+    penRect.length = 0
+    let threw = null
+    try { ctx.__h.draw() } catch (e) { threw = e.message }
+    if (threw) return { threw }
+    // MEASURED AGAINST ITSELF, NOT AGAINST A TILE ORIGIN. The first version
+    // worked out where the middle tile ought to be on screen and looked
+    // there, and the camera follows the citizen, so it was reading a box
+    // three tiles from the sprite and reporting every kind as unturned.
+    // A run three long draws something long: the question is simply whether
+    // the longest thing the window drew lies down the screen or across it.
+    // COUNTED, AND THE TWO CASES SUBTRACTED. A ratio breaks on a stroked
+    // line, which has one side of zero and comes out as the same infinity
+    // whichever way it points, and the frame carries long marks of its own
+    // that have nothing to do with the run. The only thing that differs
+    // between these two states is which way three nodes lie, so counting
+    // long marks in each direction and comparing the two is the measurement:
+    // the background is in both and cancels.
+    // THE SIZES, AS A BAG. The frame carries long marks of its own and the
+    // two cases differ only in which way three nodes lie, so subtracting one
+    // bag of sizes from the other leaves the run and nothing else.
+    const bag = new Map()
+    for (const [, , w, h] of penRect) {
+      if (!(w >= 0) || !(h >= 0)) continue
+      if (Math.max(w, h) < 12 || Math.max(w, h) > 130) continue
+      const k = w.toFixed(1) + 'x' + h.toFixed(1)
+      bag.set(k, (bag.get(k) ?? 0) + 1)
+    }
+    return { bag }
+  }
+  // what one case drew that the other did not, longest first: the run's own
+  // marks, with everything the frame draws either way cancelled out
+  const ownMarks = (mine, other) => {
+    const out = []
+    for (const [k, n9] of mine.bag) {
+      const spare = n9 - (other.bag.get(k) ?? 0)
+      if (spare <= 0) continue
+      const [w, h] = k.split('x').map(Number)
+      out.push([w, h, spare])
+    }
+    return out.sort((p9, q9) => Math.max(q9[0], q9[1]) - Math.max(p9[0], p9[1]))
+  }
+  for (const type of ['fence', 'hedge', 'railing', 'wall', 'palisade']) {
+    const V = await shapeOf(type, true), H = await shapeOf(type, false)
+    if (V.threw || H.threw) { ok(false, type + ' threw: ' + (V.threw ?? H.threw)); continue }
+    const vm = ownMarks(V, H), hm = ownMarks(H, V)
+    if (!vm.length || !hm.length) { ok(false, type + ' drew the same marks either way'); continue }
+    // the longest thing a run adds is the thing that runs ALONG it: the rail,
+    // the course, the body of the hedge. An iron railing has more uprights
+    // than rails, so counting marks says the wrong thing and the longest one
+    // says the right one.
+    const vDown = vm[0][1] > vm[0][0], hAcross = hm[0][0] > hm[0][1]
+    ok(vDown && hAcross, vDown && hAcross
+      ? 'a ' + type + ' turns with its run (down it, the longest mark is '
+        + vm[0][0] + 'x' + vm[0][1] + '; across it, ' + hm[0][0] + 'x' + hm[0][1] + ')'
+      : 'a ' + type + ' does not turn with its run (down it, the longest mark is '
+        + vm[0][0] + 'x' + vm[0][1] + '; across it, ' + hm[0][0] + 'x' + hm[0][1] + ')')
+  }
+  // a bed is a whole tile either way, so its SHAPE cannot answer: its furrows
+  // are strokes, and the question is which way they lie
+  ok(/runWays\(s, 'plot'/.test(html) && /pw\.down/.test(html),
+    'and a seedbed asks which way its strip runs before it rules a furrow')
+  // AND THE DIRECTION IS ITS OWN KIND'S QUESTION. The fence at the farm was
+  // wrong for months because a hedge counted as a fence neighbour.
+  ok(/FENCE_OWN/.test(html) && /runWays\(s, 'fence', FENCE_OWN/.test(html),
+    'and a fence decides its direction by fences, not by whatever stands beside it')
 }
 
 console.log('\n--- 8k. the world does not spell itself out ---')

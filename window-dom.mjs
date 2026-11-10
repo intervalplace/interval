@@ -213,11 +213,30 @@ export const penSaid = []
 // and what colour it filled with, for the marks that are not words: a chart's
 // dots cannot be read back any other way.
 export const penInk = []
+// §7ef: AND WHERE IT PUT THEM. Ink alone cannot answer "is this drawn the
+// way its line runs", which is the one question three kinds of boundary kept
+// getting wrong: a hedge in a north-south run drew the same east-west block
+// as one in a row. Shape is the whole of that question, so every filled and
+// stroked rectangle keeps its box, and a check can ask whether what the
+// window drew is taller than it is wide.
+export const penRect = []
 const ctx2d = () => {
   const o = { measureText: () => ({ width: 10 }), canvas: null,
   fillText: (t) => { penSaid.push(String(t)) },
   strokeText: (t) => { penSaid.push(String(t)) },
-  fillRect: () => { penInk.push(String(o.fillStyle ?? '')) },
+  fillRect: (x, y, w, h) => { penInk.push(String(o.fillStyle ?? ''))
+    if (Number.isFinite(w) && Number.isFinite(h)) penRect.push([+x, +y, +w, +h]) },
+  strokeRect: (x, y, w, h) => {
+    if (Number.isFinite(w) && Number.isFinite(h)) penRect.push([+x, +y, +w, +h]) },
+  // and a line is a shape too: the iron railing is drawn entirely in strokes,
+  // so a check that only watched rectangles could not see it at all and
+  // reported that it had drawn nothing.
+  moveTo: (x, y) => { o._pen = [+x, +y] },
+  lineTo: (x, y) => {
+    if (o._pen && Number.isFinite(x) && Number.isFinite(y))
+      penRect.push([Math.min(o._pen[0], +x), Math.min(o._pen[1], +y),
+        Math.abs(+x - o._pen[0]), Math.abs(+y - o._pen[1])])
+    o._pen = [+x, +y] },
   createRadialGradient: () => ({ addColorStop () {} }),
   createLinearGradient: () => ({ addColorStop () {} }),
   createPattern: () => null, getImageData: () => ({ data: new Uint8ClampedArray(4) }),

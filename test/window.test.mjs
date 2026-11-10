@@ -1118,18 +1118,37 @@ test('a palisade joins a palisade', () => {
   }
 })
 
-test('a fence knows which way it runs', () => {
+test('a run decides its direction by its own kind', () => {
+  // WHETHER A THING TURNS WITH ITS RUN IS ASKED OF THE DRAWING, in
+  // check-window-reach section 8o, which runs further down this file: it
+  // draws a run each way and measures what came out. This test held the old
+  // IMPLEMENTATION instead -- four literal `fenceAt(s, n.x - 1, n.y)` calls
+  // and one exact expression -- and passed for months while the fences at
+  // the farm plots were drawn the wrong way round, because the mechanism it
+  // was checking was present and WRONG. A grep is not a drawing.
+  //
+  // What a grep is good for is the fault that caused it. The fence asked
+  // `fenceAt`, which answers for the whole joining family, so a north-south
+  // fence with a north-south HEDGE one tile east of it believed it had an
+  // east-west neighbour and drew broadside. The direction is its own kind's
+  // question; the wider family only says where a tile reaches its edge.
   const code = win.replace(/\/\*[\s\S]*?\*\//g, '')
     .split('\n').map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n')
-  const at = code.indexOf("if (n.type === 'fence') {")
-  assert.ok(at > 0, 'the fence drawing is gone or renamed')
-  const body = code.slice(at, code.indexOf("if (n.type === ", at + 30))
-  // it asks about all four neighbours, and draws a different shape downwards
-  for (const side of ['n.x - 1, n.y', 'n.x + 1, n.y', 'n.x, n.y - 1', 'n.x, n.y + 1']) {
-    assert.ok(body.includes(`fenceAt(s, ${side})`), `the fence never asks about ${side}`)
+  for (const [kind, own] of [['fence', 'FENCE_OWN'], ['hedge', 'HEDGE_OWN'],
+                             ['railing', 'RAIL_OWN'], ['plot', 'PLOT_JOINS']]) {
+    assert.match(code, new RegExp(`runWays\\(s, '${kind}', ${own}`),
+      `${kind} must take its direction from ${own}, not from whatever stands beside it`)
   }
-  assert.match(body, /const down = \(fu \|\| fd\) && !\(fl \|\| fr\)/,
-    'a run with neighbours above and below must be drawn down the tile')
+  // and each own-set holds only its own kind, or the fault is back under a
+  // new name
+  const sets = { FENCE_OWN: ['fence', 'gate'], HEDGE_OWN: ['hedge'],
+                 RAIL_OWN: ['railing'], PLOT_JOINS: ['plot'] }
+  for (const [name, want] of Object.entries(sets)) {
+    const m = code.match(new RegExp(`const ${name} = new Set\\(\\[([^\\]]*)\\]\\)`))
+    assert.ok(m, `${name} is gone or renamed`)
+    const got = [...m[1].matchAll(/'([a-z-]+)'/g)].map((q) => q[1])
+    assert.deepEqual(got, want, `${name} must hold exactly ${want.join(', ')}`)
+  }
 })
 
 test('every landmark the window gates is one it can draw', () => {

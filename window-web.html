@@ -2310,10 +2310,75 @@ function wallAt(st, x, y) {
   }
   return _wallSet.has(x + ',' + y)
 }
+// §7ef: AND EVERY OTHER THING THAT COMES IN A RUN ASKS THE SAME QUESTION.
+//
+// A wall asks it and a fence asks it, and three kinds that stand in runs did
+// not, so they drew the same east-west sprite whichever way their line went:
+// 1,212 hedges (429 of them in north-south runs), 98 railings, and 1,227
+// seedbeds whose furrows ran ACROSS the bed on the 1,026 that stand in a
+// north-south strip. The same fault as the toll bar lying along the road
+// instead of across it, in the three places nobody had been back to.
+//
+// `runSet` is one cached index per family. A run is cached per interval, not
+// per frame: the first fence index was rebuilt on every draw and that is a
+// scan of every node on the island sixty times a second.
+const _runSets = new Map()
+let _runTick = -1
+function runSet(st, name, kinds) {
+  if (!st || !st.nodes) return null
+  if (_runTick !== st.tick) { _runSets.clear(); _runTick = st.tick }
+  let S = _runSets.get(name)
+  if (!S) {
+    S = new Set()
+    for (const k in st.nodes) { const q = st.nodes[k]; if (kinds.has(q.type)) S.add(q.x + ',' + q.y) }
+    _runSets.set(name, S)
+  }
+  return S
+}
+// which way this tile's line runs, and which sides continue. A thing with
+// neighbours both ways is a CORNER and keeps the broadside drawing, because
+// a corner that picks one of its two arms draws a line with a notch in it.
+//
+// THE DIRECTION IS ITS OWN KIND'S QUESTION; CONTINUING IS EVERYBODY'S. This
+// is the fault at the farm plots. The fence line there runs north to south
+// with a HEDGE line one tile east of it, and `FENCE_JOINS` counts a hedge as
+// a fence neighbour, so every fence in that run believed it had an east-west
+// neighbour, failed the `down` test and drew broadside. Three tall runs came
+// out as nine little gates stacked up facing the wrong way, which is exactly
+// what the fence branch was written to stop.
+//
+// A fence standing beside a hedge is not a fence running east-west. So the
+// direction is decided by the thing's OWN kind, and the wider set only says
+// where a tile should reach its edge, which is the question it is good for:
+// a fence that meets a wall should run up to it rather than cap off.
+function runWays(st, name, own, joins, x, y) {
+  const S = runSet(st, name, own)
+  const J = joins ? runSet(st, name + '+', joins) : S
+  if (!S) return { l: false, r: false, u: false, d: false, down: false }
+  const l = J.has((x - 1) + ',' + y), r = J.has((x + 1) + ',' + y)
+  const u = J.has(x + ',' + (y - 1)), d = J.has(x + ',' + (y + 1))
+  const ol = S.has((x - 1) + ',' + y), or = S.has((x + 1) + ',' + y)
+  const ou = S.has(x + ',' + (y - 1)), od = S.has(x + ',' + (y + 1))
+  // its own kind first, and only where its own kind is silent does the wider
+  // set get a say
+  const down = (ou || od) !== (ol || or) ? (ou || od)
+    : (u || d) && !(l || r)
+  return { l, r, u, d, down }
+}
 // and the same question for the lighter boundaries, which join each other
 // and anything heavier. One index, rebuilt when the interval changes.
 let _fenceSet = null, _fenceTick = -1
 const FENCE_JOINS = new Set(['fence', 'hedge', 'wall', 'palisade', 'gate'])
+// a railing joins a railing and the stonework it is set into, and nothing
+// else: an iron fence does not continue into a hedge.
+const RAIL_JOINS = new Set(['railing', 'wall', 'gate'])
+// a bed's furrows follow the strip of beds it is part of, and a bed joins
+// nothing but another bed: a row that runs up to a fence does not turn.
+const PLOT_JOINS = new Set(['plot'])
+// and each kind's OWN set, which is what decides which way its line lies
+const FENCE_OWN = new Set(['fence', 'gate'])
+const HEDGE_OWN = new Set(['hedge'])
+const RAIL_OWN = new Set(['railing'])
 function fenceAt(st, x, y) {
   if (!st || !st.nodes) return false
   if (_fenceTick !== st.tick || _fenceSet === null) {
@@ -7345,7 +7410,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b104'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b105'  // stamp: if your screen says an older build, hard-refresh
 // ===========================================================================
 // WHAT A CITIZEN IS SEEN TO BE DOING
 //
@@ -12897,9 +12962,14 @@ function drawScene(now) {
         // The rails now run ALONG the fence and reach the tile edge on any
         // side that continues, so a run is one line and a corner mitres
         // itself. Same question the wall asks, same answer.
-        const fl = fenceAt(s, n.x - 1, n.y), fr = fenceAt(s, n.x + 1, n.y)
-        const fu = fenceAt(s, n.x, n.y - 1), fd = fenceAt(s, n.x, n.y + 1)
-        const down = (fu || fd) && !(fl || fr)
+        // §7ef: AND A HEDGE BESIDE IT IS NOT A FENCE RUNNING THAT WAY. This
+        // asked `fenceAt`, which answers for the whole joining family, so at
+        // the farm plots -- a north-south fence line with a north-south hedge
+        // line one tile east of it -- every fence saw an east-west neighbour
+        // and drew broadside. See the note over runWays.
+        const fw = runWays(s, 'fence', FENCE_OWN, FENCE_JOINS, n.x, n.y)
+        const fl = fw.l, fr = fw.r, fu = fw.u, fd = fw.d
+        const down = fw.down
         // Two rails along the run and a post in every tile, which is what
         // gives a paling fence its rhythm from above. Without the posts the
         // run reads as two wires; without the rails reaching the tile edge
@@ -13152,10 +13222,62 @@ function drawScene(now) {
         return
       }
       if (n.type === 'hedge') {
+        // §7ef: A HEDGE IS A LINE, AND IT KNOWS WHICH WAY IT LIES.
+        //
+        // This drew one 28-by-18 block, always broadside, inset two pixels
+        // all round. So a hedge running north to south was a COLUMN OF
+        // SEPARATE BUSHES with daylight between every one, and 429 of the
+        // island's 1,212 hedge tiles stand in exactly that. The same fault
+        // the wall and the fence were each fixed for, in the kind nobody had
+        // been back to: a laid hedge is one continuous thing or it is a row
+        // of shrubs.
+        //
+        // It reaches the tile edge on every side that continues, so a run
+        // joins up, and keeps its rounded end only where the hedge really
+        // stops. A corner keeps the broad drawing deliberately: a corner that
+        // picks one of its two arms draws a line with a notch in it.
+        const hw = runWays(s, 'hedge', HEDGE_OWN, FENCE_JOINS, n.x, n.y)
         shadow(X, Y, 12)
-        cx.fillStyle = '#2a4218'; cx.fillRect(X + 2, Y + 6, 28, 18)
-        cx.fillStyle = '#365222'; cx.fillRect(X + 4, Y + 4, 10, 8); cx.fillRect(X + 17, Y + 5, 11, 7)
-        cx.fillStyle = '#1e3010'; cx.fillRect(X + 6, Y + 18, 20, 5)
+        const BODY = '#2a4218', TOP = '#365222', UNDER = '#1e3010'
+        const h9 = tileHash(n.x, n.y, 23)
+        // CLUMPS, NOT NOTCHES. The first pass stepped a square of lighter
+        // green along the run at a fixed pitch, which came out as a ladder:
+        // regular rungs with regular gaps, which is what a hedge is not. A
+        // laid hedge is a mass with a broken crown, so the crown is
+        // overlapping rounds of two greens at an uneven pitch, and the pitch
+        // comes from the RUN rather than the tile so a long hedge does not
+        // repeat itself every forty pixels.
+        const blob = (bx, by, rx, ry, c) => {
+          cx.fillStyle = c
+          cx.beginPath(); cx.ellipse(bx, by, rx, ry, 0, 0, 7); cx.fill()
+        }
+        if (hw.down) {
+          const y0 = hw.u ? Y : Y + 3, y1 = hw.d ? Y + TILE : Y + TILE - 3
+          cx.fillStyle = BODY; cx.fillRect(X + 8, y0, 19, y1 - y0)
+          if (!hw.u) blob(X + 17.5, y0 + 1, 9.5, 3.5, BODY)
+          if (!hw.d) blob(X + 17.5, y1 - 1, 9.5, 3.5, BODY)
+          for (let q = 0; q < 7; q++) {
+            const by = y0 + ((tileHash(n.x, 0, 31 + q) + q * 13) % Math.max(1, (y1 - y0)))
+            const k = tileHash(n.x, Math.floor(by), 37 + q)
+            blob(X + 12 + (k % 9), by, 4 + (k >> 3) % 4, 3.5 + (k >> 5) % 3,
+              k & 1 ? TOP : BODY)
+          }
+          cx.fillStyle = UNDER
+          cx.fillRect(X + 22, y0, 5, y1 - y0)
+        } else {
+          const x0 = hw.l ? X : X + 3, x1 = hw.r ? X + TILE : X + TILE - 3
+          cx.fillStyle = BODY; cx.fillRect(x0, Y + 6, x1 - x0, 18)
+          if (!hw.l) blob(x0 + 1, Y + 15, 3.5, 9, BODY)
+          if (!hw.r) blob(x1 - 1, Y + 15, 3.5, 9, BODY)
+          for (let q = 0; q < 7; q++) {
+            const bx = x0 + ((tileHash(0, n.y, 31 + q) + q * 13) % Math.max(1, (x1 - x0)))
+            const k = tileHash(Math.floor(bx), n.y, 37 + q)
+            blob(bx, Y + 10 + (k % 7), 4 + (k >> 3) % 4, 3.5 + (k >> 5) % 3,
+              k & 1 ? TOP : BODY)
+          }
+          cx.fillStyle = UNDER
+          cx.fillRect(x0, Y + 20, x1 - x0, 4.5)
+        }
         return
       }
       if (n.type === 'fountain' || (n.type === 'well' && isFountain4(n.x, n.y))) {
@@ -14674,16 +14796,37 @@ function drawScene(now) {
       if (n.type === 'railing') {
         // §7ac: IRON RAILING. Not a wall: uprights, a top rail, and daylight
         // between them. A churchyard bounds itself so you can see in.
+        //
+        // §7ef: AND IT RUNS THE WAY THE RAILING RUNS. This drew two rails
+        // straight across the tile whatever the line was doing, so the
+        // twenty-six tiles of railing that stand in a north-south run were
+        // drawn as rungs of a ladder lying on the grass, with the uprights
+        // marching the wrong way.
+        const rw = runWays(s, 'railing', RAIL_OWN, RAIL_JOINS, n.x, n.y)
         const rr = ((n.x * 7 + n.y * 13) & 3)
         cx.strokeStyle = '#2f3338'; cx.lineWidth = 2
-        cx.beginPath(); cx.moveTo(X, Y + 16); cx.lineTo(X + 40, Y + 16); cx.stroke()
-        cx.beginPath(); cx.moveTo(X, Y + 30); cx.lineTo(X + 40, Y + 30); cx.stroke()
-        cx.lineWidth = 2.6
-        for (let i = 0; i < 4; i++) {
-          const px = X + 6 + i * 10
-          cx.beginPath(); cx.moveTo(px, Y + 8 + (i === rr % 4 ? 1 : 0)); cx.lineTo(px, Y + 36); cx.stroke()
-          cx.fillStyle = '#3b4046'
-          cx.beginPath(); cx.arc(px, Y + 7, 1.8, 0, 7); cx.fill()
+        if (rw.down) {
+          const y0 = rw.u ? Y : Y + 2, y1 = rw.d ? Y + TILE : Y + TILE - 2
+          cx.beginPath(); cx.moveTo(X + 14, y0); cx.lineTo(X + 14, y1); cx.stroke()
+          cx.beginPath(); cx.moveTo(X + 26, y0); cx.lineTo(X + 26, y1); cx.stroke()
+          cx.lineWidth = 2.6
+          for (let i = 0; i < 4; i++) {
+            const py = Y + 6 + i * 10
+            cx.beginPath(); cx.moveTo(X + 8 + (i === rr % 4 ? 1 : 0), py); cx.lineTo(X + 32, py); cx.stroke()
+            cx.fillStyle = '#3b4046'
+            cx.beginPath(); cx.arc(X + 7, py, 1.8, 0, 7); cx.fill()
+          }
+        } else {
+          const x0 = rw.l ? X : X + 2, x1 = rw.r ? X + TILE : X + TILE - 2
+          cx.beginPath(); cx.moveTo(x0, Y + 16); cx.lineTo(x1, Y + 16); cx.stroke()
+          cx.beginPath(); cx.moveTo(x0, Y + 30); cx.lineTo(x1, Y + 30); cx.stroke()
+          cx.lineWidth = 2.6
+          for (let i = 0; i < 4; i++) {
+            const px = X + 6 + i * 10
+            cx.beginPath(); cx.moveTo(px, Y + 8 + (i === rr % 4 ? 1 : 0)); cx.lineTo(px, Y + 36); cx.stroke()
+            cx.fillStyle = '#3b4046'
+            cx.beginPath(); cx.arc(px, Y + 7, 1.8, 0, 7); cx.fill()
+          }
         }
         return
       }
@@ -15328,14 +15471,36 @@ function drawScene(now) {
           cx.fillStyle = '#6b533a'
           cx.beginPath(); cx.ellipse(ex + 2, Y + 2.5, 3.4, 2.6, 0, 0, 7); cx.fill()
           cx.beginPath(); cx.ellipse(ex, Y + TILE - 2.5, 3.4, 2.6, 0, 0, 7); cx.fill()
+          cx.beginPath(); cx.ellipse(X + 2.5, Y + c3 * 4.6 + 2, 2.6, 3.4, 0, 0, 7); cx.fill()
+          cx.beginPath(); cx.ellipse(X + TILE - 2.5, Y + c3 * 4.6, 2.6, 3.4, 0, 0, 7); cx.fill()
         }
-        // the furrows: shallow, uneven, and nothing like a plank seam
-        cx.strokeStyle = 'rgba(70,52,32,.40)'; cx.lineWidth = 3.4
+        // the furrows: shallow, uneven, and nothing like a plank seam.
+        //
+        // §7ef: AND THEY RUN ALONG THE BED. They were drawn east to west on
+        // every one of the island's 1,227 beds, and 1,026 of those stand in a
+        // north-south strip, so five beds out of six had their furrows ruled
+        // ACROSS the row somebody walked. A furrow is the line a spade made
+        // going up the bed; across it, it is a ladder.
+        // AND A FURROW DOES NOT JOG AT EVERY TILE LINE. The offsets came out
+        // of the TILE's hash, so each square of a bed put its furrows in a
+        // slightly different place and a column of five beds read as five
+        // bundles of poles stacked up rather than one bed. A furrow is one
+        // line the whole length of the row, so the offsets come from the row:
+        // the column for a bed running down, the row for one running across.
+        const pw = runWays(s, 'plot', PLOT_JOINS, null, n.x, n.y)
+        const lineSeed = tileHash(pw.down ? n.x : 0, pw.down ? 0 : n.y, 12)
+        cx.strokeStyle = 'rgba(70,52,32,.34)'; cx.lineWidth = 3
         for (let r2 = 0; r2 < 4; r2++) {
-          const fy = Y + 8 + r2 * 8 + ((seed >> (r2 * 2)) % 3) * 0.6
+          const off = 8 + r2 * 8 + ((lineSeed >> (r2 * 2)) % 3) * 0.8
+          const bow = ((seed >> r2) % 3) - 1   // the bow is the spade's, per square
           cx.beginPath()
-          cx.moveTo(X - 1, fy)
-          cx.quadraticCurveTo(X + 20, fy + ((seed >> r2) % 3) - 1, X + 41, fy)
+          if (pw.down) {
+            cx.moveTo(X + off, Y - 1)
+            cx.quadraticCurveTo(X + off + bow, Y + 20, X + off, Y + 41)
+          } else {
+            cx.moveTo(X - 1, Y + off)
+            cx.quadraticCurveTo(X + 20, Y + off + bow, X + 41, Y + off)
+          }
           cx.stroke()
         }
         // and the crumb the spade turned up, catching the light on the crests
