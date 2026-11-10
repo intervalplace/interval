@@ -9154,6 +9154,85 @@ export function buildWorld(genesis) {
       console.warn('WORLDGEN: ' + evicted + ' node(s) shared a tile; the drawn thing kept it')
       for (const line of gone) console.warn('WORLDGEN:   dropped ' + line)
     }
+
+    // AND A DRAWING KEEPS ITS ROOM, NOT ONLY ITS WALLS.
+    //
+    // The rule above is right and was being applied to too small a thing. It
+    // compares one tile against one tile, so a field pattern laid over a
+    // cottage only loses the squares where a wall actually stands: its fence
+    // posts and its crop beds go on standing in the EMPTY ROOM INSIDE. West
+    // of the Lantern, hold0 is a four-walled steading with a hearth in it and
+    // the Millbrook field ran two fences and two beds through its middle. A
+    // hearth, a vegetable bed and a fence in one room is not a steading, it
+    // is a heap.
+    //
+    // A FOOTPRINT IS NOT A BOUNDING BOX. The first try took the rectangle
+    // round each drawing and cleared everything lower-ranked inside it, and
+    // that deleted TEN THOUSAND nodes: the id families are not all local, so
+    // one of them spanned the island and swallowed four towns. A drawing's
+    // room is the tiles its own WALLS stand round, which is a question about
+    // walls rather than about names.
+    //
+    // Three of the four directions, not four, because a doorway is a gap:
+    // the two beds inside hold0 sit in the column its door is in and have no
+    // wall due south of them. With the bounding box as a second condition,
+    // three rays is the room and two is the open country beside it.
+    {
+      const famOf9 = (id) => id.replace(/-\d+(-\d+)?$/, '')
+      const wallsOf = new Map(), boxOf = new Map()
+      for (const [id, n] of Object.entries(w.nodes)) {
+        const f = famOf9(id)
+        const b2 = boxOf.get(f) ?? { x0: 1e9, y0: 1e9, x1: -1e9, y1: -1e9 }
+        b2.x0 = Math.min(b2.x0, n.x); b2.x1 = Math.max(b2.x1, n.x)
+        b2.y0 = Math.min(b2.y0, n.y); b2.y1 = Math.max(b2.y1, n.y)
+        boxOf.set(f, b2)
+        if (n.type === 'wall' || n.type === 'palisade') {
+          const w2 = wallsOf.get(f) ?? new Set()
+          w2.add(n.x + ',' + n.y); wallsOf.set(f, w2)
+        }
+      }
+      const REACH = 14
+      const roomOf = (f, x, y) => {
+        const W2 = wallsOf.get(f); if (!W2 || W2.size < 4) return false
+        const b2 = boxOf.get(f)
+        if (x < b2.x0 || x > b2.x1 || y < b2.y0 || y > b2.y1) return false
+        let hit = 0
+        for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+          for (let i2 = 1; i2 <= REACH; i2++)
+            if (W2.has((x + dx * i2) + ',' + (y + dy * i2))) { hit++; break }
+        }
+        return hit >= 3
+      }
+      // AND ONLY THE FIELD, BECAUSE RANK IS NOT THE SAME QUESTION.
+      //
+      // Clearing everything lower-ranked out of a walled room took sixteen
+      // nodes and three of them belonged exactly where they stood: the
+      // furnace keeper inside the furnace shed, and three muck heaps inside
+      // the Sheepfolds, which is where muck is. Standing in somebody's room
+      // is not wrong; being PLOUGHED THROUGH IT is. A field is a pattern
+      // ruled across half a shire by a hash that cannot see a building, and
+      // a fence line or a seedbed inside four walls is the one case that can
+      // never be meant. That is the rule, and it is narrower than rank.
+      const inside = []
+      for (const [id, n] of Object.entries(w.nodes)) {
+        if (!id.startsWith('field-')) continue
+        if (n.type !== 'fence' && n.type !== 'plot' && n.type !== 'hedge') continue
+        const mine = famOf9(id)
+        for (const f of wallsOf.keys()) {
+          if (f === mine) continue
+          if (RANK(f + '-0') <= RANK(id)) continue
+          if (!roomOf(f, n.x, n.y)) continue
+          inside.push([id, n.type, f]); break
+        }
+      }
+      for (const [id] of inside) delete w.nodes[id]
+      if (inside.length) {
+        console.warn('WORLDGEN: ' + inside.length
+          + ' field node(s) were ploughed through somebody\u2019s room')
+        for (const [id, t, f] of inside)
+          console.warn('WORLDGEN:   cleared ' + id + ' (' + t + ') out of ' + f)
+      }
+    }
   }
 
   // ================= NO ENCLOSURE MAY BE SEALED =================
