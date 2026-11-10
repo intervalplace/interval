@@ -5988,6 +5988,30 @@ const BUILT_EDGE = new Set(['floor', 'bridge', 'causey'])
 // So the chart is told where they are. Nothing is added and nothing is moved.
 // A Schelling point only works if everybody knows the place.
 let _seamsTold = null
+// §7ef: AND ONE MARK TO A CLUSTER ON THE CHART, for the same reason the
+// ground carries one word to a cluster. Forty-one rockfalls at three pixels
+// to the tile is not forty-one marks, it is an orange smear, and a smear says
+// "a lot of something" where the chart's whole job is to say WHAT.
+//
+// A symbol per trade was considered here and is the wrong move. This chart
+// has one language and keeps it: colour is the kind, and SHAPE is reserved
+// for the two things that are about to hurt you -- the dragon's disc and a
+// boss's pulse. Spending shape on "there is stone here" takes the one signal
+// the chart has for danger and makes it ordinary, and a pick drawn small
+// enough not to cover its neighbours at three pixels a tile is four pixels of
+// mud with a legend to learn. The repetition was the fault, not the dot.
+let _seamLeadTold = null
+const seamLeadsOf = (list) => {
+  const lead = []
+  const taken = {}
+  for (const row of [...list].sort((a9, b9) => (a9[2] - b9[2]) || (a9[1] - b9[1]))) {
+    const [t9, x9, y9] = row
+    const near = (taken[t9] ??= [])
+    if (near.some(([ox, oy]) => Math.max(Math.abs(ox - x9), Math.abs(oy - y9)) <= CLUSTER_SPAN)) continue
+    near.push([x9, y9]); lead.push(row)
+  }
+  return lead
+}
 // What colour each family reads as at four world tiles to the pixel. The
 // families, not the kinds: a chart that needs a legend is a chart nobody
 // reads, and at this size an oak and an ironbark are the same green anyway.
@@ -7321,7 +7345,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b102'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b103'  // stamp: if your screen says an older build, hard-refresh
 // ===========================================================================
 // WHAT A CITIZEN IS SEEN TO BE DOING
 //
@@ -10229,7 +10253,8 @@ function _onState(s, worldId, local) {
     // own answer and every window that works it out itself gets it wrong.
     fetch(api('/api/seams'), { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
-      .then((sd) => { if (Array.isArray(sd?.seams) && sd.seams.length) _seamsTold = sd.seams })
+      .then((sd) => { if (Array.isArray(sd?.seams) && sd.seams.length) {
+        _seamsTold = sd.seams; _seamLeadTold = seamLeadsOf(sd.seams) } })
       .catch(() => {})
     const askGround = (tries) => {
       fetch(api('/api/ground'), { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(gd => {
@@ -18586,7 +18611,7 @@ function drawSunMap(s, now) {
   // are standing, which is the thing everybody who wants logs has to agree on
   // before they can meet at them.
   if (_seamsTold) {
-    for (const [t, wx, wy] of _seamsTold) {
+    for (const [t, wx, wy] of (_seamLeadTold ??= seamLeadsOf(_seamsTold))) {
       const [ax, ay] = at(wx, wy)
       if (ax < pad || ay < pad || ax > MW - pad || ay > MH - pad) continue
       g.fillStyle = SEAM_INK[famOf(t)] ?? SEAM_INK[t] ?? '#d8cdb4'

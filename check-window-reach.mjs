@@ -160,7 +160,10 @@ vm.runInContext(body + `
   bridge: (a) => BRIDGE_TO_INPUT(a),
   held: () => (spellHeld ? spellHeld.v : null),
   hover: (x, y) => { hoverT = x === null ? null : { x, y } },
-  seams: (list) => { _seamsTold = list },
+  // the leaders are worked out once when the pillar answers, so a test that
+  // hands the window a seam list by hand has to clear them too, or the
+  // chart draws the marks of the list before this one
+  seams: (list) => { _seamsTold = list; _seamLeadTold = null },
   chart: (now) => drawSunMap(curState, now),
   ink: () => SEAM_INK,
   draw: () => drawScene(performance.now()),
