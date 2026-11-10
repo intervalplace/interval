@@ -180,6 +180,16 @@ const NOPRESS = !!arg('--at')
 // A verb with several variants is ONE line that opens a second page (§7y), so
 // a picture of the first page says nothing about the page that matters.
 const PICK = arg('--pick')
+// --anywhere: stand exactly where --at says, even if no citizen could.
+// Normally the sweep stands on a tile somebody could actually be on. It used
+// to drop the walker on the target tile whatever was there, which photographed
+// a citizen standing ON the closed Millbrook toll bar and INSIDE the Barrow,
+// which is a mound nobody can enter: pictures of vantages that do not exist.
+// The engine bars a gate tile for anybody who has not paid and bars a wall
+// outright, so the harness asks the generator the same question the engine
+// asks. Kept as a flag because photographing the middle of an impassable mound
+// is sometimes exactly what is wanted.
+const ANYWHERE = process.argv.includes('--anywhere')
 // --caster: a citizen who can actually speak. The sweep's walker is a plain
 // body on purpose, and every word in the book is dimmed for them, so a
 // picture of the spell page taken by that body shows nine greyed rows.
@@ -245,6 +255,7 @@ const AFTER = (plan, state, myId) => `<script>
   const SMOKE = ${JSON.stringify(SMOKE)}
   const DOING = ${JSON.stringify(DOING)}
   const MENU = ${JSON.stringify(MENU)}
+  const VANTAGE = ${JSON.stringify(vantage)}
   const NOPRESS = ${JSON.stringify(NOPRESS)}
   const PICK = ${JSON.stringify(PICK)}
   const BOOK = ${JSON.stringify(process.argv.includes('--book'))}
@@ -327,8 +338,11 @@ const AFTER = (plan, state, myId) => `<script>
       if (MENU) {
         const [mx, my] = MENU.split(',').map(Number)
         const meM = STATE.players[ME]
-        // stand beside it, so nothing is dimmed for distance
-        meM.x = mx; meM.y = my - 1
+        // stand beside it, so nothing is dimmed for distance, and on a tile a
+        // citizen could actually be on: worked out against the generator's own
+        // blockedAt rather than assumed to be the one to the north
+        const [vx, vy] = VANTAGE ?? [mx, my - 1]
+        meM.x = vx; meM.y = vy
         STATE.tick = 600
         feedOne({ type: 'state', state: STATE, worldId: 'sweep' })
         // long enough for the ground to arrive and be baked: the first go
@@ -636,6 +650,29 @@ if (CASTER) {
   me9.book = process.argv.includes('--barrow') ? 'barrow' : 'common'
   if (me9.book === 'common') me9.equipment.weapon = { item: 'wand', qty: 1 }
 }
+
+// WHERE THE WALKER CAN ACTUALLY STAND, worked out here because this is the
+// side that holds the generator. North first, since that is the vantage this
+// sweep has always used and it keeps every old picture framed the same way.
+const standable = (x, y) => {
+  if (x < 0 || y < 0 || x >= g.worldW || y >= g.worldH) return false
+  if (typeof WG.blockedAt === 'function' && WG.blockedAt(g, x, y)) return false
+  if (typeof WG.isWater === 'function' && WG.isWater(g, x, y)) return false
+  return !Object.values(world.nodes).some((n) => n.x === x && n.y === y)
+}
+const vantage = (() => {
+  if (!MENU) return null
+  const [mx, my] = MENU.split(',').map(Number)
+  if (ANYWHERE) return [mx, my - 1]
+  for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]])
+    if (standable(mx + dx, my + dy)) return [mx + dx, my + dy]
+  for (let r = 2; r <= 4; r++)
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue
+      if (standable(mx + dx, my + dy)) return [mx + dx, my + dy]
+    }
+  return [mx, my - 1]   // nowhere to stand: say so by standing where asked
+})()
 
 mkdirSync(OUT, { recursive: true })
 const pagePath = OUT + '/sweep-page.html'
