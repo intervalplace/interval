@@ -6474,9 +6474,17 @@ async function ownIdentity() {
 // chooses it once and then forgets it, the way they choose which way to face.
 let combatStyle = 'even'
 const STYLE_TEXT = {
-  even:  ['Even',  'splits the lesson; a middling spread'],
-  aim:   ['Aim',   'teaches attack; narrow and dependable'],
-  force: ['Force', 'teaches strength; wild, and the bigger ceiling'],
+  // §5s: STYLE IS THE SWING, NOT THE SCHOOL, and this window was still
+  // describing the rule §5j repealed. Style used to decide which of attack,
+  // strength and defence a blow taught; prowess is one number now and the
+  // field teaches nothing at all. It is the per-swing lever against the
+  // calling's permanent one, and what it buys it pays for.
+  //
+  // §7em: and it says what the trade IS, not what it comes to. The engine's
+  // own measurements are in its margin and they are the player's to find.
+  even:  ['Even',  'no trade either way'],
+  aim:   ['Aim',   'accuracy, paid for in damage'],
+  force: ['Force', 'damage, paid for in accuracy'],
 }
 function setCombatStyle(s) {
   combatStyle = s
@@ -7420,7 +7428,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b106'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b107'  // stamp: if your screen says an older build, hard-refresh
 // ===========================================================================
 // WHAT A CITIZEN IS SEEN TO BE DOING
 //
@@ -20200,15 +20208,30 @@ function invOptions(i) {
             : onNode ? 'Something already stands on this tile.'
             : 'A buck is set in a run. Stand beside water.') })
     }
-    // §6al: raising a stall, asked of the timber it is made of
-    const logs2 = (meNow.inventory ?? []).filter(x => x && (x.item === 'logs' || x.item === 'heartwood')).length
-    const ore2 = (meNow.inventory ?? []).filter(x => x?.item === 'ore').length
+    // §6al: raising a stall, asked of the timber it is made of.
+    //
+    // §7ek: AND THERE WERE TWO OF THESE AND ONLY ONE WAS FIXED. The stall
+    // option was found once already counting sixteen `logs` and eight `ore`
+    // against an engine that asks for ten PLANKS and two IRON-ORE, and
+    // printing a third pair of numbers on the button. This is the other copy,
+    // word for word, with the same three disagreeing answers: it offered the
+    // deed to citizens who could not do it and hid it from the ones who
+    // could, and the thing it counted -- plain `ore` -- is a word this
+    // founding does not mine at all.
+    //
+    // Both read the pillar's numbers now, and neither prints its own.
+    const planks2 = (meNow.inventory ?? []).reduce((a9, x) =>
+      a9 + (x && x.item === 'planks' ? (x.qty ?? 1) : 0), 0)
+    const iron2 = (meNow.inventory ?? []).reduce((a9, x) =>
+      a9 + (x && x.item === 'iron-ore' ? (x.qty ?? 1) : 0), 0)
     const already = Object.values(world.nodes).some(n => n.type === 'market' && n.by === myId)
+    const cost2 = MARKET_PLANKS + ' planks and ' + MARKET_ORE + ' iron-ore'
     if (already) opts.push({ label: 'raise a stall (you have one)', act: () => feed('One stall to a citizen.') })
-    else if (logs2 < 16 || ore2 < 8)
-      opts.push({ label: 'raise a stall (needs 32 planks, 8 iron-ore)',
-                  act: () => feed('You have ' + logs2 + ' logs and ' + ore2 + ' ore.') })
-    else opts.push({ label: 'raise a stall here (32 planks, 8 iron-ore)', act: () => { send({ do: 'raise_market' })
+    else if (planks2 < MARKET_PLANKS || iron2 < MARKET_ORE)
+      opts.push({ label: 'raise a stall (' + cost2 + ')',
+                  act: () => feed('A stall wants ' + cost2 + '. You have '
+                    + planks2 + ' planks and ' + iron2 + ' iron-ore.') })
+    else opts.push({ label: 'raise a stall here (' + cost2 + ')', act: () => { send({ do: 'raise_market' })
       feed('You begin raising a stall. Do not move.') } })
     return { name, opts: [...opts, ...tail] }
   }
@@ -20629,11 +20652,31 @@ function worldPress(e, asLeft) {
     _pressName = meSelf.name ?? 'you'
     _pressLook = () => lookAtCitizen(myId, meSelf)
     _pressLookAs = 'look at yourself'
+    // §7ei: AND YOU ARE STANDING ON IT. The same fault as a beast standing
+    // over what it dropped, in the one place nobody checked: YOURSELF. Kill a
+    // skeleton knight, take the bones, and the second pile is under your own
+    // feet, where every press finds you first and returns. "I cannot pick up
+    // anything else after the first. I have to walk off the spot and then on
+    // it again."
+    //
+    // So the left button takes the next thing up, because that is plainly the
+    // default act of a citizen standing on a heap of loot, and looking at
+    // yourself is what is left when the ground is bare. The right button says
+    // what is here, as it does for a creature.
+    const mine9 = Object.entries(world.ground ?? {})
+      .filter(([, g3]) => g3.x === meSelf.x && g3.y === meSelf.y)
     // a spell that lands on nobody but you is cast from the book, where it is
     // chosen: there is nothing to aim, so there is nothing to click
-    flashClick(meSelf.x, meSelf.y, false)
-    if (!rightPress) { lookAtCitizen(myId, meSelf); return }
+    flashClick(meSelf.x, meSelf.y, mine9.length > 0)
+    const takeIt = ([gid, g3]) => { send({ do: 'pickup', groundId: gid, confirm: false })
+      feed('You pick up the ' + say1(g3.item) + '.') }
+    if (!rightPress) {
+      if (mine9.length) { takeIt(mine9[0]); return }
+      lookAtCitizen(myId, meSelf); return
+    }
     chooseAction([
+      ...mine9.slice(0, 5).map((row) => ({ label: 'take the ' + say1(row[1].item),
+        act: () => takeIt(row) })),
       // §7ek: and the way OUT of a follow, where you can find it. "fall out"
       // is on the menu of whoever you are following, which means finding
       // them first -- and they are walking away from you, which is why you

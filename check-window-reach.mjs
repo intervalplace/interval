@@ -1629,6 +1629,80 @@ console.log('\n--- 8o. everything that comes in a run is drawn along it ---')
     'and a fence decides its direction by fences, not by whatever stands beside it')
 }
 
+console.log('\n--- 8p. what you are standing on can be picked up ---')
+{
+  // "When I kill a skeleton knight and take the bones, I cannot take the
+  // other pile of bones. When I am already standing at the dropped item and
+  // click, I only click myself, so I cannot pick up anything else after the
+  // first. I have to walk off the spot and then on it again."
+  //
+  // The same fault as a beast standing over what it dropped, which §7ei found
+  // and fixed for creatures, in the one place nobody thought to check: your
+  // own feet. Every press finds YOU first and returns, so the second pile of
+  // a kill was unreachable without stepping off the tile.
+  const st = fresh()
+  const me9 = st.players[ID]
+  st.ground = {
+    g1: { item: 'bones', qty: 1, x: me9.x, y: me9.y, by: 'x'.repeat(64) },
+    g2: { item: 'iron-ore', qty: 1, x: me9.x, y: me9.y, by: 'x'.repeat(64) },
+  }
+  ctx.__h.msg({ type: 'state', state: st, worldId: WID })
+  await new Promise((r) => setImmediate(r))
+  ctx.__h.set(st, ID)
+  // the left button takes the next thing up, because that is plainly what a
+  // citizen standing on a heap of loot means by clicking it
+  ctx.__h.hush(); sent.length = 0
+  ctx.__h.press(me9.x, me9.y, false)
+  const took = sent.filter((a) => a && a.do === 'pickup')
+  ok(took.length === 1, took.length === 1
+    ? 'standing on a pile, a left press takes it: ' + ctx.__h.said()[0]
+    : 'standing on a pile, a left press sent ' + JSON.stringify(sent.map((a) => a && a.do)))
+  // and the right button says everything that is here, yours included
+  const grab = ctx.__h.spy()
+  ctx.__h.press(me9.x, me9.y, true)
+  const opts = (grab() ?? []).map((o) => o && (o.label ?? o.head)).filter(Boolean)
+  const takes = opts.filter((l) => /^take the /.test(l))
+  ok(takes.length === 2, takes.length === 2
+    ? 'and the right press lists both of them: ' + takes.join(', ')
+    : 'the right press listed ' + takes.length + ' of the 2 piles (' + opts.join(' | ') + ')')
+  // with the bare ground, pressing yourself is still looking at yourself
+  const bare = fresh()
+  ctx.__h.msg({ type: 'state', state: bare, worldId: WID })
+  await new Promise((r) => setImmediate(r))
+  ctx.__h.set(bare, ID)
+  ctx.__h.hush(); sent.length = 0
+  ctx.__h.press(bare.players[ID].x, bare.players[ID].y, false)
+  ok(!sent.some((a) => a && a.do === 'pickup') && ctx.__h.said().length > 0,
+    !sent.some((a) => a && a.do === 'pickup') && ctx.__h.said().length > 0
+      ? 'and on bare ground a press on yourself is still a look at yourself'
+      : 'pressing yourself on bare ground did the wrong thing')
+}
+
+console.log('\n--- 8q. a window never guesses a constitutional number ---')
+{
+  // §7ek said this once: the stall option counted sixteen `logs` and eight
+  // `ore` against an engine asking ten PLANKS and two IRON-ORE, and printed a
+  // THIRD pair of numbers on the button. Three copies and no two agreeing.
+  //
+  // THERE WERE TWO OF THEM AND ONLY ONE WAS FIXED. The second was word for
+  // word the same, in the pack's own menu rather than the ground's, and it
+  // counted a word -- plain `ore` -- that this founding does not mine at all.
+  // A rule kept in one place out of two is not a rule, so this reads back
+  // every number the window puts on that button and holds all of them to the
+  // pillar's.
+  const nums = [...html.matchAll(/raise a stall[^']*?(\d+)\s*planks[^']*?(\d+)\s*iron-ore/g)]
+  ok(nums.length === 0, nums.length === 0
+    ? 'no stall button carries a number of its own; they all read the pillar’s'
+    : nums.length + ' stall button(s) print their own cost: '
+      + nums.map((m) => m[1] + ' planks, ' + m[2] + ' iron-ore').join('; '))
+  // and nothing counts the retired word
+  const stallBits = html.split('raise a stall')
+  const bad = stallBits.slice(1).filter((b) => /item === 'ore'/.test(b.slice(-700)))
+  ok(bad.length === 0, bad.length === 0
+    ? 'and none of them counts plain ore, which this founding does not mine'
+    : bad.length + ' still count plain ore')
+}
+
 console.log('\n--- 8k. the world does not spell itself out ---')
 {
   // "I do not think it should say that it takes two minutes to go around.
