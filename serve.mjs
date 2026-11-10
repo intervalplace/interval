@@ -1798,6 +1798,22 @@ const server = http.createServer((req, res) => {
         // option to citizens who cannot take it and hides it from the ones who
         // can; see the note beside the export.
         marketPlanks: E.MARKET_PLANKS, marketOre: E.MARKET_ORE, marketOwned: E.MARKET_OWNED,
+        // §7q: and what the Millbrook bar takes. The window asked for a LOG,
+        // which the toll stopped taking when the sawpit arrived and a deck
+        // became sawn boards, so it refused a citizen carrying exactly what
+        // the engine wanted and sent them to the Greenwood for a thing that
+        // would not open the bar.
+        tollPlanks: E.TOLL_PLANKS,
+        // §6ao: WHICH TOOL EACH GROUND WANTS IN THE HAND. A tool-gated
+        // founding refuses a gather with nothing wielded, in silence, and
+        // the window had no idea: it said "you swing your pickaxe at it" to
+        // a citizen holding no pickaxe and then nothing happened, for ever.
+        // Sets are sent as ARRAYS: JSON.stringify(new Set()) is {}, and four
+        // tables have already arrived empty that way.
+        gatherTools: Object.fromEntries(Object.entries(E.GATHER_TOOLS)
+          .map(([sk, set]) => [sk, [...set]])),
+        nodeSkill: Object.fromEntries(Object.entries(E.NODE_YIELD)
+          .map(([t, y]) => [t, y.skill]).filter(([, sk]) => sk)),
         // §7ek: the three deferred works. See the note beside the exports.
         grovePlantLevel: E.GROVE_PLANT_LEVEL, groveSpecies: E.GROVE_SPECIES,
         bucksAt: E.BUCKS_AT, buckFill: E.BUCK_FILL_TICKS, buckSpoils: E.BUCK_SPOILS_AFTER,

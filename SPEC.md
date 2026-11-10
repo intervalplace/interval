@@ -17606,6 +17606,39 @@ hung), and four false positives of the idiom "on the island". A line added
 next year is caught the day it is added. `NODE_LOOK` and `MOB_LOOK` are held
 to carrying no number at all.
 
+**AND THE PRINTED BOOK KEEPS THE SAME LINE.** The handbook was still giving
+the barrow spells' damage and how many intervals the rot and the withering
+last, a far shot ending "at the end of its nine tiles", and the gibbet dead
+"fought at four tiles or not at all". Its job is untouched by this: the clock
+is still one interval a second, food is still a rate rather than a burst, a
+smoked eel still ends the rot and nothing still mends a withering, because
+none of those can be found out by playing. What went is what a single cast or
+a single shot teaches anyway. `test/prose.test.mjs` holds it, with the same
+kind of named exception list.
+
+**THE OTHER HALF OF THIS RULE IS THAT A GATE MUST ACTUALLY BE SAID.** This
+founding is tool-gated: the engine refuses a gather unless the right tool is
+WIELDED, and it refuses in SILENCE. The window went on saying "you swing your
+axe at the tree" to a citizen holding nothing, every press, while the world
+did not move. The level gate was worse: it was written out once, for
+quick-rock alone, against a hand-typed 70 while the served table asks 78, so
+one of thirteen gated grounds was checked and that one quoted the wrong
+number. Both gates come from the pillar now (`gatherTools`, `nodeSkill`,
+`NODE_GATE`), both are said before anything is filed, and the window names the
+tool that is actually in the hand rather than the one the sentence assumed.
+§6bd's distinction is the one that catches people out, so the refusal makes
+it: carrying an axe and holding an axe are different, and the window says
+which one you have.
+
+**And §7q had never reached the window at all.** The Millbrook toll stopped
+taking logs when the sawpit arrived and a deck became sawn boards. The window
+still asked for `logs`, so a citizen carrying exactly what the engine wanted
+was turned away and sent to the Greenwood for a thing that would not open the
+bar. It had no copy of the cost to go stale, which is how it went unnoticed
+for as long as it did: `TOLL_PLANKS` is served now. The engine's own margin
+note beside the gate still said "why the toll is a log", three years after it
+stopped being one.
+
 
 ## 7h. Who Lives Here
 

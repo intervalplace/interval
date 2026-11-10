@@ -10752,7 +10752,9 @@ function validInput(state, input, ctx) {
     }
     case 'pay': {
       // Beside the gate, and carrying what it asks for. Nothing here checks
-      // gold: see the note over TOLL_TICKS for why the toll is a log.
+      // gold: see the note over TOLL_TICKS for why the toll is timber, and
+      // §7q under it for why it became a PLANK rather than a log once there
+      // was a sawpit to saw one at.
       if (!hasAdjacentNode(state, ctx, p, 'tollgate')) return false;
       return countItem(p.inventory, 'planks') >= TOLL_PLANKS;
     }
@@ -18619,7 +18621,7 @@ module.exports = {
   // for ten planks and two iron-ore, and printed a third pair of numbers on
   // the button. Three copies, no two agreeing, and nothing could have caught
   // it because there was no door to compare against.
-  MARKET_PLANKS, MARKET_ORE, MARKET_OWNED,
+  MARKET_PLANKS, MARKET_ORE, MARKET_OWNED, TOLL_PLANKS,
   // §7ek: and the three deferred works, for the same reason. A grove plot, a
   // willow buck and a smokerack are the only three kinds of thing on this
   // island a citizen could not reach from the main window at all, and the

@@ -1112,15 +1112,14 @@ const SPELL_IS = {
   // cures a curse by trying foods, and the withering line two rows down
   // already promises that nothing mends THAT, which reads as a rule about
   // the book rather than about one spell.
-  rot: 'they rot where they stand: three off them every third interval for '
-    + 'twenty-four, and every bite of it teaches you. A smoked eel ends it: '
-    + 'the only answer to any spell in this book',
-  taking: 'take eight of their life and keep it. You must be hurt to cast it, '
+  rot: 'they rot where they stand, and every bite of it teaches you. A '
+    + 'smoked eel ends it: the only answer to any spell in this book',
+  taking: 'take some of their life and keep it. You must be hurt to cast it, '
     + 'and it is the only healing this book has',
-  waking: 'strike the one you name and everything standing against them, nine '
-    + 'apiece, from six tiles off',
-  withering: 'for sixteen intervals nothing can mend them. Not food, not a '
-    + 'spell, not a well, and no eel either: the door is simply shut',
+  waking: 'strike the one you name and everything standing against them, '
+    + 'from a distance',
+  withering: 'nothing can mend them while it holds. Not food, not a spell, '
+    + 'not a well, and no eel either: the door is simply shut',
 }
 const UNLOCKS = typeof E.skillUnlocks === 'function' ? E.skillUnlocks() : {}
 const RUNG = {}
@@ -1441,7 +1440,7 @@ page('', `
   </table>
   ${orn}
   ${p(`A far shot is weaker than a dagger at touching range and the hardest
-      blow in the world at the end of its nine tiles. The range is the whole
+      blow in the world at the far end of its range. The range is the whole
       of its damage, not an addition to it.`)}
   ${p(`A report is the handgonne alone. Its burst was scaled down when a
       citizen's health became a flat sixty-four, and all of the damage went
@@ -1745,7 +1744,7 @@ page('', `
        ['dragon', `Struck only from right beside it, so a bow or a spear does
          nothing, and it breathes.`],
        ['gibbet-dead', `Cannot move and cannot be reached. It throws what
-         comes to hand, and is fought at four tiles or not at all.`],
+         comes to hand, and is fought at a distance or not at all.`],
        ['gibbet-king', `Raises the dead while you fight it, and is struck only
          from beside it.`],
        ['siren', `Answers only whoever started with her. Nobody can help you

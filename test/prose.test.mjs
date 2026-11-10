@@ -95,3 +95,54 @@ test('nothing this project writes contains a long dash', () => {
   assert.deepEqual(bad.slice(0, 20), [],
     `${bad.length} of them; a break in a sentence takes a colon, a comma or a full stop`)
 })
+
+// §7em: AND THE PRINTED BOOK KEEPS THE SAME LINE AS THE WINDOW.
+//
+// "Let's strip the handbook too." The window had been cleared of yields,
+// durations, distances and tallies, and the manual was still printing them:
+// the barrow spells gave their damage and how many intervals the rot and the
+// withering last, a far shot ended "at the end of its nine tiles", and the
+// gibbet dead were "fought at four tiles or not at all".
+//
+// The handbook's job is what a player CANNOT discover by playing, and that
+// job is untouched by this. The clock is still one interval a second, food is
+// still a rate rather than a burst, a smoked eel still ends the rot, and
+// nothing still mends a withering. What went is what a single cast or a
+// single shot teaches you anyway.
+//
+// A duration that is a rule of the world's own clock is not a yield. Those
+// are listed here with a reason each, the way check-window-reach names a deed
+// that is not a button.
+test('the handbook states rules, not yields (§7em)', () => {
+  const src = fs.readFileSync(path.join(root, 'handbook.mjs'), 'utf8')
+  const NUM = '(?:\\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven'
+    + '|twelve|sixteen|twenty|twenty-four|thirty|forty|fifty)'
+  const TELL = new RegExp('(?:' + NUM + '[- ](?:second|minute|interval|tick|tile|pace|step)s?\\b'
+    + '|\\bgives back\\b|\\bper cent\\b|\\breach(?:es)? ' + NUM + '\\b'
+    + '|\\bheals? ' + NUM + '\\b|\\b' + NUM + ' back\\b)', 'i')
+  const ALLOWED = [
+    ['One interval a second since the founding',
+      'the running foot: the clock itself, which is the first rule of the world'],
+    ['The world advances one interval every second',
+      'the same rule, stated: nobody discovers the tick rate by watching'],
+    ['A spell is cast in one interval and is over',
+      'what a cast IS, not what one gives'],
+    ['Two turns are twenty minutes',
+      'the moon slips against the day, which takes weeks and a notebook to derive'],
+    ['longer than a day, so it slips twenty minutes later each day',
+      'the same sentence, wrapped'],
+    ['your key, every ten minutes',
+      'how often the file beside your key is written: a fact about the software, '
+      + 'in the chapter that says nothing in it can be worked out by playing'],
+  ]
+  const told = []
+  for (const line of src.split('\n')) {
+    const t = line.trim()
+    if (t.startsWith('//')) continue
+    if (!TELL.test(line)) continue
+    if (ALLOWED.some(([a]) => line.includes(a))) continue
+    told.push(t.slice(0, 120))
+  }
+  assert.deepEqual(told, [],
+    'the handbook spells out a yield, a duration or a distance:\n  ' + told.join('\n  '))
+})

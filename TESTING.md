@@ -1,7 +1,7 @@
 # Interval. Testing & Freeze Evidence
 
 Release 1.0.6, protocol spec v1.05, consensus spec v1.10, rules hash
-`1da455082e3f5b45…`.
+`100ddb4abd7172b0…`.
 
 This document states exactly what is tested, with what inputs, for how
 long. Coverage is **finite and enumerated**, the claims below are about
@@ -10,7 +10,7 @@ possible executions.
 
 ## Unit + property suite (`npm test`)
 
-`node --test test/*.test.mjs`, 680 tests across:
+`node --test test/*.test.mjs`, 681 tests across:
 
 - `leak.test.mjs`, §21c: no write reaches the caller's state. Exercises the
   paths where one citizen touches another (striking, being hunted, trading,
@@ -362,12 +362,16 @@ possible executions.
 - `site.test.mjs`, that the hiscores board's ranking and its label agree
 - `site.content.test.mjs`, the FACTS in the site's prose against the engine,
   and that every page the router offers loads only assets that are on disk
-- `prose.test.mjs`, the two rules nothing was enforcing: that
+- `prose.test.mjs`, the rules nothing was enforcing: that
   `spec-conformance.mjs` passes (it was never run by anything, which is how
   fifteen divergences sat in the report unactioned), and that no long dash
   survives anywhere this project writes. It checked the character and the `\u`
   escape, and there is a third spelling: the HTML entity, which had got five of
-  them past it. Found by looking, which is not how a rule stays kept
+  them past it. Found by looking, which is not how a rule stays kept. And
+  §7em, that the printed handbook states rules rather than yields: it was
+  giving the barrow spells' damage and how many intervals a curse lasts, which
+  one cast teaches you anyway. The exceptions are listed with a reason each,
+  and they are all rules of the world's own clock
 - `engines.test.mjs`, two checks on the one thing in this project that is not
   exact arithmetic. The generator uses `Math.sin`, `Math.cos`, `Math.atan2` and
   `Math.hypot` in about fifty places, and ECMAScript does not require any of

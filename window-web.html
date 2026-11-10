@@ -5389,6 +5389,9 @@ let MASTERY_T = 100, APPR_SLOTS = 3, APPR_LAPSE = 43200, APPR_MILES = [100, 105,
     if (t.groveSpecies && Object.keys(t.groveSpecies).length) GROVE_SPECIES = t.groveSpecies
     if (Array.isArray(t.bucksAt) && t.bucksAt.length) BUCKS_AT = t.bucksAt
     if (t.buckFill) BUCK_FILL = t.buckFill
+    if (t.tollPlanks) TOLL_PLANKS = t.tollPlanks
+    if (t.nodeSkill && Object.keys(t.nodeSkill).length) NODE_SKILL = t.nodeSkill
+    if (t.gatherTools && Object.keys(t.gatherTools).length) GATHER_TOOLS = t.gatherTools
     if (t.buckSpoils) BUCK_SPOILS = t.buckSpoils
     if (t.smokeTicks) SMOKE_TICKS = t.smokeTicks
     if (t.smokeWindow) SMOKE_WINDOW = t.smokeWindow
@@ -5910,6 +5913,35 @@ const NODE_GATE = {
   'deep-fish-spot': { skill: 'shorecraft', level: 78 },
   'gibbet-shoal': { skill: 'shorecraft', level: 92 },
 }
+// §6ao: AND WHAT HAS TO BE IN THE HAND, which this window did not know at all.
+//
+// This founding is tool-gated: the engine refuses a gather unless the right
+// tool is WIELDED, not merely carried (§6bd settled that, because a gate that
+// counts the pack and a bonus that counts the hand are two rules about one
+// axe disagreeing). It refuses in silence, and the window went on saying "you
+// swing your axe at the tree" to somebody holding nothing, over and over,
+// while the world did not move. That is the same shape as the ridge: a
+// refusal with nothing in the picture to say why.
+//
+// An eel spot is the one exception in the whole gathering economy, because
+// the buck is already set and lifting it takes hands (§13h).
+//
+// Both tables come from the pillar. Sets are served as ARRAYS.
+let NODE_SKILL = { tree: 'woodcraft', 'oak-tree': 'woodcraft', 'ironbark-tree': 'woodcraft',
+  'heartwood-tree': 'woodcraft', 'gallows-oak': 'woodcraft',
+  rock: 'earthcraft', 'iron-rock': 'earthcraft', 'coal-rock': 'earthcraft',
+  'gold-rock': 'earthcraft', 'quick-rock': 'earthcraft', 'mother-lode': 'earthcraft',
+  rockfall: 'earthcraft', 'brimstone-vent': 'earthcraft', 'muck-heap': 'hearthcraft',
+  'fishing-spot': 'shorecraft', 'eel-spot': 'shorecraft',
+  'deep-fish-spot': 'shorecraft', 'gibbet-shoal': 'shorecraft' }
+let GATHER_TOOLS = {
+  woodcraft: ['iron-hatchet', 'steel-hatchet', 'quick-hatchet', 'great-hatchet'],
+  earthcraft: ['iron-pickaxe', 'steel-pickaxe', 'quick-pickaxe', 'great-pickaxe'],
+  shorecraft: ['rod', 'oak-rod', 'ironbark-rod', 'heartwood-rod'],
+}
+// the plain word for the family, which is prose and not a table: the gate
+// itself is the served list above and cannot drift
+const TOOL_WORD = { woodcraft: 'an axe', earthcraft: 'a pickaxe', shorecraft: 'a rod' }
 // §7ek: WHAT A STALL COSTS TO RAISE. The window counted sixteen LOGS and eight
 // ORE and said "32 planks, 8 iron-ore" on the button: three numbers and two
 // words, all of them wrong, against an engine that asks for ten PLANKS and two
@@ -5936,6 +5968,9 @@ let GROVE_PLANT_LEVEL = 45
 let GROVE_SPECIES = { oak: 'oak-tree', ironbark: 'ironbark-tree' }
 let BUCKS_AT = [[20, 1], [40, 2], [60, 3], [75, 4], [88, 5], [96, 6]]
 let BUCK_FILL = 1800, BUCK_SPOILS = 86400, SMOKE_TICKS = 4500, SMOKE_WINDOW = 3000
+// §7q: what the Millbrook bar takes, served by the pillar. The fallback is
+// the engine's own number and the window must never guess a second one.
+let TOLL_PLANKS = 1
 const bucksAllowedW = (lv) => { let n = 0; for (const [at, k] of BUCKS_AT) if (lv >= at) n = k; return n }
 // §7ek: THE GROUND SOMEBODY LAID, which ends where they stopped laying it.
 // Nothing here wears into its neighbour, so nothing here frays (see seamAt).
@@ -5967,6 +6002,9 @@ const SEAM_INK = {
   rockfall: '#9a9288', 'grove-plot': '#4f8a46',
 }
 const NAME_RANGE = 7   // as far as you could read a thing by looking at it
+// how far apart two seams of one kind have to be before each is worth its
+// own word. A rockfall scatter is about this wide.
+const CLUSTER_SPAN = 4
 // §5i: mirrors engine WALK_MAX_STEPS. The engine refuses anything longer, so a
 // window that planned further would simply have its journeys rejected.
 const WALK_MAX_STEPS = 512
@@ -6104,13 +6142,6 @@ const TWO_HANDED = new Set([
 ])
 const famOf  = (t) => NODE_FAMILY[t] ?? t
 const tintOf = (t) => NODE_TINT[t] ?? null
-const SKILL_OF_NODE = { 'tree': 'woodcraft', 'rock': 'earthcraft', 'quick-rock': 'earthcraft', 'fishing-spot': 'shorecraft' }
-// §6: A MAGIC-ROCK ASKS FOR MINING 70, and neither window knew it. A citizen
-// walked to the glowing rock, clicked it, and NOTHING happened -- the engine
-// refused the gather at the door and the refusal is silent, so the rock simply
-// did not break and no reason was given. The window has to carry the number to
-// say the sentence; there is no message on the wire that carries it back.
-const MAGIC_ROCK_MINING = 70
 
 
 let myId = null, myName = '', world = null, intent = null, feedLines = []
@@ -7290,7 +7321,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b101'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b102'  // stamp: if your screen says an older build, hard-refresh
 // ===========================================================================
 // WHAT A CITIZEN IS SEEN TO BE DOING
 //
@@ -10010,6 +10041,36 @@ function _onState(s, worldId, local) {
   s._playersE = Object.entries(s.players)
   s._groundE = Object.entries(s.ground ?? {})
   s._nodesV = Object.values(s.nodes)
+  // §7ef: ONE LABEL TO A CLUSTER, NOT ONE TO A TILE.
+  //
+  // "I think it is kind of noisy with the name above the resource nodes, like
+  // with so many rockfall rocks, it looks weird." A rockfall comes in a
+  // scatter of eight or ten tiles and every one of them wore the word
+  // ROCKFALL, so the screen read as a wall of captions rather than as rock.
+  //
+  // Taking the names away entirely was the other answer and it is the wrong
+  // one: somebody walked the whole Greenwood without finding a tree, and the
+  // labels exist (§7db-ii) so an iron seam can be told from a coal seam at a
+  // glance. The noise is the REPETITION, not the naming. So the label belongs
+  // to the group: one word over a cluster of the same kind, and the hover
+  // plate still names whatever is under the pointer.
+  //
+  // The leader is chosen by a fixed order (top to bottom, then left to
+  // right), never by who is nearest, because a label that changes tile as you
+  // walk past is worse than the repetition it replaced. Computed once a tick
+  // with the rest of the state's indexes, not once a frame.
+  {
+    const lead = new Set()
+    const taken = {}
+    const seamy = s._nodesV.filter((n) => NODE_NAME[n.type])
+      .sort((p9, q9) => (p9.y - q9.y) || (p9.x - q9.x))
+    for (const n of seamy) {
+      const near = (taken[n.type] ??= [])
+      if (near.some((o) => Math.max(Math.abs(o.x - n.x), Math.abs(o.y - n.y)) <= CLUSTER_SPAN)) continue
+      near.push(n); lead.add(n)
+    }
+    s._seamLead = lead
+  }
   s._groundStack = {}
   for (const [gid, g2] of (s._groundE ?? [])) (s._groundStack[g2.x + ',' + g2.y] ??= []).push(gid)
   if (prev) { // hit splats: damage this tick, made visible where it landed
@@ -17172,6 +17233,9 @@ function drawScene(now) {
       cx.font = '10px Verdana'; cx.textAlign = 'center'
       for (const n of (world._nodesV ?? Object.values(world.nodes ?? {}))) {
         const nm = NODE_NAME[n.type]; if (!nm) continue
+        // one word to a cluster, and whatever the pointer is on
+        if (!(world._seamLead?.has(n) ?? true)
+            && !(hoverT && hoverT.x === n.x && hoverT.y === n.y)) continue
         const d = Math.max(Math.abs(n.x - meN.x), Math.abs(n.y - meN.y))
         if (d > NAME_RANGE) continue
         const fade = d > NAME_RANGE - 2 ? (NAME_RANGE - d) / 2 : 1
@@ -17493,7 +17557,10 @@ function panel(s) {
   document.getElementById('hptext').textContent = 'HP ' + me.hp + ' / ' + maxHp
   const trainingNode = me.action?.nodeId ? s.nodes[me.action.nodeId] : null
   const training = inAFight(me.action) ? 'prowess':
-    trainingNode ? SKILL_OF_NODE[trainingNode.type] : null
+    // §6ao: and this read a FOURTH hand copy of which trade a ground pays,
+    // with four of the eighteen in it, so cutting an oak or mining iron lit
+    // nothing in the panel. NODE_SKILL is the pillar's.
+    trainingNode ? NODE_SKILL[trainingNode.type] : null
   document.getElementById('skills').innerHTML = Object.entries(me.skills)
     .map(([k, xp]) => {
       const lvl = XP_TO_LVL(xp)
@@ -19386,7 +19453,7 @@ const NODE_LOOK = {
   well: 'A well. You can drink from it.',
   fountain: 'A fountain.',
   signpost: 'A signpost.', waystone: 'A waystone, cut with the road.',
-  tollgate: 'A tollgate. The road through costs.',
+  tollgate: 'A tollgate. The keeper mends the deck, and takes planks for it.',
   ferry: 'A quay, and a boat at it.',
   spanwork: 'A span part built: a pool of planks standing in the water.',
   span: 'A finished span. You cross it by walking.',
@@ -20668,25 +20735,33 @@ function worldPress(e, asLeft) {
         return
       }
       if (n.type === 'tollgate') {
-        // §14: THE BAR ON THE MILLBROOK BRIDGE. One ordinary log to the
-        // keeper and it is up for you for two minutes. The point of the toll
-        // is that you can arrive without one, so say so plainly rather than
-        // failing silently -- a gate that refuses you and does not explain is
-        // just a wall.
+        // §14: THE BAR ON THE MILLBROOK BRIDGE. Timber to the keeper and it
+        // is up for you. The point of the toll is that you can arrive without
+        // any, so say so plainly rather than failing silently: a gate that
+        // refuses you and does not explain is just a wall.
+        //
+        // §7q: AND IT IS A PLANK, NOT A LOG. The toll stopped taking logs when
+        // the sawpit arrived and a deck became sawn boards, and this window
+        // never followed: it checked for `logs`, so a citizen carrying exactly
+        // what the engine wanted was turned away and sent to the Greenwood for
+        // a thing that would not open the bar. The window had no copy of the
+        // cost to go stale, which is how it went unnoticed; the pillar serves
+        // `tollPlanks` now and the fallback is the engine's own number.
         const meT = world.players[myId]
         const adjT = Math.abs(meT.x - n.x) + Math.abs(meT.y - n.y) === 1
         if (!adjT) { feed('The bar is down across the bridge. There is a keeper beside it.'); return }
-        const LOGKINDS = ['logs', 'oak-logs', 'ironbark', 'heartwood']
-        const hasLog = (meT.inventory || []).some(sl => sl && sl.item === 'logs')
-        const hasOther = (meT.inventory || []).some(sl => sl && LOGKINDS.includes(sl.item))
-        if (!hasLog) {
-          feed(hasOther
-            ? 'The keeper looks at what you are carrying and shakes his head. Ordinary logs mend a deck.':
-            'The keeper wants a log for the deck. You have none.')
+        const planksT = (meT.inventory || []).reduce((a9, sl) =>
+          a9 + (sl && sl.item === 'planks' ? (sl.qty ?? 1) : 0), 0)
+        const hasTimber = (meT.inventory || []).some(sl => sl
+          && ['logs', 'oak-logs', 'ironbark', 'heartwood'].includes(sl.item))
+        if (planksT < TOLL_PLANKS) {
+          feed(hasTimber
+            ? 'The keeper looks at what you are carrying and shakes his head. A deck is sawn boards.':
+            'The keeper wants planks for the deck. You have none.')
           return
         }
         send({ do: 'pay' })
-        feed('You hand over a log. The keeper lifts the bar and goes back to the deck.')
+        feed('You hand over the boards. The keeper lifts the bar and goes back to the deck.')
         flashClick(n.x, n.y, false)
         return
       }
@@ -21678,18 +21753,46 @@ function worldPress(e, asLeft) {
         feed('Your pack is full: bank it, drop it, or use it.')
         return
       }
-      if (famOf(n.type) === 'quick-rock') {
-        const lv = XP_TO_LVL(me.skills?.earthcraft ?? 0)   // §5m: mining is earthcraft
-        if (lv < MAGIC_ROCK_MINING) {
-          feed('The rock hums and your pick slides off it. Mining ' + MAGIC_ROCK_MINING
-               + ' opens the magic-rocks of the Wilds: you have ' + lv + '.')
-          flashClick(n.x, n.y, false)
-          return
-        }
+      // §6ao/§7em: THE TWO GATES THE ENGINE KEEPS ON A GATHER, AND IT KEPT
+      // BOTH IN SILENCE. A level this ground wants, and a tool in the hand.
+      // Both are GATES, so both may be said: hiding a gate does not make it
+      // discoverable, it makes a refusal nobody can see.
+      //
+      // The level gate was written here once, for quick-rock alone, against a
+      // hand-typed MAGIC_ROCK_MINING of 70 while the served table asks 78. So
+      // the one seam the window did check it quoted the wrong number for, and
+      // the other twelve gated grounds it did not check at all. It reads the
+      // pillar's table now, for every ground that has one.
+      const gate9 = NODE_GATE[n.type]
+      if (gate9 && lvlOf(gate9.skill) < gate9.level) {
+        feed('The ' + (NODE_NAME[n.type] ?? say1(n.type)) + ' wants '
+             + gate9.skill + ' ' + gate9.level + '. You have ' + lvlOf(gate9.skill) + '.')
+        flashClick(n.x, n.y, false)
+        return
       }
-      const msg = { 'tree': 'You swing your axe at the tree.',
-                    'rock': 'You take a swing at the rock.',
-                    'fishing-spot': 'You cast your line\u2026' }[n.type] ?? 'You begin gathering.'
+      // AND THE TOOL, WIELDED. §6bd: in the hand, not in the pack, and the
+      // difference is the one that catches people out, so the refusal says
+      // which it is. An eel spot takes hands (§13h).
+      const sk9 = NODE_SKILL[n.type]
+      const need9 = sk9 && n.type !== 'eel-spot' ? (GATHER_TOOLS[sk9] ?? null) : null
+      const held9 = me.equipment?.weapon?.item
+      if (need9 && need9.length && !need9.includes(held9)) {
+        const inPack = (me.inventory || []).some(sl => sl && need9.includes(sl.item))
+        feed(inPack
+          ? 'You are carrying ' + TOOL_WORD[sk9] + ' but you are not holding it. Wield it first.'
+          : 'You need ' + TOOL_WORD[sk9] + ' for that.')
+        flashClick(n.x, n.y, false)
+        return
+      }
+      // AND THE WINDOW SAYS WHAT IS ACTUALLY IN THE HAND. "You swing your axe
+      // at the tree" was printed whether or not there was an axe.
+      const tool9 = held9 ? say1(held9) : null
+      const msg = n.type === 'fishing-spot' || n.type === 'deep-fish-spot'
+          || n.type === 'gibbet-shoal' ? 'You cast your line\u2026'
+        : n.type === 'eel-spot' ? 'You reach into the run for the buck.'
+        : sk9 === 'woodcraft' ? 'You swing your ' + (tool9 ?? 'axe') + ' at the ' + (NODE_NAME[n.type] ?? say1(n.type)) + '.'
+        : sk9 === 'earthcraft' ? 'You set your ' + (tool9 ?? 'pick') + ' to the ' + (NODE_NAME[n.type] ?? say1(n.type)) + '.'
+        : 'You begin gathering.'
       flashClick(n.x, n.y, true)
       if (adj(n)) { send({ do: 'gather', nodeId: id }); feed(msg) }
       else intent = { kind: 'gather', id, msg }                // one click does it all

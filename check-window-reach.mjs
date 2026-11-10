@@ -188,6 +188,17 @@ vm.runInContext(body + `
   tile: (x, y) => { const c9 = document.createElement('canvas')
     c9.width = 64; c9.height = 64; paintGroundTile(c9.getContext('2d'), x, y) },
   said: () => feedLines.slice(),
+  // POINT THE WORLD AT THE WINDOW'S OWN PREPARED STATE. set() hands the
+  // window the raw object this file built, and onState works on a JSON COPY:
+  // every index the state preparation computes -- the node list, the ground
+  // stack, which seam in a cluster carries the label -- lives on the copy and
+  // not on the original. So a check that set the world by hand was reading a
+  // state the window had never prepared, and the cluster labels came back one
+  // per tile because the leader set was simply absent.
+  // NO BACKTICKS IN THIS BLOCK, it is a template literal.
+  useCur: () => { if (curState) world = curState },
+  gatherTools: () => GATHER_TOOLS,
+  nodeSkill: () => NODE_SKILL,
   hush: () => { feedLines.length = 0; lastFeed = { text: '', at: -1e9 } },
   anims: () => ({ doing: DOING_ANIM, silent: [...ACTION_SILENT], voice: Object.keys(ACTION_VOICE),
     still: [...ACTION_STILL] }),
@@ -1282,6 +1293,167 @@ console.log('\n--- 8j. a citizen can stop following ---')
   ok(!!row, row ? 'and your own menu offers to stop'
     : 'your own menu does not offer to stop following (it offered: '
       + mine.map((o) => o && (o.head ?? o.label)).filter(Boolean).join(', ') + ')')
+}
+
+console.log('\n--- 8l. a ground that wants a tool says so ---')
+{
+  // "When trying to mine rocks, cut tree, fish fishing spot etc. and you do
+  // not have the tool, it should say you need it instead of just silent
+  // failure. I tried now to mine rockfall and it said in the log that I swing
+  // my pickaxe at it, but I am not wielding one."
+  //
+  // This founding is tool-gated. The engine refuses a gather unless the right
+  // tool is WIELDED (§6bd settled "in the hand, not in the pack", because a
+  // gate counting the pack and a bonus counting the hand are two rules about
+  // one axe disagreeing), and it refuses in SILENCE. The window went on
+  // saying "you swing your axe at the tree" to somebody holding nothing,
+  // every press, while the world did not move.
+  //
+  // The level gate had the same hole and worse: it was written here once, for
+  // quick-rock alone, against a hand-typed 70 while the served table asks 78.
+  // One of thirteen gated grounds checked, and that one quoting the wrong
+  // number.
+  const toolFor = ctx.__h.gatherTools()
+  const skillOf = ctx.__h.nodeSkill()
+  ok(Object.keys(skillOf).length >= Object.keys(E.NODE_YIELD).filter((t) => E.NODE_YIELD[t].skill).length,
+    'the window knows which trade each of the ' + Object.keys(skillOf).length + ' worked grounds pays')
+  for (const [sk, list] of Object.entries(toolFor)) {
+    const want = [...(E.GATHER_TOOLS[sk] ?? [])]
+    ok(want.length === list.length && want.every((w) => list.includes(w)),
+      want.length === list.length && want.every((w) => list.includes(w))
+        ? 'and ' + sk + ' wants the engine’s own ' + list.length + ' tools'
+        : sk + ': the window wants ' + list.join(',') + ', the engine ' + want.join(','))
+  }
+  // bare-handed at a tree: it says so and files nothing
+  const bare = fresh()
+  bare.nodes.t1 = { type: 'tree', x: 10, y: 11 }
+  ctx.__h.msg({ type: 'state', state: bare, worldId: WID })
+  await new Promise((r) => setImmediate(r))
+  ctx.__h.set(bare, ID)
+  ctx.__h.hush(); sent.length = 0
+  ctx.__h.press(10, 11, false)
+  ok(/need an axe/.test(ctx.__h.said().join(' ')),
+    /need an axe/.test(ctx.__h.said().join(' '))
+      ? 'bare-handed at a tree: "' + ctx.__h.said()[0] + '"'
+      : 'bare-handed at a tree the window said: ' + (ctx.__h.said().join(' / ') || 'nothing'))
+  ok(!sent.some((a) => a && a.do === 'gather'),
+    !sent.some((a) => a && a.do === 'gather')
+      ? 'and files no gather the engine will refuse'
+      : 'and filed a gather anyway')
+  // the axe in the pack is not the axe in the hand, and that is the one that
+  // catches people out, so the refusal says which
+  const packed = fresh()
+  packed.nodes.t1 = { type: 'tree', x: 10, y: 11 }
+  packed.players[ID].inventory[0] = { item: 'iron-hatchet', qty: 1 }
+  ctx.__h.msg({ type: 'state', state: packed, worldId: WID })
+  await new Promise((r) => setImmediate(r))
+  ctx.__h.set(packed, ID)
+  ctx.__h.hush(); sent.length = 0
+  ctx.__h.press(10, 11, false)
+  ok(/not holding it|wield/i.test(ctx.__h.said().join(' ')),
+    /not holding it|wield/i.test(ctx.__h.said().join(' '))
+      ? 'axe in the pack: "' + ctx.__h.said()[0] + '"'
+      : 'an axe in the pack got: ' + (ctx.__h.said().join(' / ') || 'nothing'))
+  // wielded: it goes, and the window names what is actually in the hand
+  const armed = fresh()
+  armed.nodes.t1 = { type: 'tree', x: 10, y: 11 }
+  armed.players[ID].equipment = { weapon: { item: 'steel-hatchet' } }
+  ctx.__h.msg({ type: 'state', state: armed, worldId: WID })
+  await new Promise((r) => setImmediate(r))
+  ctx.__h.set(armed, ID)
+  ctx.__h.hush(); sent.length = 0
+  ctx.__h.press(10, 11, false)
+  ok(sent.some((a) => a && a.do === 'gather'),
+    sent.some((a) => a && a.do === 'gather') ? 'axe in hand: the gather goes'
+      : 'an axe in hand still filed nothing')
+  ok(/steel hatchet/.test(ctx.__h.said().join(' ')),
+    /steel hatchet/.test(ctx.__h.said().join(' '))
+      ? 'and the window names what is in the hand: "' + ctx.__h.said().pop() + '"'
+      : 'the window did not name the tool: ' + ctx.__h.said().join(' / '))
+  // and the one barehanded rung in the whole economy is not gated
+  const eel = fresh()
+  eel.nodes.e1 = { type: 'eel-spot', x: 10, y: 11 }
+  ctx.__h.msg({ type: 'state', state: eel, worldId: WID })
+  await new Promise((r) => setImmediate(r))
+  ctx.__h.set(eel, ID)
+  ctx.__h.hush(); sent.length = 0
+  ctx.__h.press(10, 11, false)
+  ok(sent.some((a) => a && a.do === 'gather'),
+    sent.some((a) => a && a.do === 'gather')
+      ? 'and an eel run still takes hands and no rod'
+      : 'the window now refuses the one thing a citizen with nothing can work')
+  // the level gate, for every ground that has one
+  const low = fresh()
+  for (const k of Object.keys(low.players[ID].skills)) low.players[ID].skills[k] = 0
+  low.players[ID].equipment = { weapon: { item: 'steel-pickaxe' } }
+  low.nodes.q1 = { type: 'quick-rock', x: 10, y: 11 }
+  ctx.__h.msg({ type: 'state', state: low, worldId: WID })
+  await new Promise((r) => setImmediate(r))
+  ctx.__h.set(low, ID)
+  ctx.__h.hush(); sent.length = 0
+  ctx.__h.press(10, 11, false)
+  const g9 = E.NODE_GATE['quick-rock']
+  ok(ctx.__h.said().some((l) => l.includes(String(g9.level)) && l.includes(g9.skill)),
+    ctx.__h.said().some((l) => l.includes(String(g9.level)) && l.includes(g9.skill))
+      ? 'and a gated seam quotes the engine’s own level: "' + ctx.__h.said()[0] + '"'
+      : 'a magic stone at level 0 said: ' + (ctx.__h.said().join(' / ') || 'nothing'))
+}
+
+console.log('\n--- 8m. one word to a cluster, not one to a tile ---')
+{
+  // "I think it is kind of noisy with the name above the resource nodes, like
+  // with so many rockfall rocks, it looks weird."
+  //
+  // Forty-one rockfalls stand on this island and they come in scatters: one
+  // field of them put FORTY captions reading ROCKFALL on the screen at once.
+  // Taking the names away was the other answer and it is the wrong one, since
+  // somebody walked the whole Greenwood without finding a tree and the labels
+  // exist so an iron seam can be told from a coal seam at a glance. The noise
+  // was the repetition. So the word belongs to the group.
+  //
+  // Read off the pen: this is what the window actually wrote.
+  const st = fresh()
+  for (let k = 0; k < 10; k++)
+    st.nodes['rf' + k] = { type: 'rockfall', x: 9 + (k % 4), y: 9 + ((k / 4) | 0) }
+  ctx.__h.msg({ type: 'state', state: st, worldId: WID })
+  await new Promise((r) => setImmediate(r))
+  ctx.__h.set(st, ID)
+  ctx.__h.useCur()
+  ctx.__h.hover(null)
+  penSaid.length = 0
+  let threw = null
+  try { ctx.__h.draw() } catch (e) { threw = e.message }
+  ok(!threw, threw ? 'drawing a frame full of rockfalls threw: ' + threw
+    : 'a frame with ten rockfalls in four tiles draws')
+  const words = penSaid.filter((t) => t === 'rockfall')
+  ok(words.length === 1, words.length === 1
+    ? 'and writes the word once over the ten of them'
+    : 'it wrote "rockfall" ' + words.length + ' times for ten rocks in one scatter')
+  // and the one under the pointer is still named, so nothing is unnameable
+  ctx.__h.hover(11, 10)
+  penSaid.length = 0
+  try { ctx.__h.draw() } catch (e) { ok(false, 'hovering a rock threw: ' + e.message) }
+  ok(penSaid.filter((t) => t === 'rockfall').length === 2,
+    penSaid.filter((t) => t === 'rockfall').length === 2
+      ? 'and the one under the pointer is named as well as the cluster'
+      : 'hovering a rock in the scatter wrote the word '
+        + penSaid.filter((t) => t === 'rockfall').length + ' time(s)')
+  // two KINDS beside each other each keep their own word: the cluster is per
+  // kind, or a coal seam beside an iron one would go unnamed
+  const two = fresh()
+  two.nodes.a1 = { type: 'iron-rock', x: 10, y: 11 }
+  two.nodes.a2 = { type: 'coal-rock', x: 11, y: 11 }
+  ctx.__h.msg({ type: 'state', state: two, worldId: WID })
+  await new Promise((r) => setImmediate(r))
+  ctx.__h.set(two, ID)
+  ctx.__h.useCur()
+  ctx.__h.hover(null)
+  penSaid.length = 0
+  try { ctx.__h.draw() } catch (e) { ok(false, 'two seams threw: ' + e.message) }
+  ok(penSaid.includes('iron') && penSaid.includes('coal'),
+    penSaid.includes('iron') && penSaid.includes('coal')
+      ? 'and an iron seam beside a coal seam is still two words'
+      : 'two kinds side by side wrote: ' + [...new Set(penSaid)].join(' | ').slice(0, 80))
 }
 
 console.log('\n--- 8k. the world does not spell itself out ---')
