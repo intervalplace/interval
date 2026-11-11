@@ -1905,10 +1905,17 @@ console.log('\n--- 8s. a deed pressed in Nought actually lands ---')
       }
       for (const k of Object.keys(o)) walk9(o[k], path + '.' + k, seen)
     }
+    // THE PRACTICE WORLD ITSELF, not a copy of it. This is the invariant the
+    // kit broke: the renderer hangs Maps and Sets on whatever state it is
+    // handed, `withPeers` copies the state before the renderer sees it for
+    // exactly that reason, and the kit handed over `nought.state` directly.
+    // The next tick met a Set where `canonical` allows only plain objects,
+    // threw, dropped the queue, and the world stood still for ever.
+    ctx.__h.draw()
     walk9(ctx.__h.noughtState(), 'state', new Set())
     ok(bad9.length === 0, bad9.length === 0
-      ? 'and the state it leaves behind is still canonically encodable'
-      : 'the kit leaves something the tick cannot encode: ' + bad9.join(', '))
+      ? 'and the practice world it leaves behind is still encodable'
+      : 'the kit poisons the practice world: ' + bad9.join(', '))
     const packed = ctx.__h.noughtState().players[ID].inventory
     ok(packed[0] && packed[0].item === 'dragon-bones',
       packed[0] ? 'the kit puts a thing in the pack: ' + packed[0].item + ' x' + packed[0].qty
@@ -1918,6 +1925,44 @@ console.log('\n--- 8s. a deed pressed in Nought actually lands ---')
     // and no amount of care about prototypes can make those the same thing.
     // What is asked of the kit here is the thing that broke: the state it
     // leaves behind must still be something the tick can encode.
+  }
+  // AND IT KEEPS RUNNING. "In Nought I get stuck and just stand still a few
+  // seconds after entering, I cannot walk anywhere." A stumble stops the
+  // clock: `nextState` throws, the queue is dropped, and the world never
+  // advances again, so the citizen is frozen where they stand. One tick
+  // cannot see that. This walks and runs a stretch of them.
+  {
+    const run = fresh()
+    // THE WORLD HAS TO CONTAIN THE THINGS THAT BUILD THE CACHES, or this
+    // measures nothing. The first cut of this passed against the broken code
+    // as happily as against the fixed one, because the index that poisoned
+    // the tick is only built when there is a seam to label or a toll bar to
+    // stand on, and a bare harness world has neither. Checked by putting the
+    // old line back and watching it still pass, which is the only way to know
+    // a check is a check.
+    run.nodes.t9 = { type: 'tree', x: 12, y: 10 }
+    run.nodes.t8 = { type: 'tree', x: 13, y: 10 }
+    run.nodes.g9 = { type: 'tollgate', x: 10, y: 13 }
+    run.nodes.g8 = { type: 'tollgate', x: 10, y: 14 }
+    ctx.__h.enterNought(run, E, me)
+    // the renderer runs over this state the way the tick runs it
+    ctx.__h.set(run, ID); ctx.__h.useCur(); ctx.__h.draw()
+    ctx.__h.hush()
+    const from = { x: run.players[ID].x, y: run.players[ID].y }
+    let stumbled = 0, moved = false
+    for (let t = 0; t < 12; t++) {
+      if (t === 0) ctx.__h.press(from.x + 3, from.y, false)   // walk away
+      ctx.__h.set(ctx.__h.noughtState(), ID)
+      ctx.__h.noughtRun()
+      if (ctx.__h.said().some((l) => /stumbled/.test(l))) stumbled++
+      const p8 = ctx.__h.noughtState().players[ID]
+      if (p8.x !== from.x || p8.y !== from.y) moved = true
+    }
+    ok(stumbled === 0, stumbled === 0 ? 'Nought runs a stretch of intervals without stumbling'
+      : 'Nought stumbled on ' + stumbled + ' of 12 intervals: '
+        + ctx.__h.said().filter((l) => /stumbl|offending/.test(l)).join(' / '))
+    ok(moved, moved ? 'and a citizen who presses the ground actually goes there'
+      : 'a citizen pressed the ground and never moved (still at ' + from.x + ',' + from.y + ')')
   }
   ctx.__h.leaveNought()
 }

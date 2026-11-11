@@ -7453,7 +7453,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b109'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b110'  // stamp: if your screen says an older build, hard-refresh
 // ===========================================================================
 // WHAT A CITIZEN IS SEEN TO BE DOING
 //
@@ -9605,7 +9605,19 @@ function kitGive(item, how) {
     p.inventory[free] = { item, qty: STACKABLE.has(item) ? 100 : 1 }
     feed('A ' + nm + ', in your pack.')
   }
-  onLocalState(nought.state)
+  // THROUGH `withPeers`, LIKE THE TICK. This handed `nought.state` straight to
+  // the renderer, which hangs its drawing caches on whatever object it is
+  // given -- and that object was the practice world itself. `withPeers` exists
+  // to make a copy for exactly this reason and says so in its own margin: the
+  // same fault froze Nought once before, every tenth interval, when the
+  // tideline asked a poisoned state for a hash.
+  //
+  // So the kit froze the world a few seconds after anybody used it: the next
+  // tick threw, the input queue was dropped, and the citizen stood still for
+  // ever. The caches are non-enumerable now and cannot poison anything, and
+  // this goes through the same door the tick does, because a rule kept in one
+  // place is a rule and a rule kept in two is a coincidence.
+  onLocalState(withPeers(nought.state))
 }
 function kitWire() {
   const btn = document.getElementById('kitbtn'), pan = document.getElementById('kitpanel')
@@ -12579,10 +12591,43 @@ function drawCitizen(X, Y, o) {
   // §7ek: and whatever is already in the fist does not also hang at the hip. A
   // citizen wielding a spade and digging with it was drawn carrying two.
   const inHand9 = (o.anim === 'dig' || o.anim === 'gather') && o.tool === 'spade'
-  if (o.wepItem && o.anim !== 'fight' && !(o.anim === 'gather' && o.ironTool)
+  // §7f-iii: AND NOT WHILE IT IS BEING AIMED. One drawing of a weapon at a
+  // time, which is the rule the fight branch above already keeps and the
+  // reason it keeps it: an arm swinging a second weapon underneath is how an
+  // archer came to be carrying a sword as well.
+  //
+  // THIS IS NOT THE TWO BOWS THAT WERE REPORTED. "I wield horn bow and turn
+  // towards the left and I am wielding two bows, one smaller and one normal."
+  // Photographed an archer drawing on a goblin, both facings, bow at rest and
+  // bow in the stance, and the body drew one bow every time: while shooting,
+  // `anim` is already 'fight' and the line below was already skipped. So this
+  // guard is the rule said plainly rather than left to depend on two
+  // conditions happening to coincide, and the reported fault is still out
+  // there. Do not read this comment as the explanation for it.
+  if (o.wepItem && o.anim !== 'fight' && !o.shooting
+      && !(o.anim === 'gather' && o.ironTool)
       && !(inHand9 && o.wepItem === 'spade')) {
-    // whatever you wield rides at the hip, for all to see
-    cx.save(); cx.translate(X + (F > 0 ? 13 : 27), Y + 24); cx.rotate(F * 0.7)
+    // §6bv-ii: AND IT RIDES ON THE HAND THAT HOLDS IT.
+    //
+    // This hung the carried weapon at X+13 facing right and X+27 facing left,
+    // which is the OFF side: the tool arm is at X+25 and X+12, and the shield
+    // and the horn are at X+9.5 and X+27.5. So a wielded weapon was drawn in
+    // the same hand as the off-hand thing, three pixels apart, and facing
+    // left they land on top of each other.
+    //
+    // That is "the horn is supposed to be worn in the opposite hand of the
+    // weapon, now it is in the same hand as a weapon". The slot was right the
+    // whole time and so was the horn; the WEAPON was on the wrong side.
+    // Found by arming a gambit, whose mark is drawn at the tool arm, and
+    // watching it appear across the body from the mell it belonged to.
+    //
+    // HELD BY PHOTOGRAPH, NOT BY A CHECK. Three attempts at measuring this
+    // from the pen all passed against the broken code as happily as against
+    // the fixed one: a frame carries hundreds of marks and the whole of this
+    // fault is three pixels, so subtracting one frame from another cannot
+    // find it. `sweep.mjs --wear iron-sword,horn` shows it in one picture.
+    // A check that cannot fail is worse than no check (§7ek).
+    cx.save(); cx.translate(X + (F > 0 ? 27 : 13), Y + 24); cx.rotate(F * 0.7)
     heldWeapon(cx, o.wepItem, F, now)
     cx.restore()
   }
@@ -12700,6 +12745,47 @@ function drawCitizen(X, Y, o) {
 
   // head: skin, hair cap, eye toward facing
   cx.fillStyle = skin; cx.fillRect(X + 15.5, Y + 7, 9, 9)
+  // §6af-viii: AND YOU CAN SEE THAT YOU ARE SET.
+  //
+  // "When a gambit is active it should be more visible, maybe some effect on
+  // the citizen."
+  //
+  // It was a bar in the panel, which is the wrong place: a fight is watched
+  // on the WORLD, and a citizen deciding whether to spend their arm is
+  // looking at the thing they are about to hit, not at a strip of text on the
+  // other side of the screen.
+  //
+  // Drawn on the hand that will throw it, because that is where the decision
+  // lives: a gold ring that breathes, and three embers turning round it. Gold
+  // because that is the colour this interface already uses for a thing that
+  // is ARMED and waiting, on the bar this replaces.
+  //
+  // ON YOUR OWN BODY ONLY, and it is not a secret being kept. A gambit is not
+  // a state a citizen is in: it is the next blow being a different blow, it
+  // exists in your window between the tap and the strike, and the world is
+  // never told. Nobody else could see it however it were drawn, because there
+  // is nothing there to see. What everyone sees is the blow when it lands.
+  if (o.gambitUp) {
+    const gx9 = X + (F > 0 ? 25 : 12) + 1.5, gy9 = Y + 18
+    const beat9 = 0.5 + 0.5 * Math.sin(now / 260)
+    cx.save()
+    cx.globalAlpha = 0.30 + 0.30 * beat9
+    cx.fillStyle = '#e2b63e'
+    cx.beginPath(); cx.arc(gx9, gy9, 5.5 + beat9 * 2.2, 0, 7); cx.fill()
+    cx.globalAlpha = 0.85
+    cx.strokeStyle = '#ffe9c0'; cx.lineWidth = 1.2
+    cx.beginPath(); cx.arc(gx9, gy9, 5.2 + beat9 * 1.4, 0, 7); cx.stroke()
+    // the embers, turning
+    for (let e9 = 0; e9 < 3; e9++) {
+      const a9 = now / 420 + (e9 * Math.PI * 2) / 3
+      cx.fillStyle = e9 % 2 ? '#ffe9c0' : '#e2b63e'
+      cx.globalAlpha = 0.55 + 0.45 * Math.sin(now / 200 + e9)
+      cx.beginPath()
+      cx.arc(gx9 + Math.cos(a9) * (7 + beat9), gy9 + Math.sin(a9) * (7 + beat9), 1.3, 0, 7)
+      cx.fill()
+    }
+    cx.restore()
+  }
   if (o.crown) {
     // §6da: THE CINDER-CROWN, worn over the brow. Hair shows beneath it -- a
     // king wears a crown, he is not replaced by one -- and it reads REGAL and
@@ -17201,6 +17287,13 @@ function drawScene(now) {
       // ever does. The body did not know, so a gambit was swung exactly like
       // any other blow and only the ring said otherwise.
       gambit: (p.lastSwing ?? -9) > s.tick,
+      // §6af-viii: AND WHETHER YOU ARE SET, which is a thing about YOU and
+      // not about the world. A gambit is not a state a citizen is in, it is
+      // the next blow being a different blow: there is nothing in the world
+      // to see, so nobody else can see it and no window could draw it for
+      // them. It is drawn on your own body only, because the question it
+      // answers -- "am I set?" -- is one only you can ask.
+      gambitUp: pid === myId && gambitArmed,
       chain: p.equipment?.weapon?.item === 'old-chain',
       starSword: p.equipment?.weapon?.item === 'quick-sword',
       cape: capeOf(p),

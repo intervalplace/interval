@@ -271,6 +271,16 @@ const AFTER = (plan, state, myId) => `<script>
   // than by calling the giver, because a kit that dresses a citizen only
   // when a script asks it directly is not a kit anybody can use.
   const WEAR = ${JSON.stringify(arg('--wear') ?? '')}
+  // --face left|right: which way the body is turned. A drawing fault can live
+  // on one side only -- two bows appeared when a citizen turned left -- and a
+  // sweep that only ever photographs one facing cannot see it.
+  const FACE = ${JSON.stringify(arg('--face') ?? '')}
+  // --shoot: stand a beast off to one side and set the citizen on it, so the
+  // archer's stance is actually drawn. A bow at rest and a bow being drawn
+  // are two different pictures and only one of them was ever photographed.
+  const SHOOT = ${JSON.stringify(process.argv.includes('--shoot'))}
+  // --gambit: set the arm, so the mark that says you are set can be seen
+  const GAMBIT = ${JSON.stringify(process.argv.includes('--gambit'))}
   const METER = ${JSON.stringify(METER)}
   ;(async () => {
     const say = (t) => { document.title = t }
@@ -423,7 +433,22 @@ const AFTER = (plan, state, myId) => `<script>
             if (!cell) { say('SWEEPFAIL the kit has no ' + want); return }
             cell.click(); await settle(120)
           }
-          if (WEAR) { await settle(400); drawScene(performance.now()) }
+          if (SHOOT) {
+            const meS = STATE.players[ME]
+            STATE.mobs.sweepfoe = { type: 'goblin', x: meS.x - 4, y: meS.y,
+              health: 5, hp: 5, maxHealth: 5 }
+            meS.action = { type: 'attack', mobId: 'sweepfoe' }
+            feedOne({ type: 'state', state: JSON.parse(JSON.stringify(STATE)), worldId: 'sweep' })
+            await settle(600)
+          }
+          if (FACE) {
+            const meF = STATE.players[ME]
+            meF.x += FACE === 'left' ? -1 : 1
+            feedOne({ type: 'state', state: JSON.parse(JSON.stringify(STATE)), worldId: 'sweep' })
+            await settle(500)
+          }
+          if (GAMBIT) { gambitArmed = true; await settle(200) }
+          if (WEAR || GAMBIT) { await settle(400); drawScene(performance.now()) }
         }
         const errM = document.getElementById('frameerr')
         if (errM) { say('SWEEPFAIL the window could not draw: '
