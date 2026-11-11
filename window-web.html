@@ -4620,19 +4620,20 @@ const EQUIPPABLE = new Set([
   'barb', 'bare-blade', 'bone-spear', 'bone-staff', 'cinder-crown',
   'crossbow', 'dragonbow', 'fire-siphon', 'gold-bar', 'gold-chain',
   'gold-helm', 'gold-legs', 'gold-plate', 'goo-staff', 'great-crossbow',
-  'great-hatchet', 'great-helm', 'great-mell', 'great-pickaxe', 'great-plate',
-  'great-sword', 'handgonne', 'hare-mask', 'hart-mask', 'heartwood-bow',
-  'heartwood-rod', 'heartwood-staff', 'horn', 'horn-bow', 'iron',
-  'iron-dagger', 'iron-hatchet', 'iron-helm', 'iron-javelin', 'iron-mell',
-  'iron-pickaxe', 'iron-plate', 'iron-shield', 'iron-spear', 'iron-sword',
-  'ironbark-rod', 'king-shroud', 'oak-rod', 'old-chain', 'quick-alloy',
-  'quick-dagger', 'quick-flail', 'quick-grit', 'quick-hatchet', 'quick-helm',
-  'quick-ingot', 'quick-javelin', 'quick-mell', 'quick-pickaxe',
-  'quick-plate', 'quick-shield', 'quick-spear', 'quick-sword', 'raven-mask',
-  'rod', 'shell-helm', 'shell-plate', 'shot', 'sigil-bow', 'staff', 'steel',
+  'great-hatchet', 'great-helm', 'great-mell', 'great-pickaxe',
+  'great-plate', 'great-sword', 'handgonne', 'hare-mask', 'hart-mask',
+  'heartwood-bow', 'heartwood-rod', 'heartwood-staff', 'hollow-bow',
+  'horn', 'horn-bow', 'iron', 'iron-dagger', 'iron-hatchet', 'iron-helm',
+  'iron-javelin', 'iron-mell', 'iron-pickaxe', 'iron-plate', 'iron-shield',
+  'iron-spear', 'iron-sword', 'ironbark-rod', 'king-shroud', 'oak-rod',
+  'old-chain', 'quick-alloy', 'quick-dagger', 'quick-flail', 'quick-grit',
+  'quick-hatchet', 'quick-helm', 'quick-ingot', 'quick-javelin',
+  'quick-mell', 'quick-pickaxe', 'quick-plate', 'quick-shield',
+  'quick-spear', 'quick-sword', 'raven-mask', 'rod', 'shell-helm',
+  'shell-plate', 'shot', 'sigil-bow', 'spade', 'staff', 'steel',
   'steel-dagger', 'steel-hatchet', 'steel-helm', 'steel-javelin',
-  'steel-mell', 'steel-pickaxe', 'steel-plate', 'steel-shield', 'steel-spear',
-  'steel-sword', 'torch', 'wand', 'wolf-mask', 'wooden-bow'
+  'steel-mell', 'steel-pickaxe', 'steel-plate', 'steel-shield',
+  'steel-spear', 'steel-sword', 'torch', 'wand', 'wolf-mask', 'wooden-bow'
 ])
 // >>> CONSTITUTIONAL IDENTITY BLOCK (spec 4b, spec 10) character for
 // character the same in every window and in engine.js. test/identity.test.mjs
@@ -7452,7 +7453,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b108'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b109'  // stamp: if your screen says an older build, hard-refresh
 // ===========================================================================
 // WHAT A CITIZEN IS SEEN TO BE DOING
 //
@@ -9581,12 +9582,23 @@ function kitGive(item, how) {
   const nm = say1(item)
   if (how === 'wear') {
     const slot = EQUIP_SLOT_OF(item)
-    // a two-handed thing takes the other hand with it, the way the engine has
-    // it: the kit must not put a citizen in a state the world would refuse
-    if (slot === 'weapon' && TWO_HANDED.has(item)) p.equipment.offhand = null
-    if (slot === 'offhand' && TWO_HANDED.has(p.equipment?.weapon?.item)) p.equipment.weapon = null
+    // A TWO-HANDED THING TAKES THE OTHER HAND WITH IT, the way the engine has
+    // it: the kit must not put a citizen in a state the world would refuse.
+    //
+    // AND IT SAYS SO. It did this in silence, so somebody who put a horn in
+    // the off hand while holding a two-hander watched their weapon vanish
+    // with no word about why, which looks exactly like the kit having put the
+    // horn in the weapon hand.
+    let took = null
+    if (slot === 'weapon' && TWO_HANDED.has(item) && p.equipment.offhand) {
+      took = say1(p.equipment.offhand.item); p.equipment.offhand = null
+    }
+    if (slot === 'offhand' && TWO_HANDED.has(p.equipment?.weapon?.item)) {
+      took = say1(p.equipment.weapon.item); p.equipment.weapon = null
+    }
     p.equipment[slot] = { item, qty: 1 }
-    feed('You take up the ' + nm + '.')
+    feed('You take up the ' + nm + '.'
+      + (took ? ' Both hands were on the ' + took + ', so it goes back in the pack.' : ''))
   } else {
     const free = p.inventory.findIndex((sl) => !sl)
     if (free === -1) { feed('Your pack is full.'); return }
@@ -9701,12 +9713,17 @@ function noughtTick() {
   if (!nought) return
   const ins = nought.inputs
   // A state the engine ticks must be canonically encodable, and a window has
-  // several places that decorate a state for drawing. `withPeers` no longer
-  // hands ours out, but this costs nothing and means a future render cache
-  // cannot stop Nought dead the way this one did.
-  delete nought.state._grid
-  delete nought.state._waterTiles
-  delete nought.state._nodeTiles
+  // several places that decorate a state for drawing.
+  //
+  // §0h-ii: THIS USED TO DELETE THREE OF THEM BY NAME, which worked for
+  // exactly as long as nobody added a fourth, and two were added in one week.
+  // `_seamLead` and `_gateAt` are Sets, `canonical` throws on anything that is
+  // not a plain object, and so every deed a resident pressed stumbled the tick
+  // and was thrown away while the window had already written the deed into the
+  // log. A list of names kept in a second place is the same fault as a copied
+  // table. The caches are non-enumerable now, so `canonical` cannot see them
+  // at all and there is nothing here to keep up to date. These three deletes
+  // stay for a state that came off the wire or out of storage before that.
   try {
     const next = nought.E.nextState(nought.state, ins)
     // ONLY CLEAR THE QUEUE ON SUCCESS. This used to empty `inputs` before the
@@ -10240,11 +10257,36 @@ function _onState(s, worldId, local) {
       && (meL.look === undefined || Object.values(s.nodes ?? {}).some((n) => n.type === 'looking-glass'
           && Math.abs(meL.x - n.x) + Math.abs(meL.y - n.y) === 1))
      ) { lookTriedAt = s.tick; send({ do: 'set_look', look: pickLook }) }
+  // §0h-ii: A RENDER CACHE IS NOT PART OF THE WORLD, AND MUST NOT LOOK LIKE IT.
+  //
+  // Everything from here down hangs a drawing index on the state: water
+  // adjacency, the node grid, which seam in a cluster carries the label,
+  // which tiles a toll bar stands on. Several are Maps and Sets.
+  //
+  // In Tallyholm that is harmless, because the state is handed to this window
+  // and never handed back. In NOUGHT the window ticks the world itself, and
+  // `canonical` walks the state it is given and throws on anything that is
+  // not a plain object: "canonical: unsupported object type". So every deed a
+  // resident pressed stumbled the tick, the queue was thrown away, and the
+  // window had already written "you bury the dragon" into the log. Bury, eat,
+  // drop, all of it: the world simply did not move.
+  //
+  // `noughtTick` deleted THREE of these by name before ticking, which worked
+  // for exactly as long as nobody added a fourth. Two were added in one week
+  // -- `_seamLead` and `_gateAt`, both Sets -- and Nought broke.
+  //
+  // A list of names kept in a second place is the same fault as a copied
+  // table. `canonical` walks `Object.keys`, which is enumerable own keys, so
+  // a cache defined as NON-ENUMERABLE is invisible to it and the whole class
+  // of this bug is gone: a cache added next year cannot break the tick,
+  // because it was never in the encoding to begin with.
+  const cache = (o, k, v) => { Object.defineProperty(o, k, {
+    value: v, enumerable: false, writable: true, configurable: true }); return v }
   // per-state caches (perf): water adjacency and who pins which mob
-  s._waterAdj = {}
-  s._waterTiles = new Set()
+  cache(s, '_waterAdj', {})
+  cache(s, '_waterTiles', new Set())
   for (const n2 of Object.values(s.nodes)) if (n2.type === 'fishing-spot') s._waterTiles.add(n2.x + ',' + n2.y)
-  s._nodeTiles = new Set()
+  cache(s, '_nodeTiles', new Set())
   for (const n2 of Object.values(s.nodes)) if (n2.type !== 'brewpot' && n2.type !== 'watchfire' && n2.type !== 'cart' && n2.type !== 'dedication') s._nodeTiles.add(n2.x + ',' + n2.y) // O(1) blocked checks; brewpots, carts and stones are walkable (v0.52, §6bp, §6bq)
   for (const n of Object.values(s.nodes)) {
     if (n.type !== 'fishing-spot') continue
@@ -10254,7 +10296,7 @@ function _onState(s, worldId, local) {
     const has = (x, y) => s._waterTiles.has(x + ',' + y)
     s._waterAdj[n.x + ',' + n.y] = { n: has(n.x, n.y - 1), s: has(n.x, n.y + 1), e: has(n.x + 1, n.y), w: has(n.x - 1, n.y) }
   }
-  s._pinnedBy = {}
+  cache(s, '_pinnedBy', {})
   for (const [pid2, p2] of Object.entries(s.players)) if (p2.action?.mobId) s._pinnedBy[p2.action.mobId] = p2
   // perf: entries computed once per state; sixty frames read them for free
   // A SPATIAL INDEX. The draw loop iterated every node on the island each
@@ -10266,18 +10308,18 @@ function _onState(s, worldId, local) {
   // Bucket them once per state instead. Chunks of sixteen tiles: a viewport
   // touches four or six buckets, and the frame stops caring how big the
   // island is.
-  s._chunk = 16
-  s._grid = new Map()
+  cache(s, '_chunk', 16)
+  cache(s, '_grid', new Map())
   for (const e of Object.entries(s.nodes)) {
     const k = ((e[1].x / 16) | 0) + ',' + ((e[1].y / 16) | 0)
     let b = s._grid.get(k); if (!b) s._grid.set(k, b = [])
     b.push(e)
   }
-  s._nodesE = Object.entries(s.nodes)
-  s._mobsE = Object.entries(s.mobs)
-  s._playersE = Object.entries(s.players)
-  s._groundE = Object.entries(s.ground ?? {})
-  s._nodesV = Object.values(s.nodes)
+  cache(s, '_nodesE', Object.entries(s.nodes))
+  cache(s, '_mobsE', Object.entries(s.mobs))
+  cache(s, '_playersE', Object.entries(s.players))
+  cache(s, '_groundE', Object.entries(s.ground ?? {}))
+  cache(s, '_nodesV', Object.values(s.nodes))
   // §7ef: ONE LABEL TO A CLUSTER, NOT ONE TO A TILE.
   //
   // "I think it is kind of noisy with the name above the resource nodes, like
@@ -10299,7 +10341,7 @@ function _onState(s, worldId, local) {
   // §14: and where the toll bars stand, as a set of tiles, so a gate can see
   // whether it is one of a run and which way that run lies. Two lookups a
   // frame rather than a scan of every node on the island.
-  s._gateAt = new Set()
+  cache(s, '_gateAt', new Set())
   for (const n of s._nodesV) if (n.type === 'tollgate') s._gateAt.add(n.x + ',' + n.y)
   {
     const lead = new Set()
@@ -10311,9 +10353,9 @@ function _onState(s, worldId, local) {
       if (near.some((o) => Math.max(Math.abs(o.x - n.x), Math.abs(o.y - n.y)) <= CLUSTER_SPAN)) continue
       near.push(n); lead.add(n)
     }
-    s._seamLead = lead
+    cache(s, '_seamLead', lead)
   }
-  s._groundStack = {}
+  cache(s, '_groundStack', {})
   for (const [gid, g2] of (s._groundE ?? [])) (s._groundStack[g2.x + ',' + g2.y] ??= []).push(gid)
   if (prev) { // hit splats: damage this tick, made visible where it landed
     for (const [mid, m] of Object.entries(s.mobs)) {
@@ -20380,6 +20422,22 @@ function invOptions(i) {
   // carrying a list.
   if (HEALS[it.item]) return { name, opts: [
     { label: 'eat the ' + name, act: () => {
+      // §6m-ix: AND A MEAL YOU DO NOT NEED IS REFUSED, IN SILENCE.
+      //
+      // The engine will not spend food on a citizen who is not hurt: the eat
+      // is turned away at the door and nothing is said, because nothing is
+      // ever said. The window had already written "You eat the cooked deep
+      // fish" into the log on the way out, so the deed looked done, the food
+      // stayed in the pack, and the player was left watching a window that
+      // appeared to have stopped listening.
+      //
+      // The same shape as the tool gate and the ridge: a refusal nobody can
+      // see is indistinguishable from a window that is broken. The gate is
+      // asked HERE, before anything is claimed.
+      if (meNow.hp >= maxHpOf(meNow)) {
+        feed('You are not hurt. Food is wasted on a whole skin.')
+        return
+      }
       const foe = onACreature(meNow.action) ? meNow.action.mobId : null
       send({ do: 'eat', slot: +i })
       if (foe) { intent = { kind: 'prowess', id: foe }; feed('You get it down and fight on.') }

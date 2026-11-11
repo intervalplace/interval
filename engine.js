@@ -5045,7 +5045,21 @@ const RECIPES = {
 // RECIPES -- it is fletched, not forged. EQUIPPABLE was built from the recipe
 // keys plus the four things nobody makes, so moving a weapon between crafts
 // silently made it unwieldable.
-const EQUIPPABLE = new Set([...Object.keys(RECIPES), 'wooden-bow', 'horn-bow', 'old-chain', 'dragonbow',
+// §7dp-ii: A THING WITH A WEAPON'S STATS CAN BE HELD, WITHOUT ANYBODY
+// REMEMBERING TO SAY SO.
+//
+// This was every forge recipe plus a list somebody keeps by hand, and the
+// hand list is for the things a smith does NOT make. Two weapons are made by
+// nobody: the SPADE, which is bought, and the HOLLOW BOW, which falls off a
+// skeleton knight. Neither was ever added, so both had a full set of weapon
+// stats, a level to hold them, a price, and no way to be picked up: the
+// window offered no wield because the engine would have refused one.
+//
+// `WEAPONS` is the table that decides what a thing does in a hand. Deriving
+// from it means a weapon is wieldable BY BEING A WEAPON, and the hand list
+// goes back to its real job, which is the worn things that are not weapons.
+const EQUIPPABLE = new Set([...Object.keys(RECIPES), ...Object.keys(WEAPONS),
+  'wooden-bow', 'horn-bow', 'old-chain', 'dragonbow',
   'rod', 'oak-rod', 'ironbark-rod', 'heartwood-rod',   // 6bk: fletched, not forged
   'heartwood-bow', 'king-shroud', 'torch',
   // §7dp: the four barrow masks. `slotOf` knew where they sit and this did not,

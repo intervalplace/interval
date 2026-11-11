@@ -16484,6 +16484,34 @@ but say where their wearer has been and which of the four they chose.
 Four kinds and one take, so the choice is the whole of it -- and it is
 made in the dark, three slots deep, past the knight.
 
+## 7dp-ii. A thing with a weapon's stats can be held
+
+**The spade and the hollow bow had everything a weapon has except the ability
+to be picked up.** Both sit in `WEAPONS` with a full set of numbers, both have
+a level that gates holding them, both have a price, and the hollow bow falls
+off a skeleton knight and a gibbet shade. Neither was in `EQUIPPABLE`, so the
+engine refused every wield and the windows offered no button, which is why
+nobody noticed for as long as they did: **a refusal nobody can press is
+invisible.**
+
+**The cause is the shape §7ek keeps finding.** `EQUIPPABLE` was every forge
+recipe plus a list kept by hand, and the hand list is there for the worn things
+a smith does not make: the bows, the rods, the masks, the torch. The spade is
+bought and the hollow bow is dropped, so neither is a recipe, and neither was
+ever typed into the list. A derived set beside a hand-kept one drifts the day
+somebody adds a thing to the world and not to the list.
+
+**It derives from `WEAPONS` now**, which is the table that already decides what
+a thing does in a hand. A weapon is wieldable by BEING a weapon. The hand list
+keeps its real job, which is the worn things that are not weapons.
+
+**Both windows carry a copy of this set** and both had to be regenerated, which
+is §7f's standing lesson: a copied table is a table at a moment in time.
+`test/tables.test.mjs` compares both against the engine on every run, and
+`test/photo.test.mjs` presses a wield on every one of them, which is the check
+that actually failed and said so.
+
+
 ## 7dq. And The Smother's Mouth Asks For Fire
 
 > **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:2412` by `spec-stubs.mjs`.

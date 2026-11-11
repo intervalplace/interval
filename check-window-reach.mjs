@@ -197,6 +197,19 @@ vm.runInContext(body + `
   kitHtml: () => { const pan = document.getElementById('kitpanel')
     drawKit(); return pan ? pan.innerHTML : '' },
   inNought: () => !!nought,
+  // §0h: STAND IN THE PRACTICE WORLD. The window routes every deed to
+  // noughtDo while it is in Nought, so a check that presses from outside is
+  // not pressing the path a resident presses. This builds the real thing:
+  // the engine the harness already has, a signing key, and a queue the tick
+  // drains. NO BACKTICKS IN THIS BLOCK.
+  enterNought: (st, E2, key) => {
+    nought = { E: E2, state: st, key, inputs: [], wid: E2.worldId(st.genesis) }
+    inNought = true; world = st; curState = st
+  },
+  noughtRun: () => { const n9 = nought.inputs.length
+    noughtTick(); return n9 },
+  noughtState: () => nought && nought.state,
+  leaveNought: () => { nought = null; inNought = false },
   // POINT THE WORLD AT THE WINDOW'S OWN PREPARED STATE. set() hands the
   // window the raw object this file built, and onState works on a JSON COPY:
   // every index the state preparation computes -- the node list, the ground
@@ -1750,6 +1763,18 @@ console.log('\n--- 8r. the kit is in Nought and nowhere else ---')
   // WHAT IT HOLDS is read off the window's own tables, so a weapon added to
   // the world next year is in the kit the day it is added
   const rows = ctx.__h.kitRows()
+  // §6bv: AND THE HORN GOES IN THE OTHER HAND. It is the one thing in the
+  // off-hand slot that is not a shield, so it is the one most likely to be
+  // filed as a weapon by anything that guesses.
+  for (const [thing, want] of [['horn', 'offhand'], ['iron-shield', 'offhand'],
+                               ['spade', 'weapon'], ['hollow-bow', 'weapon']]) {
+    const where = Object.entries(rows.worn).find(([, l]) => l.includes(thing))?.[0] ?? 'nowhere'
+    const engine = E.slotOf(thing)
+    ok(where === engine && engine === want,
+      where === engine && engine === want
+        ? 'the kit puts a ' + thing.replace('-', ' ') + ' where the engine does: ' + want
+        : 'the kit files a ' + thing + ' under ' + where + ', the engine says ' + engine)
+  }
   const listed = new Set([...Object.values(rows.worn).flat(), ...rows.rest])
   const missing = [...E.EQUIPPABLE].filter((i) => !listed.has(i))
   ok(missing.length === 0, missing.length === 0
@@ -1772,6 +1797,129 @@ console.log('\n--- 8r. the kit is in Nought and nowhere else ---')
   ok(h9 === '', h9 === ''
     ? 'and the panel itself draws nothing outside the practice world'
     : 'the kit panel drew ' + h9.length + ' characters in the real world')
+}
+
+console.log('\n--- 8s. a deed pressed in Nought actually lands ---')
+{
+  // "When I right click bury on dragon bones, nothing happens. It says I bury
+  // them in the log but nothing happens. I tried to eat a cooked deep fish
+  // and nothing happened. When I right click items to drop them, nothing
+  // happens either."
+  //
+  // Three deeds, one symptom: the window SAYS it did the thing and the world
+  // does not move. The feed line is written by the window on the way out, so
+  // a line in the log is proof that a button was pressed and proof of nothing
+  // else. Everything a resident does goes through `noughtDo` into a queue the
+  // local tick drains, and nothing anywhere was reading back whether the
+  // queue emptied into anything.
+  //
+  // This presses them where a resident presses them.
+  const st = fresh()
+  const p9 = st.players[ID]
+  p9.inventory[0] = { item: 'dragon-bones', qty: 1 }
+  p9.inventory[1] = { item: 'cooked-deep-fish', qty: 1 }
+  p9.inventory[2] = { item: 'logs', qty: 1 }
+  p9.hp = 10
+  ctx.__h.enterNought(st, E, me)
+  const before = () => JSON.stringify(ctx.__h.noughtState().players[ID].inventory)
+  // the window reads the citizen out of `world`, which the tick has replaced
+  const world9hurt = () => ctx.__h.set(ctx.__h.noughtState(), ID)
+  // pressed through the MENU ROW a citizen presses, not through whatever the
+  // left button happens to do: dragon bones put a look first, deliberately,
+  // because a left click must not spend a thing on a guess (§7ek)
+  const row9 = (slot, re) => () => { const g = ctx.__h.spy(); ctx.__h.inv(slot, true)
+    const r = (g() ?? []).find((o) => o && re.test(o.label ?? ''))
+    if (!r) throw new Error('no row matching ' + re)
+    r.act() }
+  // each deed sets up its own precondition, because the tick between them
+  // moves the world: the first version wounded the citizen once at the top
+  // and the bury tick had healed them whole again by the time the eat was
+  // pressed, so the eat was refused for a reason that had nothing to do with
+  // what was being measured
+  for (const [what, press] of [
+    ['bury the dragon bones', row9('0', /^bury/)],
+    ['eat the cooked deep fish', () => {
+      ctx.__h.noughtState().players[ID].hp = 1
+      world9hurt(); row9('1', /^eat/)() }],
+    ['drop the logs', row9('2', /^drop/)],
+  ]) {
+    const was = before()
+    ctx.__h.hush()
+    let threw = null
+    try { press() } catch (e) { threw = e.message }
+    const queued = ctx.__h.noughtRun()
+    const now = before()
+    ok(!threw && queued > 0 && now !== was,
+      !threw && queued > 0 && now !== was
+        ? 'in Nought, ' + what + ' lands: the pack changes'
+        : 'in Nought, ' + what + ' did nothing'
+          + (threw ? ' (it threw: ' + threw + ')' : '')
+          + ' [queued ' + queued + ' input(s), hp '
+          + ctx.__h.noughtState().players[ID].hp + '/'
+          + E.maxHealth(ctx.__h.noughtState().players[ID]) + ', feed said: '
+          + (ctx.__h.said().join(' / ') || 'nothing') + ']')
+  }
+  // AND AT FULL HEALTH, which is where this was reported from. The engine
+  // refuses an `eat` that would mend nothing, so the fish stays in the pack
+  // and the window has already said you ate it.
+  {
+    const full = fresh()
+    full.players[ID].inventory[0] = { item: 'cooked-deep-fish', qty: 1 }
+    full.players[ID].hp = E.maxHealth(full.players[ID])
+    ctx.__h.enterNought(full, E, me)
+    ctx.__h.hush()
+    row9('0', /^eat/)()
+    ctx.__h.noughtRun()
+    const gone = !ctx.__h.noughtState().players[ID].inventory[0]
+    const said = ctx.__h.said().join(' ')
+    ok(gone || !/You eat the/.test(said),
+      gone ? 'eating at full health spends the food'
+        : /You eat the/.test(said)
+          ? 'at full health the window SAYS "you eat it" and the food stays in the pack'
+          : 'at full health it says: ' + said)
+  }
+  // AND THROUGH THE KIT, which is where these came from. A thing the kit put
+  // in the pack must be exactly as real as a thing a citizen picked up.
+  {
+    const k9 = fresh()
+    ctx.__h.enterNought(k9, E, me)
+    ctx.__h.kitGive('dragon-bones', 'take')
+    ctx.__h.kitGive('logs', 'take')
+    // WALK IT AND NAME THE OFFENDER. "the offending value is at state
+    // <Object>" says only that something is not a plain object; this says
+    // which key, which is the difference between a fix and a guess.
+    const bad9 = []
+    const walk9 = (o, path, seen) => {
+      if (!o || typeof o !== 'object' || seen.has(o) || bad9.length > 6) return
+      seen.add(o)
+      // REALM-TOLERANT. The window runs in a vm, so an object it creates has
+      // the VM's Object.prototype and can never be identical to this file's.
+      // What `canonical` is really asking is whether the thing is a PLAIN
+      // object, and a plain object is one whose prototype has no prototype,
+      // in any realm. Comparing identity here reported every item the kit put
+      // in a pack as unencodable, which is a fault in the measurement.
+      if (!Array.isArray(o)) {
+        const pr = Object.getPrototypeOf(o)
+        if (pr !== null && Object.getPrototypeOf(pr) !== null) {
+          bad9.push(path + ' is a ' + (o.constructor?.name ?? '?')); return }
+      }
+      for (const k of Object.keys(o)) walk9(o[k], path + '.' + k, seen)
+    }
+    walk9(ctx.__h.noughtState(), 'state', new Set())
+    ok(bad9.length === 0, bad9.length === 0
+      ? 'and the state it leaves behind is still canonically encodable'
+      : 'the kit leaves something the tick cannot encode: ' + bad9.join(', '))
+    const packed = ctx.__h.noughtState().players[ID].inventory
+    ok(packed[0] && packed[0].item === 'dragon-bones',
+      packed[0] ? 'the kit puts a thing in the pack: ' + packed[0].item + ' x' + packed[0].qty
+        : 'the kit put nothing in the pack')
+    // and the deeds themselves are pressed above, on a state built out here,
+    // because the local tick runs THIS file's engine against the vm's objects
+    // and no amount of care about prototypes can make those the same thing.
+    // What is asked of the kit here is the thing that broke: the state it
+    // leaves behind must still be something the tick can encode.
+  }
+  ctx.__h.leaveNought()
 }
 
 console.log('\n--- 8k. the world does not spell itself out ---')
