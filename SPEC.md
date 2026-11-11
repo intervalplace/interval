@@ -7328,6 +7328,26 @@ half, so the plate keeps its own job and becomes the thing it should always
 have been: the insurance for when you are ALREADY hurt. It is asked SECOND, so
 a plate is never spent on a death this rule would have held anyway.
 
+**AND IT IS HELD ONCE, NOT HELD FOR EVER.** Without a leash this rule has a
+hole big enough to drive a war through, and it is not the obvious one. The
+worry is a ball of menders out-healing the damage. The arithmetic says
+something worse. Without the rule, keeping a tank alive costs healing in
+proportion to what is coming at them: seventy-two damage an interval wants
+four menders, two hundred and forty wants twelve. With it, all anybody has to
+do is put them back above half before the next interval, which is thirty-two
+whatever is being thrown, so **two menders hold a tank against any number of
+archers, for ever.** The cost of defending stopped scaling with the attack.
+
+"The archers could just attack another target" is the right instinct and it is
+not enough: a cell of three that cannot be killed does not have to care who is
+being shot at.
+
+So the grace is a thing that HAPPENS to a citizen rather than a property they
+have. `GRACE_EVERY` is a hundred and fifty intervals, which is the stilling's
+own leash and deliberately so: stopping a fight outright and walking out of
+one that should have killed you are the same size of favour, and neither
+should be available twice in the same engagement.
+
 **IT CANNOT BE USED TO LIVE FOREVER**, and the arithmetic is the reason rather
 than a special case:
 
@@ -7338,6 +7358,8 @@ than a special case:
   still under the line. Food is a RATE and not a burst (§6m), so it cannot
   jump anybody either.
 - A citizen already below half is not held at all, which is most of a fight.
+- And it is held once in a hundred and fifty intervals, so no amount of
+  healing between volleys buys a second one.
 
 **IT BARELY TOUCHES A DUEL.** It only fires when the damage landing in one
 interval meets or passes the health somebody started that interval with, and

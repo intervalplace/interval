@@ -2216,8 +2216,15 @@ function woundCitizen(s, q, amount) {
   if (q.hurtTick !== s.tick) { q.hurtTick = s.tick; q.hurtFrom = q.health; }
   q.health -= amount;
   if (q.health > 0) return false;
-  if ((q.hurtFrom ?? 0) * 2 > maxHealth(q)) { q.health = 1; return true; }
-  return false;
+  if ((q.hurtFrom ?? 0) * 2 <= maxHealth(q)) return false;
+  // held once, and not again until the flesh has settled. See GRACE_EVERY:
+  // without this a pair of menders makes a citizen proof against any weight
+  // of attack at all, because putting somebody back above half costs the same
+  // whether one arrow is coming or forty.
+  if (s.tick - (q.heldAt ?? -GRACE_EVERY) < GRACE_EVERY) return false;
+  q.heldAt = s.tick;
+  q.health = 1;
+  return true;
 }
 function platedFromDeath(q) {
   if (q.equipment?.body?.item !== 'great-plate') return false;
@@ -4327,6 +4334,28 @@ const MENDP_REQ = 75;
 // because a mending is four times a fish and made of three quick-stone out of
 // the Wilds. It is the emergency, not the diet.
 const MEND_EVERY = 25;   // §1c: kept -- twenty-five seconds now; it paces a FIGHT, not a clock
+// §6bw-ii: AND A CITIZEN IS HELD ONCE, NOT HELD FOR EVER.
+//
+// Without a leash the rule has a hole big enough to drive a war through, and
+// it is not the obvious one. The worry was a ball of menders out-healing the
+// damage; the arithmetic says something worse. WITHOUT the rule, keeping a
+// tank alive costs healing in proportion to what is coming at them: seventy
+// two damage an interval wants four menders, two hundred and forty wants
+// twelve. WITH it, all you have to do is put them back above half before the
+// next interval, which is thirty-two whatever is being thrown -- so TWO
+// menders hold a tank against any number of archers, for ever. The cost of
+// defence stopped scaling with the attack.
+//
+// "The archers could just attack another target" is the right instinct and it
+// is not enough: a cell of three that cannot be killed does not have to care
+// who is being shot at.
+//
+// So the grace is a thing that happens to you, not a property you have. One
+// hundred and fifty intervals is the stilling's own leash, and deliberately:
+// stopping a fight outright and walking out of one that should have killed
+// you are the same size of favour, and neither should be available twice in
+// the same engagement.
+const GRACE_EVERY = 150;
 const MENDP_RANGE = 4;
 // §6aj: UNMAKING AT RANGE, which is denial and not theft.
 //
@@ -9081,7 +9110,7 @@ function validateState(state) {
   const PLAYER_REQUIRED = ['x', 'y', 'skills', 'health', 'equipment', 'vaults', 'lastInput', 'gold', 'inventory', 'action', 'name', 'trade'];
   const PLAYER_OPTIONAL = new Set(['hooded', 'crops', 'attuned', 'brandedUntil', 'cooksTried', 'deadUntil',
     // §6c-ii: the wound the dead leave, and the tally that never falls
-    'calling', 'offered', 'wounds', 'deaths', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte', 'look', 'hurtTick', 'hurtFrom', 'lastTransmute', 'stillAt', 'deed', 'lastMend', 'shotsFired', 'consignment', 'paidUntil', 'brewing', 'buried', 'nocked', 'blows', 'following', 'book', 'rottingUntil', 'rotBy', 'witheredUntil', 'fedLeft', 'fedRate', 'lastTaking', 'lastWaking', 'friends', 'chartered',
+    'calling', 'offered', 'wounds', 'deaths', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte', 'look', 'hurtTick', 'hurtFrom', 'heldAt', 'lastTransmute', 'stillAt', 'deed', 'lastMend', 'shotsFired', 'consignment', 'paidUntil', 'brewing', 'buried', 'nocked', 'blows', 'following', 'book', 'rottingUntil', 'rotBy', 'witheredUntil', 'fedLeft', 'fedRate', 'lastTaking', 'lastWaking', 'friends', 'chartered',
     // §5r-iv: the countries this citizen has stood in, which is half the door
     // to a calling
     'walked',
@@ -9343,7 +9372,7 @@ function validateState(state) {
         if (!isId(w)) return 'malformed attunement';
       }
     }
-    for (const tk of ['brandedUntil', 'deadUntil', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'lastSwing', 'lastAte', 'shotsFired', 'burnUntil', 'paidUntil', 'hurtTick', 'hurtFrom']) if (p[tk] !== undefined && !isInt(p[tk], 0, MAX_TIME)) return `${tk} out of bounds`;
+    for (const tk of ['brandedUntil', 'deadUntil', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'lastSwing', 'lastAte', 'shotsFired', 'burnUntil', 'paidUntil', 'hurtTick', 'hurtFrom', 'heldAt']) if (p[tk] !== undefined && !isInt(p[tk], 0, MAX_TIME)) return `${tk} out of bounds`;
     // §6m-vii: the mending debt is health and a rate, not ticks. Bounded by
     // the richest food in the world and by the fastest, so neither can be
     // forged into an unbounded regeneration by a malformed checkpoint.

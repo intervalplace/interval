@@ -15,6 +15,11 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import E from '../engine.js'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+const enginePath = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)), '..', 'engine.js')
 
 const world = () => {
   const g = E.makeGenesis('grace', 'a'.repeat(64), 0, 40, 30)
@@ -80,6 +85,45 @@ test('it does not spend the great-plate on a death it would have held', () => {
   E.woundCitizen(s, q, 999)
   assert.equal(q.health, 1, 'the rule held them')
   assert.equal(q.equipment.body?.item, 'great-plate', 'and the plate is still on their back')
+})
+
+test('a team of menders cannot make anyone proof against a volley', () => {
+  // THE HOLE THIS CLOSES, and it is not the obvious one. The worry was that
+  // enough menders out-heal the damage. The arithmetic is worse than that:
+  // WITHOUT a leash on the grace, putting somebody back above half costs the
+  // same thirty-two whether one arrow is coming or forty, so the cost of
+  // defending stops scaling with the attack and TWO menders hold a tank
+  // against any number of archers for ever.
+  const { s, q, max } = world()
+  const volley = () => { for (let i = 0; i < 3; i++) E.woundCitizen(s, q, 24) }
+  volley()
+  assert.equal(q.health, 1, 'the first volley gives them their turn')
+  // their menders put them back above half, which is all the old rule asked
+  s.tick += 1
+  q.health = Math.floor(max / 2) + 9
+  volley()
+  assert.ok(q.health <= 0,
+    'and the next volley kills them: a cell that cannot be killed does not '
+    + 'have to care who is being shot at')
+})
+
+test('the grace comes back, but not within the same engagement', () => {
+  const { s, q, max } = world()
+  E.woundCitizen(s, q, 999)
+  assert.equal(q.health, 1, 'held')
+  const EVERY = +/const GRACE_EVERY = (\d+)/.exec(
+    fs.readFileSync(enginePath, 'utf8'))[1]
+  // a long while later, whole again, it holds again
+  s.tick += EVERY
+  q.health = max
+  assert.ok(E.woundCitizen(s, q, 999), 'held again once the flesh has settled')
+  // but a moment before that, it does not
+  const b = world()
+  E.woundCitizen(b.s, b.q, 999)
+  b.s.tick += EVERY - 1
+  b.q.health = b.max
+  assert.ok(!E.woundCitizen(b.s, b.q, 999), 'and not a moment before')
+  assert.ok(b.q.health <= 0)
 })
 
 test('nobody can be healed back above half between volleys', () => {
