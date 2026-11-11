@@ -194,6 +194,21 @@
      exactly when a citizen needs to find them. The box keeps its edge and
      the LABEL does the fading. */
   .wslot.empty { background: var(--stone-dk); border-color: var(--edge); }
+  /* §0h: THE KIT, in the one palette this interface has. A pack slot and a
+     worn slot are the two things a citizen already knows how to read, so a
+     kit cell is a pack slot with its name under it rather than a new idea. */
+  .kitnote { padding: 5px 7px; color: var(--dim); font-size: 9.5px; letter-spacing: .06em;
+             border-bottom: 1px solid var(--stone-lt); }
+  .kithead { padding: 7px 7px 3px; color: var(--gold); font-size: 9.5px;
+             letter-spacing: .18em; text-transform: uppercase; }
+  .kitgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(42px, 1fr));
+             gap: 3px; padding: 0 5px 6px; }
+  .kititem { aspect-ratio: 1; background: var(--stone-dk); border: 1px solid var(--stone-lt);
+             border-radius: 2px; position: relative; cursor: pointer;
+             display: flex; align-items: center; justify-content: center; }
+  .kititem:hover { border-color: var(--gold); }
+  .kitname { position: absolute; bottom: 0; left: 0; right: 0; font-size: 5.6px; line-height: 1.25;
+             color: var(--dim); text-align: center; overflow: hidden; white-space: nowrap; }
   .wslot.empty .wlabel { opacity: .62; }
   .wslot .wlabel { position: absolute; bottom: 1px; left: 0; right: 0; font-size: 6px;
                    color: var(--dim); text-align: center; letter-spacing: .02em; }
@@ -453,6 +468,15 @@
       color:var(--gold);letter-spacing:1px">SPELLS</div>
     <div id="bookpanel" style="display:none;font-size:11px;margin-top:2px;
       background:var(--stone-dk);border:1px solid var(--stone-lt)"></div>
+
+    <!-- §0h: THE KIT. Nought only, and it does not exist anywhere else.
+         See the note over `kitRows`. -->
+    <div id="kitbtn" style="display:none;font-size:11px;padding:4px 6px;margin-top:2px;
+      background:var(--stone-dk);border:1px solid var(--stone-lt);cursor:pointer;
+      color:var(--gold);letter-spacing:1px">THE KIT</div>
+    <div id="kitpanel" style="display:none;font-size:11px;margin-top:2px;
+      background:var(--stone-dk);border:1px solid var(--stone-lt);
+      max-height:46vh;overflow:auto"></div>
   <div id="trade" style="display:none"></div>
   <div id="vault" style="display:none;font-size:12px;padding:6px;background:var(--stone-dk)"></div>
     <!-- §5t-v: THE NINE FOLD AWAY ON A PHONE.
@@ -7428,7 +7452,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b107'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b108'  // stamp: if your screen says an older build, hard-refresh
 // ===========================================================================
 // WHAT A CITIZEN IS SEEN TO BE DOING
 //
@@ -9490,6 +9514,110 @@ function furnish(E2, st, pid) {
 }
 
 
+// §0h: THE KIT, AND IT EXISTS IN NOUGHT AND NOWHERE ELSE.
+//
+// "I think we need a way I can try every item without having to grind
+// everything myself: to test all the weapons and their gambits and how it
+// looks when worn."
+//
+// That is a real need and it has an obvious wrong answer, which is a cheat
+// in the real window. Tallyholm is permanent and everything in it was earned
+// by somebody; a door that puts a dragonbow in your hand there is a hole in
+// the whole of it, and a hole that exists only "for testing" is still a hole,
+// because the window that ships is the window that tests.
+//
+// Nought is the answer and it was built for this. It is a private copy of the
+// island where NOTHING IS SAVED AND NOTHING CAN BE LOST, it already hands you
+// every gated tool and ten thousand gold, and its own card says in so many
+// words: so use it, fight something far too big for you. A wardrobe of every
+// weapon in the world is the same sentence carried to its end.
+//
+// So: `nought` is the guard, on the button, on the panel and on the hand that
+// gives the thing. Three checks for one rule is not belt and braces here. The
+// panel is built once per opening from the window's own tables, so a weapon
+// added to the world next year is in the kit the day it is added, without
+// anybody remembering to put it there.
+const KIT_GROUPS = [
+  ['weapon', 'in the hand'], ['head', 'on the head'], ['body', 'on the body'],
+  ['offhand', 'in the other hand'], ['legs', 'on the legs'],
+]
+function kitRows() {
+  const worn = {}
+  for (const it of [...EQUIPPABLE].sort()) (worn[EQUIP_SLOT_OF(it)] ??= []).push(it)
+  // and everything a citizen can hold that is not worn: the larder, the
+  // tools, the stones, the raw stuff of every trade
+  const rest = new Set()
+  for (const k of Object.keys(PRICES)) if (!EQUIPPABLE.has(k)) rest.add(k)
+  for (const k of Object.keys(HEALS)) if (!EQUIPPABLE.has(k)) rest.add(k)
+  return { worn, rest: [...rest].sort() }
+}
+function kitCell(item, how) {
+  return '<div class="kititem" data-kit="' + item + '" data-how="' + how + '" title="'
+    + item.replace(/-/g, ' ') + '">' + (ICONS[item] ?? '?')
+    + '<div class="kitname">' + item.replace(/-/g, ' ') + '</div></div>'
+}
+function drawKit() {
+  const pan = document.getElementById('kitpanel')
+  if (!pan || !nought) return
+  const { worn, rest } = kitRows()
+  let h = '<div class="kitnote">Nought only. Nothing here is saved and nothing here is lost.</div>'
+  for (const [slot, said] of KIT_GROUPS) {
+    const list = worn[slot] ?? []
+    if (!list.length) continue
+    h += '<div class="kithead">' + said + '</div><div class="kitgrid">'
+      + list.map((i) => kitCell(i, 'wear')).join('') + '</div>'
+  }
+  h += '<div class="kithead">into the pack</div><div class="kitgrid">'
+    + rest.map((i) => kitCell(i, 'take')).join('') + '</div>'
+  pan.innerHTML = h
+}
+// THE HAND THAT GIVES, and it refuses anywhere but Nought. Written straight
+// into the practice state, because Nought is a world this window runs by
+// itself: there is no pillar to ask and nobody to agree with.
+function kitGive(item, how) {
+  if (!nought) { feed('There is no kit in the world itself.'); return }
+  const p = nought.state.players[myId]
+  if (!p) return
+  const nm = say1(item)
+  if (how === 'wear') {
+    const slot = EQUIP_SLOT_OF(item)
+    // a two-handed thing takes the other hand with it, the way the engine has
+    // it: the kit must not put a citizen in a state the world would refuse
+    if (slot === 'weapon' && TWO_HANDED.has(item)) p.equipment.offhand = null
+    if (slot === 'offhand' && TWO_HANDED.has(p.equipment?.weapon?.item)) p.equipment.weapon = null
+    p.equipment[slot] = { item, qty: 1 }
+    feed('You take up the ' + nm + '.')
+  } else {
+    const free = p.inventory.findIndex((sl) => !sl)
+    if (free === -1) { feed('Your pack is full.'); return }
+    p.inventory[free] = { item, qty: STACKABLE.has(item) ? 100 : 1 }
+    feed('A ' + nm + ', in your pack.')
+  }
+  onLocalState(nought.state)
+}
+function kitWire() {
+  const btn = document.getElementById('kitbtn'), pan = document.getElementById('kitpanel')
+  if (!btn || !pan || btn._wired) return
+  btn._wired = true
+  btn.addEventListener('click', () => {
+    if (!nought) return
+    const open = pan.style.display !== 'none'
+    if (!open) drawKit()
+    pan.style.display = open ? 'none' : ''
+  })
+  pan.addEventListener('click', (e) => {
+    const cell = e.target?.closest?.('[data-kit]')
+    if (cell) kitGive(cell.dataset.kit, cell.dataset.how)
+  })
+}
+// and it is only ever on the page while the practice world is running
+function kitShow(on) {
+  const btn = document.getElementById('kitbtn'), pan = document.getElementById('kitpanel')
+  if (btn) btn.style.display = on ? '' : 'none'
+  if (pan && !on) pan.style.display = 'none'
+  if (on) kitWire()
+}
+
 async function ensureNought(live) {
   if (nought || noughtLoading) return
   noughtLoading = true
@@ -9532,6 +9660,7 @@ async function ensureNought(live) {
     myId = key.playerId
     nought.timer = setInterval(noughtTick, 1000)   // §0: the SAME interval as the world. Nought running faster than Tallyholm taught a newcomer a rhythm they would have to unlearn on arrival, which is the one thing a practice world must never do.
     noughtBanner(true)
+    kitShow(true)   // §0h: and the wardrobe, which exists only while Nought does
     noughtCard()
   } catch (e) {
     feed('This window could not build the practice island (' + e.message + '). You are watching Tallyholm from outside it: you cannot act there yet, but your wait is running and you can still cross.')
@@ -9862,6 +9991,7 @@ function noughtBanner(on) {
   const cv = document.getElementById('world')
   if (cv) cv.style.filter = on ? 'saturate(.4) contrast(.96) brightness(.97)' : ''
   if (!on) {
+    kitShow(false)   // §0h: the kit goes when the practice world does
     if (bannerEl) bannerEl.style.display = 'none'
     if (hudEl) hudEl.style.display = 'none'
     if (fountainEl) fountainEl.style.display = 'none'

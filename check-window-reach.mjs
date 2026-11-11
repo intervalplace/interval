@@ -191,6 +191,12 @@ vm.runInContext(body + `
   tile: (x, y) => { const c9 = document.createElement('canvas')
     c9.width = 64; c9.height = 64; paintGroundTile(c9.getContext('2d'), x, y) },
   said: () => feedLines.slice(),
+  // §0h: the kit, and the guard on it. NO BACKTICKS IN THIS BLOCK.
+  kitRows: () => kitRows(),
+  kitGive: (item, how) => kitGive(item, how),
+  kitHtml: () => { const pan = document.getElementById('kitpanel')
+    drawKit(); return pan ? pan.innerHTML : '' },
+  inNought: () => !!nought,
   // POINT THE WORLD AT THE WINDOW'S OWN PREPARED STATE. set() hands the
   // window the raw object this file built, and onState works on a JSON COPY:
   // every index the state preparation computes -- the node list, the ground
@@ -1701,6 +1707,71 @@ console.log('\n--- 8q. a window never guesses a constitutional number ---')
   ok(bad.length === 0, bad.length === 0
     ? 'and none of them counts plain ore, which this founding does not mine'
     : bad.length + ' still count plain ore')
+}
+
+console.log('\n--- 8r. the kit is in Nought and nowhere else ---')
+{
+  // "I think we need a way I can try every item without having to grind
+  // everything myself: to test all the weapons and their gambits and how it
+  // looks when worn."
+  //
+  // The obvious wrong answer is a cheat in the real window. Tallyholm is
+  // permanent and everything in it was earned by somebody; a door that puts a
+  // dragonbow in your hand there is a hole in the whole of it, and a hole
+  // that exists only for testing is still a hole, because the window that
+  // ships is the window that tests.
+  //
+  // Nought already is the answer: a private copy of the island where nothing
+  // is saved and nothing can be lost, which hands you every gated tool and
+  // ten thousand gold and whose own card says "so use it, fight something far
+  // too big for you". A wardrobe of every weapon is that sentence finished.
+  //
+  // THE GUARD IS THE WHOLE TEST. This harness never enters Nought, so the
+  // kit must refuse it here, and refuse it out loud rather than silently.
+  ok(!ctx.__h.inNought(), 'this window is not in the practice world')
+  const st = fresh()
+  ctx.__h.msg({ type: 'state', state: st, worldId: WID })
+  await new Promise((r) => setImmediate(r))
+  ctx.__h.set(st, ID)
+  ctx.__h.hush()
+  const before = JSON.stringify(st.players[ID].equipment)
+  ctx.__h.kitGive('dragonbow', 'wear')
+  ok(JSON.stringify(st.players[ID].equipment) === before,
+    JSON.stringify(st.players[ID].equipment) === before
+      ? 'and the kit puts nothing in a citizen’s hand outside it'
+      : 'THE KIT ARMED A CITIZEN IN THE REAL WORLD')
+  ok(/no kit in the world itself/.test(ctx.__h.said().join(' ')),
+    /no kit in the world itself/.test(ctx.__h.said().join(' '))
+      ? 'and says why: ' + ctx.__h.said()[0]
+      : 'and refused in silence (' + (ctx.__h.said().join(' / ') || 'nothing') + ')')
+  // and the button is not on the page either
+  ok(/id="kitbtn"[^>]*display:none/.test(html),
+    'and the button it hangs on starts hidden')
+  // WHAT IT HOLDS is read off the window's own tables, so a weapon added to
+  // the world next year is in the kit the day it is added
+  const rows = ctx.__h.kitRows()
+  const listed = new Set([...Object.values(rows.worn).flat(), ...rows.rest])
+  const missing = [...E.EQUIPPABLE].filter((i) => !listed.has(i))
+  ok(missing.length === 0, missing.length === 0
+    ? 'it holds every one of the ' + [...E.EQUIPPABLE].length + ' things a citizen can wear'
+    : missing.length + ' wearable things are not in the kit: ' + missing.slice(0, 8).join(', '))
+  // every weapon that HAS a gambit is in it, which is the thing asked for
+  const gambits = Object.keys(JSON.parse('{' + (html.match(/const GAMBIT_OF = \{([\s\S]*?)\}/) ?? [, ''])[1]
+    .replace(/,\s*$/, '') + '}'))
+  const noGambit = gambits.filter((w) => !listed.has(w))
+  ok(noGambit.length === 0, noGambit.length === 0
+    ? 'and all ' + gambits.length + ' weapons that carry a gambit: ' + gambits.join(', ')
+    : 'these carry a gambit and are not in the kit: ' + noGambit.join(', '))
+  // and the food, because how a thing looks is only half of trying it
+  const food = Object.keys(E.HEALS ?? {}).filter((i) => !listed.has(i))
+  ok(food.length === 0, food.length === 0
+    ? 'and the whole larder'
+    : food.length + ' foods are not in the kit: ' + food.join(', '))
+  // the panel draws, and says where you are before it says anything else
+  const h9 = ctx.__h.kitHtml()
+  ok(h9 === '', h9 === ''
+    ? 'and the panel itself draws nothing outside the practice world'
+    : 'the kit panel drew ' + h9.length + ' characters in the real world')
 }
 
 console.log('\n--- 8k. the world does not spell itself out ---')

@@ -259,6 +259,18 @@ const AFTER = (plan, state, myId) => `<script>
   const NOPRESS = ${JSON.stringify(NOPRESS)}
   const PICK = ${JSON.stringify(PICK)}
   const BOOK = ${JSON.stringify(process.argv.includes('--book'))}
+  // §0h: --kit photographs the practice world's wardrobe. The kit refuses to
+  // exist outside Nought, which is the whole of its design, so this stands up
+  // the smallest Nought there can be -- a marker that the practice world is
+  // running -- and opens the panel. It gives nothing and signs nothing: the
+  // subject is what the panel LOOKS like, and a photograph of a locked door
+  // is not a photograph of the room.
+  const KIT = ${JSON.stringify(process.argv.includes('--kit'))}
+  // --wear a,b,c: take those out of the kit and put them on, which is the
+  // whole point of the thing. Pressed through the panel's own cells rather
+  // than by calling the giver, because a kit that dresses a citizen only
+  // when a script asks it directly is not a kit anybody can use.
+  const WEAR = ${JSON.stringify(arg('--wear') ?? '')}
   const METER = ${JSON.stringify(METER)}
   ;(async () => {
     const say = (t) => { document.title = t }
@@ -401,6 +413,18 @@ const AFTER = (plan, state, myId) => `<script>
           const bb = document.getElementById('bookbtn')
           if (bb) { bb.click(); await settle(300) }
         }
+        if (KIT || WEAR) {
+          nought = { state: STATE, wid: 'sweep', inputs: [] }
+          kitShow(true)
+          const kb = document.getElementById('kitbtn')
+          if (kb) { kb.click(); await settle(400) }
+          for (const want of WEAR.split(',').filter(Boolean)) {
+            const cell = document.querySelector('[data-kit="' + want + '"]')
+            if (!cell) { say('SWEEPFAIL the kit has no ' + want); return }
+            cell.click(); await settle(120)
+          }
+          if (WEAR) { await settle(400); drawScene(performance.now()) }
+        }
         const errM = document.getElementById('frameerr')
         if (errM) { say('SWEEPFAIL the window could not draw: '
           + errM.textContent.replace(/\\s+/g, ' ').slice(0, 200)); return }
@@ -423,6 +447,7 @@ const AFTER = (plan, state, myId) => `<script>
               : (NOPRESS ? 'MENUOK (no press) at ' + mx + ',' + my
                  + ' [' + (window.__picked ?? '') + ']'
                  : BOOK && bp ? 'MENUOK book ' + bp.textContent.replace(/\\s+/g, ' ').slice(0, 240)
+                 : KIT ? 'MENUOK kit ' + (document.getElementById('kitpanel')?.querySelectorAll('[data-kit]').length ?? 0) + ' things'
                  // AND PICKING AN OPTION CLOSES THE MENU, which is what an
                  // option is for. This reported every such press as a window
                  // that failed to open a menu, so the whole class of answers
