@@ -1,7 +1,7 @@
 # Interval. Testing & Freeze Evidence
 
 Release 1.0.6, protocol spec v1.05, consensus spec v1.10, rules hash
-`7fb88152aa7637f6…`.
+`04955727de475892…`.
 
 This document states exactly what is tested, with what inputs, for how
 long. Coverage is **finite and enumerated**, the claims below are about
@@ -10,7 +10,7 @@ possible executions.
 
 ## Unit + property suite (`npm test`)
 
-`node --test test/*.test.mjs`, 682 tests across:
+`node --test test/*.test.mjs`, 688 tests across:
 
 - `leak.test.mjs`, §21c: no write reaches the caller's state. Exercises the
   paths where one citizen touches another (striking, being hunted, trading,
@@ -371,6 +371,15 @@ possible executions.
 - `site.test.mjs`, that the hiscores board's ranking and its label agree
 - `site.content.test.mjs`, the FACTS in the site's prose against the engine,
   and that every page the router offers loads only assets that are on disk
+- `grace.test.mjs`, §6bw-ii: that a citizen who began the interval above half
+  their flesh cannot end it dead. Written from the case that caused it, which
+  is three horn-bow archers in the Wilds opening together: nine arrows in one
+  tick against sixty-four flesh, and the target had no interval in which to
+  eat, to cast the stilling or to take a step. Six checks, and three of them
+  fail against the FIRST draft of the rule, which read "a blow cannot take a
+  citizen from above half to nothing" and misses the whole case: the third
+  arrow lands on somebody already below half. The question is asked of the
+  interval, not of the blow
 - `prose.test.mjs`, the rules nothing was enforcing: that
   `spec-conformance.mjs` passes (it was never run by anything, which is how
   fifteen divergences sat in the report unactioned), and that no long dash

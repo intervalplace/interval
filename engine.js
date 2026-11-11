@@ -2173,6 +2173,52 @@ function spillDrops(s, beacon, pid, p, m, mid, stats) {
   }
 }
 
+// §6bw-ii: A CITIZEN WHO WAS WHOLE WHEN THE INTERVAL BEGAN IS NOT DEAD WHEN
+// IT ENDS.
+//
+// THE CASE. Three horn-bow archers stand in the Wilds with their arms set. A
+// flurry is three blows of eight, flesh is a flat sixty-four, and every one of
+// them lands in the SAME interval. The target goes from whole to nothing
+// inside one tick of the world, having had no interval in which to eat, to
+// speak, to cast the stilling or to take a single step. There is no recall in
+// this world any more (§6bq repealed it), so there is no answer to this at all.
+//
+// A COORDINATED KILL IS NOT THE PROBLEM AND MUST NOT BE FIXED. Three citizens
+// agreeing to meet in the Wilds and open together is the world working: it
+// costs them the walk, the muster and three spent arms, and it should be
+// devastating. What is wrong is that the person it happens to never gets a
+// turn.
+//
+// SO IT IS NOT A TELEGRAPH. A warning only helps somebody who has an interval
+// to act in, and the whole of the fault is that they have none: seeing it
+// coming would tell them they were about to die without letting them do
+// anything about it. What the victim is owed is not information, it is the
+// world's atom of agency, which is ONE INTERVAL.
+//
+// MEASURED FROM THE START OF THE INTERVAL, NOT FROM THE BLOW. The first cut
+// of this read "a blow cannot take a citizen from above half to nothing",
+// which fails the exact case it was written for: the first arrow takes you to
+// forty, the second to sixteen, and the third lands on somebody who is below
+// half and kills them. Every blow after the first is a blow against a wounded
+// citizen. The question has to be asked of the interval, which is why the
+// health at the top of it is remembered.
+//
+// AND IT DOES NOT TREAD ON THE PLATE. §6bw gives the great-plate a save from
+// death at ANY health, once, and shatters it. That is still strictly more
+// than this: this only holds for somebody who began the interval above half,
+// so the plate keeps its own job and becomes what it should be -- the
+// insurance for when you are already hurt. It is asked SECOND, so the plate
+// is never spent on a death this rule would have held anyway.
+//
+// WHAT IT IS NOT: immortality. At one, a citizen is far below half, so the
+// next interval kills them. It cannot chain.
+function woundCitizen(s, q, amount) {
+  if (q.hurtTick !== s.tick) { q.hurtTick = s.tick; q.hurtFrom = q.health; }
+  q.health -= amount;
+  if (q.health > 0) return false;
+  if ((q.hurtFrom ?? 0) * 2 > maxHealth(q)) { q.health = 1; return true; }
+  return false;
+}
 function platedFromDeath(q) {
   if (q.equipment?.body?.item !== 'great-plate') return false;
   q.equipment.body = null;          // shattered, not dropped: it is gone
@@ -9035,7 +9081,7 @@ function validateState(state) {
   const PLAYER_REQUIRED = ['x', 'y', 'skills', 'health', 'equipment', 'vaults', 'lastInput', 'gold', 'inventory', 'action', 'name', 'trade'];
   const PLAYER_OPTIONAL = new Set(['hooded', 'crops', 'attuned', 'brandedUntil', 'cooksTried', 'deadUntil',
     // §6c-ii: the wound the dead leave, and the tally that never falls
-    'calling', 'offered', 'wounds', 'deaths', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte', 'look', 'lastTransmute', 'stillAt', 'deed', 'lastMend', 'shotsFired', 'consignment', 'paidUntil', 'brewing', 'buried', 'nocked', 'blows', 'following', 'book', 'rottingUntil', 'rotBy', 'witheredUntil', 'fedLeft', 'fedRate', 'lastTaking', 'lastWaking', 'friends', 'chartered',
+    'calling', 'offered', 'wounds', 'deaths', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte', 'look', 'hurtTick', 'hurtFrom', 'lastTransmute', 'stillAt', 'deed', 'lastMend', 'shotsFired', 'consignment', 'paidUntil', 'brewing', 'buried', 'nocked', 'blows', 'following', 'book', 'rottingUntil', 'rotBy', 'witheredUntil', 'fedLeft', 'fedRate', 'lastTaking', 'lastWaking', 'friends', 'chartered',
     // §5r-iv: the countries this citizen has stood in, which is half the door
     // to a calling
     'walked',
@@ -9297,7 +9343,7 @@ function validateState(state) {
         if (!isId(w)) return 'malformed attunement';
       }
     }
-    for (const tk of ['brandedUntil', 'deadUntil', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'lastSwing', 'lastAte', 'shotsFired', 'burnUntil', 'paidUntil']) if (p[tk] !== undefined && !isInt(p[tk], 0, MAX_TIME)) return `${tk} out of bounds`;
+    for (const tk of ['brandedUntil', 'deadUntil', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'lastSwing', 'lastAte', 'shotsFired', 'burnUntil', 'paidUntil', 'hurtTick', 'hurtFrom']) if (p[tk] !== undefined && !isInt(p[tk], 0, MAX_TIME)) return `${tk} out of bounds`;
     // §6m-vii: the mending debt is health and a rate, not ticks. Bounded by
     // the richest food in the world and by the fastest, so neither can be
     // forged into an unbounded regeneration by a malformed checkpoint.
@@ -13494,7 +13540,12 @@ function nextState(state, inputs, _legacyBeacon) {
     for (const [_oid, _o] of Object.entries(bag)) {
       if (!_o || _o.health <= 0 || (_o.rottingUntil ?? 0) <= s.tick) continue;
       if (s.tick % ROT_EVERY !== 0) continue;
-      _o.health -= ROT_BITE;
+      // §6bw-ii: the rot gets the same answer as a blow when it is eating a
+      // citizen, and plain arithmetic when it is eating a beast. It almost
+      // never fires: a bite of three only reaches nothing from a citizen who
+      // is already far below half, and such a citizen is not held.
+      if (bag === s.players) woundCitizen(s, _o, ROT_BITE);
+      else _o.health -= ROT_BITE;
       const _caster = s.players[_o.rotBy];
       if (_caster) gainXp(_caster, 'sorcery', ROT_BITE);
       if (_o.health <= 0) { delete _o.rottingUntil; delete _o.rotBy; }
@@ -14536,7 +14587,11 @@ function nextState(state, inputs, _legacyBeacon) {
           const soak = 0;
           const hit = canBreathe ? (st.breathHit ?? st.maxHit)
                     : (mirrorHit !== null ? mirrorHit : (m.maxHit ?? st.maxHit));
-          target.health -= afterShield(target, Math.max(1, 1 + (roll(beacon, mid, 'mobdmg') % hit) - soak));   // 6bz
+          // §6bw-ii: a beast cannot take a whole citizen to nothing either. The
+          // dragon is the reason this matters: it is the one thing in the world
+          // that kills a citizen in full star gear, and it should go on doing
+          // that -- in two intervals rather than one, with a breath between.
+          woundCitizen(s, target, afterShield(target, Math.max(1, 1 + (roll(beacon, mid, 'mobdmg') % hit) - soak)));   // 6bz
           // §6bw: and it holds against a beast exactly as it holds against a
           // citizen. A rule that saved you from people but not from the dragon
           // would be a rule about PvP wearing armour's clothes.
@@ -15938,8 +15993,9 @@ function nextState(state, inputs, _legacyBeacon) {
           // way to show six numbers is for the engine to have said six.
           if (!Array.isArray(q.blows)) q.blows = [];
           q.blows.push(landed9);
-          q.health -= landed9;   // 6bz, §6bt
-          if (q.health <= 0 && platedFromDeath(q))   // §6bw: the plate says no, once
+          if (woundCitizen(s, q, landed9))   // §6bw-ii: one interval, always
+            announce(s, (q.name ?? 'A citizen') + ' is left standing with nothing to spare.');
+          else if (q.health <= 0 && platedFromDeath(q))   // §6bw: the plate says no, once
             announce(s, (q.name ?? 'A citizen') + "'s plate shatters, and holds.");
           if (w9?.burns === true && dmg9 > 0) catchFire(q, s.tick, null);   // §6bu
           // §6as-ii: split exactly as an ordinary melee blow splits. A gambit
@@ -17279,7 +17335,9 @@ function nextState(state, inputs, _legacyBeacon) {
           if (s.players[oid] && oid !== inp.targetId && !mayStrike(s, p, o)) return;
           if (oid === pid) return;                       // never yourself
           const dmg = Math.max(0, styleRoll(roll(beacon, pid, 'wake' + oid), WAKING_HIT, 'even'));
-          o.health -= dmg; struck++;
+          // §6bw-ii: a citizen caught by the waking is held like any other
+          if (s.players[oid]) woundCitizen(s, o, dmg); else o.health -= dmg;
+          struck++;
           gainXp(p, 'sorcery', dmg);
         };
         for (const [oid, o] of Object.entries(s.players)) hitOne(o, oid);
@@ -17624,8 +17682,9 @@ function nextState(state, inputs, _legacyBeacon) {
           if (firingFire(p) && dmg > 0 && s.players[p.action.targetId]
               && armourOf(s.players[p.action.targetId]) < FIRE_CATCH_ARMOUR)
             catchFire(s.players[p.action.targetId], s.tick, null);
-          q.health -= afterShield(q, dmg, weaponOf(p));   // 6bz, §6bt
-          if (q.health <= 0 && platedFromDeath(q))   // §6bw
+          if (woundCitizen(s, q, afterShield(q, dmg, weaponOf(p))))   // §6bw-ii
+            announce(s, (q.name ?? 'A citizen') + ' is left standing with nothing to spare.');
+          else if (q.health <= 0 && platedFromDeath(q))   // §6bw
             announce(s, (q.name ?? 'A citizen') + "'s plate shatters, and holds.");
           if (weaponOf(p)?.burns === true && dmg > 0) catchFire(q, s.tick, null);   // §6bu
           burnFuel(p);   // §7am: the siphon drinks
@@ -18655,7 +18714,7 @@ module.exports = {
   // for ten planks and two iron-ore, and printed a third pair of numbers on
   // the button. Three copies, no two agreeing, and nothing could have caught
   // it because there was no door to compare against.
-  MARKET_PLANKS, MARKET_ORE, MARKET_OWNED, TOLL_PLANKS,
+  MARKET_PLANKS, MARKET_ORE, MARKET_OWNED, TOLL_PLANKS, woundCitizen,
   // §7ek: and the three deferred works, for the same reason. A grove plot, a
   // willow buck and a smokerack are the only three kinds of thing on this
   // island a citizen could not reach from the main window at all, and the
