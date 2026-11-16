@@ -7453,7 +7453,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b111'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b112'  // stamp: if your screen says an older build, hard-refresh
 // ===========================================================================
 // WHAT A CITIZEN IS SEEN TO BE DOING
 //
@@ -12937,6 +12937,76 @@ function _guarded(what, fn) {
 
 // §7eo: swapped by the meter, a no-op otherwise. See the layer flush.
 let _layerMark = () => {}
+
+// §7ep: AND WHAT YOU HEAR, YOU SOMETIMES SEE.
+//
+// §7el gave every country its own voice: frogs are the fens, a curlew is the
+// moor and nothing else, the Wilds are silence with one far-off howl in it.
+// That was half a sentence. The eight countries that sound different all look
+// equally dead, and a place that is heard and never seen reads as a sound
+// effect rather than as somewhere inhabited.
+//
+// So each country gets ONE living thing, and it is the thing it already says.
+// Nothing here is decoration on a timer: a frog in the fens is the frog you
+// can hear, and the crow over the moor is the curlew's neighbour.
+//
+// ALWAYS SPARSE, for the same reason the sound is. Something that arrives on
+// a schedule stops being seen. At most a handful alive at once, each living a
+// few seconds and gone: the quiet between is the point, and this window has
+// just spent a year's worth of effort getting a frame DOWN (§7eo) and is not
+// going to hand it back to butterflies.
+const LIFE_CAP = 5
+let lives = [], lifeAt = 0
+// a bird is drawn over everything and throws a shadow on the ground under it,
+// which is the whole of what says "flying" rather than "standing"; a hopper
+// is drawn on the ground at its own depth, among the things it hops between.
+const LIFE = {
+  greenwood:  { day: ['pigeon', 'flit'], night: ['moth'] },
+  heartlands: { day: ['swallow', 'flit'], night: ['moth'] },
+  downs:      { day: ['lark', 'hare'],   night: [] },
+  fens:       { day: ['frog', 'heron'],  night: ['frog'] },
+  moor:       { day: ['crow'],           night: [] },
+  crags:      { day: ['hawk'],           night: [] },
+  // the Wilds get one carrion bird and nothing else. A place says it is
+  // dangerous by what is willing to live in it.
+  wilds:      { day: ['carrion'],        night: ['carrion'] },
+  sea:        { day: ['gull', 'gull'],   night: [] },
+}
+const FLIERS = new Set(['pigeon', 'swallow', 'lark', 'crow', 'hawk', 'heron',
+  'carrion', 'gull', 'moth', 'flit'])
+function lifeTick(s, now, isDay) {
+  // thin the dead out first, so the cap is about what is actually alive
+  if (lives.length) lives = lives.filter((l) => now - l.born < l.life)
+  if (now - lifeAt < 900) return
+  lifeAt = now
+  const meL = s.players?.[myId]; if (!meL) return
+  if (lives.length >= LIFE_CAP) return
+  // THE SAME QUESTION THE EARS ASK, asked the same way. `AMBIENCE_FOR` maps a
+  // named place to its country and the shore is not a country: standing on
+  // sand is the one time you should see gulls rather than the moor's crow.
+  // Two tables keyed differently would put a frog on a crag within a month.
+  const onSand = typeof terrainOf === 'function'
+    && /sand|shore|beach/.test(String(terrainOf(meL.x, meL.y) ?? ''))
+  const here = LIFE[onSand ? 'sea' : AMBIENCE_FOR[regionNameAt(meL.x, meL.y)]]
+  const pool = here ? (isDay ? here.day : here.night) : null
+  if (!pool || !pool.length) return
+  if (Math.random() > 0.34) return            // most wakings nothing happens
+  const kind = pool[(Math.random() * pool.length) | 0]
+  const fly = FLIERS.has(kind)
+  // born off one edge of the view and crossing it, or sat on the ground near
+  // enough to be noticed and far enough not to be in the way
+  const span = 13
+  const dir = Math.random() < 0.5 ? 1 : -1
+  lives.push(fly
+    ? { kind, fly: true, born: now, life: 7000 + Math.random() * 4000,
+        x: meL.x - dir * span, y: meL.y - 3 - Math.random() * 7,
+        vx: dir * (0.0016 + Math.random() * 0.0014),
+        vy: (Math.random() - 0.5) * 0.0004,
+        bob: Math.random() * 7, hi: 10 + Math.random() * 16 }
+    : { kind, fly: false, born: now, life: 6000 + Math.random() * 5000,
+        x: meL.x + (Math.random() * 10 - 5), y: meL.y + (Math.random() * 8 - 4),
+        hopAt: now, hx: 0, hy: 0 })
+}
 function drawScene(now) {
   const s = curState; if (!s || !groundReady) return
   cx.setTransform(ZR, 0, 0, ZR, 0, 0) // the whole frame, a step closer (and in HD, twice as fine)
@@ -17447,6 +17517,107 @@ function drawScene(now) {
   drawHaulMarker(s, t)
 
   drawGoalMarker(s, t)
+  // §7ep: ONE HOUR, ASKED ONCE. The same arithmetic the ambient sound uses,
+  // so the frog that croaks at dusk is the frog that is sitting there.
+  {
+    const cycL = dayCyc(((s.tick % 2400) / 2400))
+    lifeTick(s, now, cycL > 0.03 && cycL < 0.5)
+  }
+  // §7ep: the living things, into the same sorted list as everything else, so
+  // a heron passes OVER a hedge and a frog sits among the reeds rather than
+  // on top of them. See lifeTick.
+  for (const L of lives) {
+    const age = (now - L.born) / L.life
+    if (L.fly) {
+      L.x += L.vx * 16; L.y += L.vy * 16
+      const wx = L.x, wy = L.y, hi = L.hi
+      layer.push({ kind: 'life', z: Z(wy, 9), draw: () => {
+        const X = px(wx) + 20, Y = py(wy) + 20
+        const flap = Math.sin(now / (L.kind === 'hawk' ? 460 : L.kind === 'moth' ? 70 : 150) + L.bob)
+        const fade = age < 0.1 ? age * 10 : age > 0.85 ? (1 - age) * 6.7 : 1
+        cx.globalAlpha = Math.max(0, Math.min(1, fade))
+        // the shadow is the whole of what says FLYING rather than standing
+        // the shadow sits on the ground well below it, which is the whole of
+        // what says FLYING rather than standing
+        cx.fillStyle = 'rgba(0,0,0,.20)'
+        cx.beginPath(); cx.ellipse(X, Y + 10, 5.5, 2, 0, 0, 7); cx.fill()
+        const ink = L.kind === 'crow' || L.kind === 'carrion' ? '#1d1c22'
+          : L.kind === 'gull' ? '#e8e6de' : L.kind === 'hawk' ? '#6b5334'
+          : L.kind === 'heron' ? '#9aa3a8' : L.kind === 'moth' ? '#d8cfae'
+          : L.kind === 'swallow' ? '#2e3540' : L.kind === 'lark' ? '#6e5a3a' : '#43402f'
+        // A PAIR OF HAIRLINES IS NOT A BIRD. The first cut drew two 1.6px
+        // curves six pixels wide in a dark ink on dark grass, and the only
+        // way to find one in a photograph was to compute where it ought to be
+        // and crop to it. Something meant to be noticed out of the corner of
+        // an eye has to have mass: a body, wings with some span, and a pale
+        // edge so it reads against the ground as well as against the sky.
+        const sp = L.kind === 'heron' ? 13 : L.kind === 'hawk' ? 12
+          : L.kind === 'gull' || L.kind === 'crow' || L.kind === 'carrion' ? 10
+          : L.kind === 'moth' || L.kind === 'flit' ? 5 : 8
+        const bodyR = L.kind === 'moth' || L.kind === 'flit' ? 1.6 : 2.6
+        cx.lineWidth = L.kind === 'moth' || L.kind === 'flit' ? 1.8 : 2.6
+        cx.lineJoin = 'round'; cx.lineCap = 'round'
+        const wingY = Y - hi + flap * 3
+        // the pale edge first, a shade wider, so the shape survives whatever
+        // it happens to be passing over
+        // THE EDGE IS A LIFT, NOT A COLOUR. At .45 and a pixel and a half
+        // wider it swallowed the small birds whole: a flit came out as a pale
+        // crescent, which is a gull, and the one thing the Greenwood's bird
+        // must not look like is the shore's.
+        cx.strokeStyle = 'rgba(246,243,232,.26)'
+        cx.lineWidth += 1.1
+        cx.beginPath()
+        cx.moveTo(X - sp, wingY)
+        cx.quadraticCurveTo(X, Y - hi - flap * 3.4, X + sp, wingY)
+        cx.stroke()
+        cx.lineWidth -= 1.1
+        cx.strokeStyle = ink
+        cx.beginPath()
+        cx.moveTo(X - sp, wingY)
+        cx.quadraticCurveTo(X, Y - hi - flap * 3.4, X + sp, wingY)
+        cx.stroke()
+        cx.fillStyle = ink
+        cx.beginPath(); cx.ellipse(X, Y - hi, bodyR * 1.5, bodyR, 0, 0, 7); cx.fill()
+        if (L.kind === 'heron' || L.kind === 'carrion' || L.kind === 'hawk') {
+          cx.strokeStyle = ink; cx.lineWidth = 2
+          cx.beginPath(); cx.moveTo(X + bodyR, Y - hi); cx.lineTo(X + bodyR + 4, Y - hi + 1); cx.stroke()
+        }
+        cx.globalAlpha = 1
+      } })
+    } else {
+      // a hopper: still, then a short jump, then still again
+      if (now - L.hopAt > 1400) { L.hopAt = now
+        L.hx = (Math.random() - 0.5) * 1.6; L.hy = (Math.random() - 0.5) * 1.2 }
+      const k = Math.min(1, (now - L.hopAt) / 420)
+      const hopX = L.x + L.hx * k, hopY = L.y + L.hy * k
+      const lift = Math.sin(k * Math.PI) * 5
+      if (k >= 1) { L.x = hopX; L.y = hopY; L.hx = 0; L.hy = 0 }
+      layer.push({ kind: 'life', z: Z(hopY, 1), draw: () => {
+        const X = px(hopX) + 20, Y = py(hopY) + 26
+        const fade = age < 0.1 ? age * 10 : age > 0.85 ? (1 - age) * 6.7 : 1
+        cx.globalAlpha = Math.max(0, Math.min(1, fade))
+        cx.fillStyle = 'rgba(0,0,0,.18)'
+        cx.beginPath(); cx.ellipse(X, Y + 2, 4, 1.5, 0, 0, 7); cx.fill()
+        // the same lesson the birds taught: a thing meant to catch the corner
+        // of an eye needs a little mass and an edge against the ground
+        cx.fillStyle = L.kind === 'hare' ? '#8a7352' : '#4a6b3a'
+        cx.beginPath(); cx.ellipse(X, Y - 3 - lift, 5.5, 4, 0, 0, 7); cx.fill()
+        cx.strokeStyle = 'rgba(246,243,232,.22)'; cx.lineWidth = 1.2
+        cx.beginPath(); cx.ellipse(X, Y - 3 - lift, 5.5, 4, 0, 0, 7); cx.stroke()
+        if (L.kind === 'hare') {   // the ears are the whole of a hare
+          cx.strokeStyle = '#8a7352'; cx.lineWidth = 1.2
+          cx.strokeStyle = '#8a7352'; cx.lineWidth = 1.4
+          cx.beginPath(); cx.moveTo(X + 1, Y - 7 - lift); cx.lineTo(X + 2, Y - 13 - lift); cx.stroke()
+          cx.beginPath(); cx.moveTo(X + 3.4, Y - 7 - lift); cx.lineTo(X + 5.2, Y - 12.4 - lift); cx.stroke()
+        } else {                   // a frog sits low and wide, with two eyes up
+          cx.fillStyle = '#2f4a26'
+          cx.beginPath(); cx.arc(X - 2, Y - 6 - lift, 1.3, 0, 7); cx.fill()
+          cx.beginPath(); cx.arc(X + 2, Y - 6 - lift, 1.3, 0, 7); cx.fill()
+        }
+        cx.globalAlpha = 1
+      } })
+    }
+  }
   layer.sort((a, b) => a.z - b.z)
   // §7eo: AND WHAT EACH THING COST, when somebody is asking. A frame of this
   // window is thirty to sixty thousand canvas calls and almost all of them are

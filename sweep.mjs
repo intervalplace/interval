@@ -281,6 +281,11 @@ const AFTER = (plan, state, myId) => `<script>
   const SHOOT = ${JSON.stringify(process.argv.includes('--shoot'))}
   // --gambit: set the arm, so the mark that says you are set can be seen
   const GAMBIT = ${JSON.stringify(process.argv.includes('--gambit'))}
+  // --life: fill the country's living things at once and photograph them.
+  // They are deliberately sparse -- most wakings nothing happens -- so a
+  // picture taken at a random moment is a picture of an empty field, which
+  // is a photograph of the design working and no use for looking at the art.
+  const LIFE_SHOW = ${JSON.stringify(process.argv.includes('--life'))}
   const METER = ${JSON.stringify(METER)}
   ;(async () => {
     const say = (t) => { document.title = t }
@@ -417,15 +422,6 @@ const AFTER = (plan, state, myId) => `<script>
         cv.dispatchEvent(new MouseEvent('pointerup',
           { clientX: sx, clientY: sy, bubbles: true }))
         await settle(400)
-        // AND WHAT THE CANVAS ITSELF HOLDS, beside what the page screenshot
-        // shows. If the two disagree the fault is in the screenshot, not in
-        // the window, and there is no way to tell them apart without both.
-        {
-          const b2 = document.createElement('div')
-          b2.id = 'sweepout'; b2.textContent = cv.toDataURL('image/png')
-          b2.style.cssText = 'display:none'   // in the DOM for --dump-dom, not on the page
-          document.body.appendChild(b2)
-        }
         if (PICK !== null && PICK !== undefined) {
           const first = document.getElementById('ctxmenu')
           const rows = first ? [...first.querySelectorAll('button')] : []
@@ -448,6 +444,10 @@ const AFTER = (plan, state, myId) => `<script>
           const bb = document.getElementById('bookbtn')
           if (bb) { bb.click(); await settle(300) }
         }
+        // THE KIT'S SETUP IS THE KIT'S. --life and --gambit were written inside
+        // this block and so never ran on their own: a flag that silently does
+        // nothing is the worst kind, because the picture comes back looking
+        // like the feature is missing rather than like the switch is.
         if (KIT || WEAR) {
           nought = { state: STATE, wid: 'sweep', inputs: [] }
           kitShow(true)
@@ -472,8 +472,57 @@ const AFTER = (plan, state, myId) => `<script>
             feedOne({ type: 'state', state: JSON.parse(JSON.stringify(STATE)), worldId: 'sweep' })
             await settle(500)
           }
-          if (GAMBIT) { gambitArmed = true; await settle(200) }
-          if (WEAR || GAMBIT) { await settle(400); drawScene(performance.now()) }
+        }
+        if (LIFE_SHOW) {
+            // TWO THINGS ABOUT THE VIRTUAL CLOCK, both of which made this
+            // photograph an empty field. performance.now() does not advance
+            // inside a task, so the spawner's own "not more than once a
+            // second" gate never opens after the first call: lifeAt has to be
+            // pushed into the far past each time. And every living thing
+            // fades in over the first tenth of its life, so one born at this
+            // instant is drawn at zero alpha. They are backdated to the
+            // middle of their lives, which is also the only honest thing to
+            // photograph: the middle is what anybody actually sees.
+            lives = []
+            for (let i = 0; i < 40 && lives.length < LIFE_CAP; i++) {
+              lifeAt = -1e9
+              lifeTick(STATE, performance.now(), true)
+            }
+            // AND STOOD WHERE THEY CAN BE FOUND. They are born off the edge
+            // of the view on purpose, which is right for the world and no use
+            // for a photograph of the art: three turns went into cropping
+            // where the arithmetic said one ought to be. Put them beside the
+            // citizen and there is nothing left to be wrong about.
+            const meL9 = STATE.players[ME]
+            lives.forEach((l, i) => {
+              l.born = performance.now() - l.life * 0.4
+              l.x = meL9.x - 3 + i * 1.6
+              l.y = meL9.y - (l.fly ? 2 : -1.5)
+            })
+            await settle(300)
+            // DID THE CLOSURES RUN. Everything else about this has been a
+            // guess so far; the layer names each thing it draws, so ask it.
+            window.__lifeDrawn = 0
+            _layerMark = (k) => { if (k === 'life') window.__lifeDrawn++ }
+            drawScene(performance.now())
+            _layerMark = () => {}
+          }
+        if (GAMBIT) { gambitArmed = true; await settle(200) }
+        if (WEAR || GAMBIT || LIFE_SHOW) { await settle(400); drawScene(performance.now()) }
+        // AND WHAT THE CANVAS ITSELF HOLDS, beside what the page screenshot
+        // shows. If the two disagree the fault is in the screenshot, not in
+        // the window, and there is no way to tell them apart without both.
+        //
+        // TAKEN LAST. This used to run before the kit, the gambit and the
+        // living things were put on the scene, so every one of those came
+        // back as a picture of an empty field: the canvas was photographed
+        // and then drawn. A snapshot belongs after everything that changes
+        // what is in it.
+        {
+          const b2 = document.createElement('div')
+          b2.id = 'sweepout'; b2.textContent = cv.toDataURL('image/png')
+          b2.style.cssText = 'display:none'   // in the DOM for --dump-dom, not on the page
+          document.body.appendChild(b2)
         }
         const errM = document.getElementById('frameerr')
         if (errM) { say('SWEEPFAIL the window could not draw: '
@@ -490,6 +539,10 @@ const AFTER = (plan, state, myId) => `<script>
           // and what the window SAID, which is where a refusal lands: a menu
           // is not the only answer a press can give
           + (feedLines.length ? ' | said: ' + feedLines.slice(-2).join(' / ') : '')
+          + (LIFE_SHOW ? ' | ' + regionNameAt(mx, my)
+             + ' -> ' + (AMBIENCE_FOR[regionNameAt(mx, my)] ?? 'NO COUNTRY')
+             + ', drew ' + (window.__lifeDrawn ?? 0) + ': '
+             + lives.map((l) => l.kind).join(', ') : '')
         const m = document.getElementById('ctxmenu')
         const bp = document.getElementById('bookpanel')
         say(m ? ('MENUOK ' + (window.__picked ? '[' + window.__picked + '] ' : '')
