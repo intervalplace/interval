@@ -2132,7 +2132,12 @@ test('the gold chain is drawn as the old chain, not as jewellery', () => {
 // half -- standing the window up and looking at whether creatures are in the
 // picture -- is what `sweep.mjs` does, and what found it in the end.
 test('the creature draw reads nothing before it is declared', () => {
-  const at = win.indexOf('layer.push({ z: Z(miy, 3), draw: () => {')
+  const at = win.indexOf("z: Z(miy, 3), draw: () => {")
+  // ANCHORED ON THE Z-ORDER, NOT THE WHOLE LITERAL. This matched
+  // "layer.push({ z: Z(miy, 3)..." exactly, so adding a field in FRONT of the
+  // z -- which is what naming each layer item for the frame meter did --
+  // read as the closure having moved. The thing that identifies a creature
+  // here is the depth it is drawn at.
   assert.ok(at > 0, 'the creature closure has moved')
   let d = 0, end = at
   for (let i = win.indexOf('{', at); i < win.length; i++) {
@@ -2252,7 +2257,7 @@ test('a throw anywhere in the frame cannot stop the loop', () => {
 // This walks the closure and counts: every `return` must leave as many saves
 // as it found. A `finally` satisfies it; a restore at the bottom does not.
 test('every way out of the creature draw leaves the canvas balanced', () => {
-  const at = win.indexOf('layer.push({ z: Z(miy, 3), draw: () => {')
+  const at = win.indexOf("z: Z(miy, 3), draw: () => {")
   assert.ok(at > 0, 'the creature closure has moved')
   let d = 0, end = at
   for (let i = win.indexOf('{', at); i < win.length; i++) {

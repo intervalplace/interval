@@ -7453,7 +7453,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b110'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b111'  // stamp: if your screen says an older build, hard-refresh
 // ===========================================================================
 // WHAT A CITIZEN IS SEEN TO BE DOING
 //
@@ -12935,6 +12935,8 @@ function _guarded(what, fn) {
   try { return fn() } catch (err) { _noteFrameErr(what, err); return undefined }
 }
 
+// §7eo: swapped by the meter, a no-op otherwise. See the layer flush.
+let _layerMark = () => {}
 function drawScene(now) {
   const s = curState; if (!s || !groundReady) return
   cx.setTransform(ZR, 0, 0, ZR, 0, 0) // the whole frame, a step closer (and in HD, twice as fine)
@@ -12996,7 +12998,7 @@ function drawScene(now) {
 
   // survey markers: pins the explorer walks to and claims (spec 7a)
   for (const mk of (s.markers ?? [])) {
-    layer.push({ z: Z(mk.y, 1), draw: () => {
+    layer.push({ kind: 'marker', z: Z(mk.y, 1), draw: () => {
       const X = px(mk.x), Y = py(mk.y), bob = Math.sin(now / 500 + mk.x) * 1.5, gold = mk.kind === 'ws'
       cx.strokeStyle = gold ? 'rgba(226,182,62,.5)' : 'rgba(127,208,255,.4)'; cx.lineWidth = 1.5
       cx.beginPath(); cx.ellipse(X + 20, Y + 31, 9, 3.5, 0, 0, 7); cx.stroke()
@@ -13012,7 +13014,7 @@ function drawScene(now) {
     const X = px(n.x), Y = py(n.y), dep = n.depletedUntil > s.tick
     if (famOf(n.type) === 'fishing-spot') {
       // ponds paint flat on the ground, below every standing thing
-      layer.push({ z: Z(n.y, 0), draw: () => {
+      layer.push({ kind: n.type, z: Z(n.y, 0), draw: () => {
         // one body of water, organic banks: exposed corners round off with
         // hash-jittered radii, shared edges run flush into the neighbor
         const adj2 = s._waterAdj?.[n.x + ',' + n.y] ?? { n: false, s: false, e: false, w: false }
@@ -13071,7 +13073,7 @@ function drawScene(now) {
       }})
       continue
     }
-    layer.push({ z: Z(n.y, 2), draw: () => {
+    layer.push({ kind: n.type, z: Z(n.y, 2), draw: () => {
       if (n.type === 'keeper') {
         // WHO IS THIS? Every keeper on the island drew the same brown figure,
         // and drew it thirteen pixels above its own shadow, which is why they
@@ -15789,16 +15791,36 @@ function drawScene(now) {
         // was inset four pixels all round and drawn two shades darker than
         // the grass it sits in, which is what made it an OBJECT lying on the
         // field instead of a piece of the field somebody had turned over.
+        // AND THE SOIL REACHES THE TILE EDGE WHERE THE BED CONTINUES. The body
+        // is inset two pixels top and bottom, and the clods used to cover that
+        // gap on every side. Drawing them only on the exposed sides left a
+        // GREEN BAND of grass across every join in a column: the inset was
+        // load-bearing and nothing said so. It is a run, and a run reaches its
+        // edge, the same answer the wall and the fence and the hedge give.
+        const pw = runWays(s, 'plot', PLOT_JOINS, null, n.x, n.y)
         cx.fillStyle = '#6b533a'
-        cx.fillRect(X, Y + 2, TILE, TILE - 4)
-        // the edge is broken, because a spade does not rule a line
+        cx.fillRect(X, pw.u ? Y : Y + 2, TILE,
+          (pw.d ? Y + TILE : Y + TILE - 2) - (pw.u ? Y : Y + 2))
+        // §7eo: THE EDGE IS BROKEN ONLY WHERE THE BED ACTUALLY ENDS.
+        //
+        // A spade does not rule a line, so a bed's edge is clods rather than a
+        // straight cut. That is true of its OUTSIDE and nonsense on the join
+        // between two beds of one strip, where it draws a crumbling seam down
+        // the middle of a thing that is continuous.
+        //
+        // It was also costing more than everything else in the frame put
+        // together once the creatures were culled: thirty-six ellipses a bed,
+        // a hundred and eight canvas calls, on a hundred and thirty-nine beds.
+        // Drawing the two exposed sides instead of all four is better looking
+        // and half the price, and a bed in the middle of a column pays for
+        // neither.
         for (let c3 = 0; c3 < 9; c3++) {
           const ex = X + c3 * 4.6
           cx.fillStyle = '#6b533a'
-          cx.beginPath(); cx.ellipse(ex + 2, Y + 2.5, 3.4, 2.6, 0, 0, 7); cx.fill()
-          cx.beginPath(); cx.ellipse(ex, Y + TILE - 2.5, 3.4, 2.6, 0, 0, 7); cx.fill()
-          cx.beginPath(); cx.ellipse(X + 2.5, Y + c3 * 4.6 + 2, 2.6, 3.4, 0, 0, 7); cx.fill()
-          cx.beginPath(); cx.ellipse(X + TILE - 2.5, Y + c3 * 4.6, 2.6, 3.4, 0, 0, 7); cx.fill()
+          if (!pw.u) { cx.beginPath(); cx.ellipse(ex + 2, Y + 2.5, 3.4, 2.6, 0, 0, 7); cx.fill() }
+          if (!pw.d) { cx.beginPath(); cx.ellipse(ex, Y + TILE - 2.5, 3.4, 2.6, 0, 0, 7); cx.fill() }
+          if (!pw.l) { cx.beginPath(); cx.ellipse(X + 2.5, Y + c3 * 4.6 + 2, 2.6, 3.4, 0, 0, 7); cx.fill() }
+          if (!pw.r) { cx.beginPath(); cx.ellipse(X + TILE - 2.5, Y + c3 * 4.6, 2.6, 3.4, 0, 0, 7); cx.fill() }
         }
         // the furrows: shallow, uneven, and nothing like a plank seam.
         //
@@ -15813,7 +15835,6 @@ function drawScene(now) {
         // bundles of poles stacked up rather than one bed. A furrow is one
         // line the whole length of the row, so the offsets come from the row:
         // the column for a bed running down, the row for one running across.
-        const pw = runWays(s, 'plot', PLOT_JOINS, null, n.x, n.y)
         const lineSeed = tileHash(pw.down ? n.x : 0, pw.down ? 0 : n.y, 12)
         cx.strokeStyle = 'rgba(70,52,32,.34)'; cx.lineWidth = 3
         for (let r2 = 0; r2 < 4; r2++) {
@@ -15903,7 +15924,7 @@ function drawScene(now) {
   for (const [gid, g2] of (s._groundE ?? Object.entries(s.ground ?? {}))) {
     const stack = s._groundStack?.[g2.x + ',' + g2.y] ?? [gid]
     const sIdx = stack.indexOf(gid)
-    layer.push({ z: Z(g2.y, 1), draw: () => {
+    layer.push({ kind: 'pile', z: Z(g2.y, 1), draw: () => {
       cx.drawImage(itemSprite(g2.item), px(g2.x) + 10, py(g2.y) + 12, 20, 20)
       cx.font = '6.5px Verdana'; cx.textAlign = 'center'
       const ly = py(g2.y) + 38 + sIdx * 7
@@ -15950,8 +15971,25 @@ function drawScene(now) {
     }})
   }
 
+  // §7eo: AND A BEAST OFF THE EDGE OF THE SCREEN IS NOT DRAWN.
+  //
+  // This walked every creature in the world every frame. Seven hundred and
+  // four stand on this island and all seven hundred and four were drawn,
+  // sorted and composited sixty times a second, almost all of them hundreds
+  // of tiles away behind the edge of the window. Measured at the Lantern:
+  // fifty-six per cent of the whole frame, more than everything else in the
+  // world put together.
+  //
+  // The node loop has culled to the view since it was written (`nodesNear`);
+  // the creature loop never learned. Same box, with a tile of margin on every
+  // side, because a body is drawn taller than its tile and a creature walking
+  // in from the edge is interpolated across the boundary before its tile
+  // arrives.
+  const _mvx0 = cam.x - 3, _mvy0 = cam.y - 3
+  const _mvx1 = cam.x + _vw + 3, _mvy1 = cam.y + _vh + 3
   for (const [id, m] of (s._mobsE ?? Object.entries(s.mobs))) {
     if (m.hp <= 0) continue
+    if (m.x < _mvx0 || m.x > _mvx1 || m.y < _mvy0 || m.y > _mvy1) continue
     const mo = prevState?.mobs?.[id]
     // §3.3: a respawn REUSES THE ID, so the old body and the new one are the
     // same entry and the window slid one into the other. Cut instead.
@@ -15971,7 +16009,7 @@ function drawScene(now) {
       cx.lineWidth = 1.4
       cx.beginPath(); cx.arc(X + 16, Y + 14, 10 + ph9 * 8, 0, 7); cx.stroke()
     } })
-    layer.push({ z: Z(miy, 3), draw: () => {
+    layer.push({ kind: 'creature', z: Z(miy, 3), draw: () => {
       // WHETHER YOU ARE FIGHTING IT, declared HERE because the flinch wrapper
       // below reads it and `const` is in the temporal dead zone until its own
       // line has run. It used to be declared after the wrapper, which threw
@@ -17232,7 +17270,7 @@ function drawScene(now) {
       cx.lineWidth = 1.4
       cx.beginPath(); cx.arc(X + 16, Y + 16, 10 + ph9 * 8, 0, 7); cx.stroke()
     } })
-    layer.push({ z: Z(iy, 4), draw: () => {
+    layer.push({ kind: 'citizen', z: Z(iy, 4), draw: () => {
       if (dying) {
         // the fall (spec 6c): the body tips where it fell and fades, and a pale
         // soul lifts away, the 5 ticks the world holds its breath.
@@ -17410,7 +17448,14 @@ function drawScene(now) {
 
   drawGoalMarker(s, t)
   layer.sort((a, b) => a.z - b.z)
-  for (const item of layer) item.draw()
+  // §7eo: AND WHAT EACH THING COST, when somebody is asking. A frame of this
+  // window is thirty to sixty thousand canvas calls and almost all of them are
+  // in this list, so "which kinds are expensive" is the only question worth
+  // asking before moving any of them. `_layerMark` is a no-op that costs one
+  // call per drawn thing and is replaced by the meter; measuring has to be
+  // free or it stops being done (see the note over the meter in sweep.mjs).
+  for (const item of layer) { _layerMark(item.kind); item.draw() }
+  _layerMark(null)
 
   // §6af: A BIG BLOW LINGERS. Seven hundred milliseconds is right for a swing
   // and wrong for a flurry: forty points arrived, flashed once, and were gone

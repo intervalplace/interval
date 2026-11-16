@@ -324,7 +324,14 @@ const AFTER = (plan, state, myId) => `<script>
         // citizen, so --only anchor and --only Bleakfell both measured the
         // spawn and came back with the same number to the call: two readings
         // that agree because neither was taken where it said.
-        if (SHOTS.length) { STATE.players[ME].x = SHOTS[0].x; STATE.players[ME].y = SHOTS[0].y }
+        // AND --at AND --menu MOVE IT TOO. The note above is about exactly this
+        // fault and was written when the only way to aim the meter was --only.
+        // The --at flag arrived later, set a different variable, and so every
+        // reading taken with it was taken at the spawn: four places came back
+        // with the same number to the call, which is the signature.
+        // NO BACKTICKS IN THIS BLOCK, it is a template literal.
+        if (VANTAGE) { STATE.players[ME].x = VANTAGE[0]; STATE.players[ME].y = VANTAGE[1] }
+        else if (SHOTS.length) { STATE.players[ME].x = SHOTS[0].x; STATE.players[ME].y = SHOTS[0].y }
         STATE.tick = 600
         feedOne({ type: 'state', state: STATE, worldId: 'sweep' })
         await settle(800)
@@ -349,12 +356,30 @@ const AFTER = (plan, state, myId) => `<script>
         let saves = 0, restores = 0
         cx.save = function (...a) { calls++; saves++; return real.save(...a) }
         cx.restore = function (...a) { calls++; restores++; return real.restore(...a) }
+        // AND WHERE THEY GO. A total is enough to see a regression and no use
+        // at all for deciding what to move, so the layer names each thing as
+        // it is drawn and the calls between two names belong to the first.
+        const perKind = {}, nKind = {}
+        let markLast = null, markAt = 0
+        _layerMark = (k) => {
+          if (markLast !== null) perKind[markLast] = (perKind[markLast] ?? 0) + (calls - markAt)
+          if (k !== null) nKind[k] = (nKind[k] ?? 0) + 1
+          markLast = k; markAt = calls
+        }
         calls = 0
         drawScene(performance.now())
         const one = calls, s1 = saves, r1 = restores
+        _layerMark = () => {}
+        // ONE say, BECAUSE say IS THE TITLE. Two calls and the second wins:
+        // the breakdown was being written and then overwritten by the total,
+        // which is a measurement taken and thrown away.
+        const top = Object.entries(perKind).sort((a9, b9) => b9[1] - a9[1]).slice(0, 9)
+        const breakdown = top.map(([k, v]) =>
+          k + ' ' + v + ' (' + Math.round(v * 100 / one) + '%) x' + (nKind[k] ?? 0)
+          + ' = ' + Math.round(v / Math.max(1, nKind[k] ?? 1)) + ' each').join(', ')
         for (const k of COUNTED) if (real[k]) cx[k] = real[k]
         say('METER calls ' + one + ' saves ' + s1 + ' restores ' + r1
-          + ' px ' + cv.width + 'x' + cv.height)
+          + ' px ' + cv.width + 'x' + cv.height + ' || ' + breakdown)
         return
       }
       if (MENU) {
