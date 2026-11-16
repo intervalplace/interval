@@ -1798,6 +1798,28 @@ page('', `
 // this would have taken the world's one irreversible rule off the site
 // altogether, which is the opposite of what the book is for.
 page('', `
+  ${h('What it takes to kill you')}
+  ${pd(`<b>A blow cannot take you from whole to nothing.</b> If you began the
+      interval above half your flesh, the blow that would have killed you
+      leaves you standing with one point instead, and the world says so out
+      loud. It is the one interval you are owed: enough to eat, to speak, to
+      cast the stilling, or to take a step.`)}
+  ${p(`<b>Once.</b> It does not happen twice in the same fight, and a citizen
+      who is put back on their feet and set upon again goes down. Nothing you
+      carry affects it and nobody can grant it to you.`)}
+  ${p(`<b>And it only holds somebody who was WHOLE.</b> Below half you are
+      killed as you always were, which is most of a fight: this is not armour,
+      it is the difference between losing and never having had a turn.`)}
+  ${p(`<b>A great-plate is the other answer, and a better one.</b> It holds at
+      ANY health, which is exactly where the rule above does not, and it holds
+      once: the plate shatters doing it and is gone. It is spent only on a
+      death nothing else would have stopped.`)}
+  ${orn}
+  ${p(`<i>Neither of these is something you can see coming and neither is
+      something anybody else can see on you. What everyone sees is the blow
+      when it lands.</i>`)}`)
+
+page('', `
   ${h('What dying costs')}
   ${pd(`You wake at the spawn. Everything in your pack is gone and anybody may
       take it from where you fell. Your trades, your name, your standing and

@@ -131,6 +131,9 @@ test('the handbook states rules, not yields (§7em)', () => {
       'the moon slips against the day, which takes weeks and a notebook to derive'],
     ['longer than a day, so it slips twenty minutes later each day',
       'the same sentence, wrapped'],
+    ['It is the one interval you are owed',
+      '§6bw-ii itself: the grace is defined AS one interval of agency, so the '
+      + 'interval is the rule rather than a quantity the rule hands out'],
     ['your key, every ten minutes',
       'how often the file beside your key is written: a fact about the software, '
       + 'in the chapter that says nothing in it can be worked out by playing'],

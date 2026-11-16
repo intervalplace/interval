@@ -376,7 +376,17 @@ if (DATA === '.') console.warn('INTERVAL_DATA is unset: world memory lives INSID
 const WORLD_FILE = DATA + '/checkpoints/world.json'   // the founding record
 const CP_FILE = DATA + '/checkpoints/web.json'        // the living state
 
-fs.mkdirSync('identities', { recursive: true })
+// A BARE `identities` WAS MADE HERE AND NOTHING EVER USED IT. Every real
+// path in this file is DATA + '/identities/...', so this line only ever made
+// an empty directory beside wherever the pillar happened to be launched from
+// -- which, when INTERVAL_DATA is unset, is the deploy directory, which is
+// the repository.
+//
+// An empty directory is not a leak. It is a DECOY, and this project has
+// already published one citizen's private key once: `unreal-key.json` sat on
+// the public remote through many pushes with "THIS FILE IS THE CITIZEN" in
+// its own note. A folder called `identities` sitting in the working tree is
+// an invitation to write the next one into it.
 fs.mkdirSync(DATA + '/checkpoints', { recursive: true })
 fs.mkdirSync(DATA + '/identities', { recursive: true })
 
