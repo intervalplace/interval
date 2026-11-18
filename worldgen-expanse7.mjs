@@ -2703,6 +2703,50 @@ export function loneRoomTiles(g) {
   return hit
 }
 const _loneListMemo = new Map()
+// §7bd-ii: WHAT IS A FLOOR IN A HAND-DRAWN PLACE, and the thing that stands
+// on it is standing on it.
+//
+// A room's fittings REPLACE the floor character in these drawings: the bothy at
+// Bleakfell is drawn
+//
+//     #####        and the three commas were the only floor it had, so the
+//     #,h,#        hearth, the bed and the barrel stood on open moor inside
+//     #,,,#        the room, with boards in the gaps between them. The window
+//     #d,q#        draws a hearth off a floor as a ring of stones in the open,
+//     ##.##        which is exactly what it looked like: a campfire on the
+//                  grass in a walled box, under a roof, with a bed beside it.
+//
+// Seven places and every holding on the island had it, one tile per fitting.
+//
+// So: a floor is a comma, AND anything that sits on one. The spread runs
+// through FITTINGS ONLY and never through a door, a reserved tile or a hole in
+// the drawing, so a hearth in an open camp with no boards near it stays in the
+// open, which is the other half of the legend and is right.
+const SITS_ON_A_FLOOR = new Set(['h', 'e', 'd', 'v', 'q', 'k', 'B'])
+export function floorTilesOfDrawing(rows) {
+  const at = (x, y) => (rows[y] || '')[x]
+  const out = [], seen = new Set()
+  const take = (x, y) => { const k = x + ',' + y
+    if (seen.has(k)) return false
+    seen.add(k); out.push([x, y]); return true }
+  for (let y = 0; y < rows.length; y++) for (let x = 0; x < rows[y].length; x++) {
+    if (at(x, y) === ',') take(x, y)
+  }
+  // closure, because a fitting may sit beside another fitting rather than
+  // beside the boards: the woodward's shelf, table and bed run in one row.
+  for (let pass = 0; pass < rows.length + 8; pass++) {
+    let grew = false
+    for (const [x, y] of out.slice()) {
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx, ny = y + dy
+        if (!SITS_ON_A_FLOOR.has(at(nx, ny))) continue
+        if (take(nx, ny)) grew = true
+      }
+    }
+    if (!grew) break
+  }
+  return out
+}
 export function loneRooms(g) {
   const _k = g.genesisSeed + ':' + g.worldW + 'x' + g.worldH
   const _hit = _loneListMemo.get(_k); if (_hit) return _hit
@@ -2711,13 +2755,25 @@ export function loneRooms(g) {
   // ...and the hand-drawn places that have a roof. A ruin does not: the
   // Boneyard and the Nine Stones are meant to have the moor underfoot.
   for (const h of holdingsOf(g)) {
-    for (let ry = 0; ry < h.h; ry++) for (let rx = 0; rx < h.w; rx++)
-      if (h.rows[ry][rx] === ',') out.push([h.x0 + rx, h.y0 + ry, 1, 1])
+    for (const [fx, fy] of floorTilesOfDrawing(h.rows)) out.push([h.x0 + fx, h.y0 + fy, 1, 1])
   }
   for (const P of placeSeatsOf(g)) {
-    if (!P.floors) continue
-    for (let ry = 0; ry < P.h; ry++) for (let rx = 0; rx < P.w; rx++)
-      if (P.rows[ry][rx] === ',') out.push([P.x0 + rx, P.y0 + ry, 1, 1])
+    // §7bd-ii: THE DRAWING SAYS WHETHER THERE IS A FLOOR, and the flag said
+    // otherwise for three of them.
+    //
+    // This read `if (!P.floors) continue`, so a place with the flag off laid no
+    // floor however it was drawn. Three were drawn with a hut in them -- the
+    // collier's at the Charcoal Camp, the one at the Felling, the sawyer's at
+    // Deepwood -- nine, seven and three tiles of boards inside four walls with
+    // a door, and all of it denied. The legend has said since it was written
+    // that a comma IS "an interior with boards (registered in loneRooms)", so
+    // the flag was contradicting the legend and the drawing both.
+    //
+    // Measured across the island: exactly those three disagree, and no place
+    // anywhere draws a comma that is meant to be bare. So the drawing is taken
+    // at its word and there is one fewer thing to keep in step. `floors` stays
+    // on the entries as the author's note about the place; nothing reads it.
+    for (const [fx, fy] of floorTilesOfDrawing(P.rows)) out.push([P.x0 + fx, P.y0 + fy, 1, 1])
   }
   _loneListMemo.set(_k, out)
   return out
@@ -9179,6 +9235,12 @@ export function buildWorld(genesis) {
     // three rays is the room and two is the open country beside it.
     {
       const famOf9 = (id) => id.replace(/-\d+(-\d+)?$/, '')
+      // what cannot be left standing in a door. Anything a citizen cannot
+      // walk through: a brewpot or a cart in a gateway is furniture.
+      const BLOCKS_A_DOOR = new Set(['hedge', 'fence', 'wall', 'palisade', 'plot',
+        'railing', 'rockfall', 'landmark', 'tree', 'oak-tree', 'ironbark-tree',
+        'heartwood-tree', 'gallows-oak', 'rock', 'iron-rock', 'coal-rock',
+        'gold-rock', 'quick-rock', 'mother-lode', 'muck-heap', 'salt-pan'])
       const wallsOf = new Map(), boxOf = new Map()
       for (const [id, n] of Object.entries(w.nodes)) {
         const f = famOf9(id)
@@ -9213,6 +9275,46 @@ export function buildWorld(genesis) {
       // ruled across half a shire by a hash that cannot see a building, and
       // a fence line or a seedbed inside four walls is the one case that can
       // never be meant. That is the rule, and it is narrower than rank.
+      // AND NOTHING STANDS IN A DOORWAY.
+      //
+      // A doorway is the one gap in a wall run, and a thing standing in it
+      // does not clutter a building, it SEALS one. The training yard at
+      // Anchor had an orchard hedge planted in its only door -- the yard's
+      // own signpost is on the tile below it, pointing at a gate nobody could
+      // walk through -- so the butts and the pells could not be reached at
+      // all. "That training area is now fenced in with a bush, so I cannot go
+      // in there any more."
+      //
+      // THIS RULE WAS WRITTEN AND THEN NARROWED AWAY. The first cut cleared
+      // everything lower-ranked out of a walled room and took sixteen nodes,
+      // three of which belonged exactly where they stood -- the furnace
+      // keeper in the furnace shed, muck heaps in the Sheepfolds -- so it was
+      // narrowed to field patterns only. Right in principle and too narrow in
+      // fact: `orchh-244` is an ORCHARD hedge, so it walked straight back in.
+      //
+      // Which pass planted the thing is the wrong question. A doorway is the
+      // right one: standing in somebody's room is sometimes fine and standing
+      // in their door never is.
+      const doorBlocked = []
+      for (const [id, n] of Object.entries(w.nodes)) {
+        if (!BLOCKS_A_DOOR.has(n.type)) continue
+        const mine = famOf9(id)
+        for (const [f, W2] of wallsOf) {
+          if (f === mine || W2.size < 4) continue
+          const k = n.x + ',' + n.y
+          if (W2.has(k)) continue                       // it IS the wall
+          const gapAcross = W2.has((n.x - 1) + ',' + n.y) && W2.has((n.x + 1) + ',' + n.y)
+          const gapDown = W2.has(n.x + ',' + (n.y - 1)) && W2.has(n.x + ',' + (n.y + 1))
+          if (!gapAcross && !gapDown) continue
+          doorBlocked.push([id, n.type, f]); break
+        }
+      }
+      for (const [id] of doorBlocked) delete w.nodes[id]
+      if (doorBlocked.length) {
+        console.warn('WORLDGEN: ' + doorBlocked.length + ' node(s) stood in a doorway')
+        for (const [id, t, f] of doorBlocked)
+          console.warn('WORLDGEN:   cleared ' + id + ' (' + t + ') out of the door of ' + f)
+      }
       const inside = []
       for (const [id, n] of Object.entries(w.nodes)) {
         if (!id.startsWith('field-')) continue

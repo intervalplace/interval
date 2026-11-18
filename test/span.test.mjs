@@ -9,7 +9,7 @@ import assert from 'node:assert/strict'
 import E from '../engine.js'
 
 
-import '../worldgen-expanse7.mjs'   // registers the expanse-7 terrain + span sites
+import * as WG from '../worldgen-expanse7.mjs'   // registers the expanse-7 terrain + span sites
 import { makeExpanse7Genesis, SPAN_SITES } from '../worldgen-expanse7.mjs'
 
 
@@ -315,4 +315,74 @@ test('a finished span is decking: walked onto AND across, by anybody', () => {
   s = step(s, [sign({ tick: s.tick, type: 'walk', dx: -site.from.dx, dy: -site.from.dy, steps: 1 })])
   assert.deepEqual({ x: at(s, alice).x, y: at(s, alice).y }, far,
     'and across: the two vaults of the Wilds are joined, which is the whole point')
+})
+
+// §7er: EVERY WALLED STRUCTURE CAN BE WALKED INTO.
+//
+// The training yard at Anchor had an orchard hedge planted in its only door.
+// The yard's own signpost stands on the tile below it, pointing at a gate
+// nobody could walk through, and the pells and butts inside could not be
+// reached at all: "that training area is now fenced in with a bush, so I
+// cannot go in there any more."
+//
+// THE RULE IS REACHABILITY, NOT TIDINESS. The first cut of this checked that
+// no node stood in a doorway, which is the shape of the fault but not the
+// fault: it flagged a keeper standing in one of High Delving's two doors,
+// which seals nothing and is where a keeper ought to stand. What matters is
+// whether a citizen can get in, so that is the question, asked by walking.
+//
+// One flood over the whole island rather than one per structure, because
+// there are a hundred of them and the island is 896 by 512.
+test('every walled structure can be walked into', () => {
+  const g = WG.makeExpanse7Genesis('doors', 'a'.repeat(64), 0, 896, 512)
+  const w = WG.buildWorld(g)
+  const W0 = 896, H0 = 512
+  // the engine lets a citizen stand on these, and on nothing else a node owns
+  const WALKABLE = new Set(['brewpot', 'watchfire', 'cart', 'dedication'])
+  const blocked = new Uint8Array(W0 * H0)
+  for (const n of Object.values(w.nodes))
+    if (!WALKABLE.has(n.type)) blocked[n.y * W0 + n.x] = 1
+  for (let y = 0; y < H0; y++) for (let x = 0; x < W0; x++)
+    if (E.terrainBlockedAt ? E.terrainBlockedAt(g, x, y) : false) blocked[y * W0 + x] = 1
+  // flood from the spawn, eight ways, which is how a citizen steps
+  const spawn = WG.spawnOf ? WG.spawnOf(g) : { x: 448, y: 256 }
+  const seen = new Uint8Array(W0 * H0)
+  const q = [spawn.y * W0 + spawn.x]
+  seen[q[0]] = 1
+  const D = [1, -1, W0, -W0, W0 + 1, W0 - 1, -W0 + 1, -W0 - 1]
+  for (let h = 0; h < q.length; h++) {
+    const k = q[h], kx = k % W0
+    for (const d of D) {
+      const n2 = k + d, nx = n2 % W0
+      if (n2 < 0 || n2 >= W0 * H0 || Math.abs(nx - kx) > 1) continue
+      if (seen[n2] || blocked[n2]) continue
+      seen[n2] = 1; q.push(n2)
+    }
+  }
+  // every family that has four walls or more owns a room; at least one tile
+  // of it has to be somewhere a citizen can stand
+  const fam = (id) => id.replace(/-\d+(-\d+)?$/, '')
+  const box = new Map(), nWall = new Map()
+  for (const [id, n] of Object.entries(w.nodes)) {
+    const f = fam(id)
+    const b = box.get(f) ?? { x0: 1e9, y0: 1e9, x1: -1e9, y1: -1e9 }
+    b.x0 = Math.min(b.x0, n.x); b.x1 = Math.max(b.x1, n.x)
+    b.y0 = Math.min(b.y0, n.y); b.y1 = Math.max(b.y1, n.y)
+    box.set(f, b)
+    if (n.type === 'wall' || n.type === 'palisade') nWall.set(f, (nWall.get(f) ?? 0) + 1)
+  }
+  const shut = []
+  for (const [f, n9] of nWall) {
+    if (n9 < 4) continue
+    const b = box.get(f)
+    if (b.x1 - b.x0 > 60 || b.y1 - b.y0 > 60) continue   // a town is not a room
+    let room = 0, open = 0
+    for (let y = b.y0 + 1; y < b.y1; y++) for (let x = b.x0 + 1; x < b.x1; x++) {
+      const k = y * W0 + x
+      if (blocked[k]) continue
+      room++; if (seen[k]) open++
+    }
+    if (room > 0 && open === 0) shut.push(f + ' (' + room + ' tiles inside, none reachable)')
+  }
+  assert.deepEqual(shut, [], '\n  ' + shut.join('\n  '))
 })

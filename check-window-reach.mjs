@@ -167,6 +167,10 @@ vm.runInContext(body + `
   chart: (now) => drawSunMap(curState, now),
   ink: () => SEAM_INK,
   draw: () => drawScene(performance.now()),
+  // §7f-v: draw ONE frame at a chosen instant. A stance is a motion and the
+  // only way to see a motion through a fake canvas is to draw it twice at
+  // different moments and compare the marks. NO BACKTICKS IN THIS BLOCK.
+  drawAt: (t) => drawScene(t),
   bookNow: () => bookOf(world?.players?.[myId]),
   openBook: () => { bookOpen = true; drawBook() },
   // send() returns early unless the socket says it is open, and the window's
@@ -175,6 +179,9 @@ vm.runInContext(body + `
   // NO BACKTICKS IN THIS BLOCK: it is a template literal.
   openSocket: (w) => { ws = w },
   intent: () => intent,
+  // 20e: whether the arm is set, read off the window rather than inferred
+  // from what it said. NO BACKTICKS IN THIS BLOCK.
+  armed: () => gambitArmed,
   // the window's own front door, so an intent can be discharged the way a
   // tick discharges it rather than by reaching into the machinery
   msg: (m) => onMessage({ data: JSON.stringify(m) }),
@@ -206,6 +213,7 @@ vm.runInContext(body + `
     nought = { E: E2, state: st, key, inputs: [], wid: E2.worldId(st.genesis) }
     inNought = true; world = st; curState = st
   },
+  noughtQueue: () => (nought ? nought.inputs.map((i) => i.type) : []),
   noughtRun: () => { const n9 = nought.inputs.length
     noughtTick(); return n9 },
   noughtState: () => nought && nought.state,
@@ -229,6 +237,10 @@ vm.runInContext(body + `
   doing: () => doingNow(),
   seen: (v) => doingSeen(v),
   mobs: () => MOB_STATS,
+  // §7f-iv: the one bow table, and the two sets that divide the ranged arms
+  // between the three drawings. NO BACKTICKS IN THIS BLOCK.
+  bows: () => ({ look: BOW_LOOK, ranged: [...RANGED_ITEMS],
+    thrown: [...THROWN_ITEMS], shot: [...SHOT_WEAPONS] }),
   priced: () => Object.keys(PRICES),
   equippable: () => [...EQUIPPABLE],
   heals: () => Object.keys(HEALS),
@@ -1967,6 +1979,169 @@ console.log('\n--- 8s. a deed pressed in Nought actually lands ---')
   ctx.__h.leaveNought()
 }
 
+console.log('\n--- 8t. a gambit can be spent in the training yard ---')
+{
+  // "The gambit does not work on the butt in the training area with butts and
+  // dummies. Maybe since we changed spec to gambit? But it used to work
+  // before I think, or at least it should."
+  //
+  // 20e grants it: a dummy and a butt carry 64-hex ids so that `targetId`
+  // takes one without a second verb, and the rule, the input shape and the
+  // apply path have all accepted a mob since then. The WINDOW read the armed
+  // gambit on the citizen branch alone, so the one press this was built for
+  // fell through to an ordinary blow, and the yard was the only place in the
+  // world where a gambit could not be spent.
+  //
+  // Pressed in Nought, which is where it was reported from and where the real
+  // engine resolves the deed under a real signature.
+  const yard = () => {
+    const st = fresh()
+    // THE LANE IS KEPT CLEAR, because a mob blocks a tile. A pell set between
+    // the citizen and the butt stops the walk dead and the engine refuses the
+    // step without a word: the first cut of this check put one at 10,11 and
+    // read twelve intervals of standing still as a window fault.
+    E.addMob(st, 'b'.repeat(64), 'butt', 10, 13)       // three tiles off: bow range
+    E.addMob(st, 'd'.repeat(64), 'dummy', 11, 10)      // next door: any arm reaches
+    E.addMob(st, 'g'.repeat(64), 'goblin', 12, 12)
+    for (const m of Object.values(st.mobs)) m.hp = m.health
+    const p9 = st.players[ID]
+    p9.equipment.weapon = { item: 'horn-bow', qty: 1 }
+    // THE WORD IS `arrows`. The engine's PRICES has no `arrow` at all, so the
+    // first cut of this armed a bow with nothing in the quiver and the check
+    // passed anyway: a gambit at a DUMMY is the one path that does not count
+    // the ammunition. It was measuring the right thing for the wrong reason.
+    p9.inventory[0] = { item: 'arrows', qty: 200 }
+    p9.lastSwing = -64
+    return st
+  }
+  // SET it, never toggle it. `gambitArmed` is one flag for the whole window
+  // and it outlives a block, so a test that toggles arms what the block
+  // before it left armed, and the yard press read as a stand-down. Three of
+  // these checks failed on that and not on the window.
+  const armTo = (want) => { const b = doc.getElementById('gambitbtn')
+    if (ctx.__h.armed() !== want) b.click()
+    return ctx.__h.armed() === want }
+  const arm = () => armTo(true)
+  // THE BUTT, FROM BOW RANGE. A horn-bow gambit is the flurry, and the thing
+  // it is spent on is four tiles away: the whole point of a yard butt.
+  {
+    const st = yard()
+    ctx.__h.enterNought(st, E, me)
+    ctx.__h.hush(); sent.length = 0
+    const armed = arm()
+    const was = ctx.__h.noughtState().mobs['b'.repeat(64)].health
+    ctx.__h.press(10, 13, false)
+    // READ THE QUEUE BEFORE THE TICK DRAINS IT. Asked after `noughtRun` it is
+    // always empty, which reported "filed nothing" about a deed that had
+    // plainly landed: the butt was seven light and the log said so.
+    const q9 = ctx.__h.noughtQueue()
+    const queued = ctx.__h.noughtRun()
+    const now = ctx.__h.noughtState().mobs['b'.repeat(64)].health
+    // IN NOUGHT NOTHING REACHES `send`. Every deed a resident files goes into
+    // the practice world's own queue, so the thing to read is the queue.
+    ok(armed, armed ? 'the button arms the gambit'
+      : 'the gambit button did not arm (nothing to measure)')
+    ok(q9.includes('gambit'),
+      q9.includes('gambit') ? 'pressing the butt files a gambit at it'
+        : 'pressing the butt filed ' + (q9.join(', ') || 'nothing') + ', not a gambit')
+    ok(queued > 0 && now < was,
+      queued > 0 && now < was
+        ? 'and the butt takes it: ' + (was - now) + ' off a hundred thousand'
+        : 'the butt took nothing [queued ' + queued + ', health ' + was + ' then ' + now
+          + ', feed said: ' + (ctx.__h.said().join(' / ') || 'nothing') + ']')
+    ok(!ctx.__h.armed(), ctx.__h.armed()
+      ? 'the gambit stayed armed after it was spent' : 'and the arm is stood down after')
+    ctx.__h.leaveNought()
+  }
+  // AND FROM ACROSS THE YARD WITH A SHORT ARM. A dagger's gambit reaches one
+  // tile, so pressing a pell four tiles off has to walk in and spend it on
+  // arrival, the way a hunt closes. A press that merely refuses would be the
+  // window asking somebody to stand in the right square first, which is not a
+  // command anybody should have to compose.
+  {
+    const st = yard()
+    st.players[ID].equipment.weapon = { item: 'quick-dagger', qty: 1 }
+    ctx.__h.enterNought(st, E, me)
+    ctx.__h.hush(); ctx.__h.clearIntent()
+    armTo(true)
+    const was = ctx.__h.noughtState().mobs['b'.repeat(64)].health
+    ctx.__h.press(10, 13, false)
+    const walking = ctx.__h.intent()
+    // ONE MORE INTERVAL AFTER THE WALK ENDS. The tick that arrives files the
+    // gambit and clears the intent in the same breath, so a loop that stops
+    // when the intent clears stops before the deed has been drained: it read
+    // "walked and never spent it" about a gambit sitting in the queue.
+    for (let i = 0; i < 14; i++) { ctx.__h.noughtRun(); if (!ctx.__h.intent() && i > 1) break }
+    ctx.__h.noughtRun()
+    const now = ctx.__h.noughtState().mobs['b'.repeat(64)].health
+    ok(walking && walking.kind === 'gambitmob',
+      walking ? 'a gambit out of reach walks in (' + walking.kind + ')'
+        : 'a gambit pressed out of reach set no walk at all')
+    ok(now < was, now < was
+      ? 'and is spent on arrival: ' + (was - now) + ' off the butt'
+      : 'the citizen walked and never spent it [at '
+        + ctx.__h.noughtState().players[ID].x + ',' + ctx.__h.noughtState().players[ID].y
+        + ', armed ' + ctx.__h.armed() + ']')
+    ctx.__h.leaveNought()
+  }
+  // THE PELL, which the world's own log used to call a butt.
+  {
+    const st = yard()
+    ctx.__h.enterNought(st, E, me)
+    ctx.__h.hush(); sent.length = 0
+    arm()
+    ctx.__h.press(11, 10, false)
+    ctx.__h.noughtRun()
+    const log = (ctx.__h.noughtState().announce ?? []).map((a) => a.text).join(' / ')
+    ok(/strikes the dummy/.test(log),
+      /strikes the dummy/.test(log) ? 'and a gambit on a pell says so in the world log'
+        : 'the log of a gambit on a pell reads: ' + (log || 'nothing'))
+    ctx.__h.leaveNought()
+  }
+  // A GOBLIN IS NOT A YARD TARGET. 20e grants the dummy and nothing else, so
+  // the window must say that rather than send a deed the pillar throws away
+  // without a word, and must not spend the arm saying it.
+  {
+    const st = yard()
+    ctx.__h.enterNought(st, E, me)
+    ctx.__h.hush(); sent.length = 0
+    arm()
+    ctx.__h.press(12, 12, false)
+    const act = sent.find((a) => a && a.do === 'gambit')
+    const said = ctx.__h.said().join(' ')
+    ok(!act && /gambit/i.test(said) && ctx.__h.armed(),
+      !act && /gambit/i.test(said) && ctx.__h.armed()
+        ? 'a gambit aimed at a goblin is refused in words, and stays armed'
+        : 'pressing a goblin with a gambit armed: sent '
+          + (act ? 'a gambit anyway' : 'nothing') + ', said "' + said
+          + '", armed ' + ctx.__h.armed())
+    ctx.__h.leaveNought()
+  }
+  // AND THE RIGHT BUTTON OFFERS IT BY NAME without doing the left one's work,
+  // which is 7ek: a menu lists what is available and presses nothing itself.
+  {
+    const st = yard()
+    ctx.__h.set(st, ID)
+    ctx.__h.hush(); sent.length = 0
+    arm()
+    const g9 = ctx.__h.spy()
+    ctx.__h.press(10, 13, true)
+    const opts = g9() ?? []
+    const row = opts.find((o) => o && /gambit/.test(o.label ?? ''))
+    ok(!!row && !sent.some((a) => a && a.do === 'gambit'),
+      row ? 'the right button offers the gambit by name and sends nothing on its own'
+        : 'a right press on the butt with a gambit armed offered: '
+          + opts.map((o) => o && (o.label ?? o.head)).join(', '))
+    // and it is NOT offered when there is nothing to offer
+    const g8 = ctx.__h.spy()
+    armTo(false)                                          // stand down
+    ctx.__h.press(10, 13, true)
+    const bare = (g8() ?? []).find((o) => o && /gambit/.test(o.label ?? ''))
+    ok(!bare, bare ? 'the gambit is offered on the butt with nothing armed'
+      : 'and it is absent from the menu when no gambit is armed')
+  }
+}
+
 console.log('\n--- 8k. the world does not spell itself out ---')
 {
   // "I do not think it should say that it takes two minutes to go around.
@@ -2033,6 +2208,174 @@ console.log('\n--- 8k. the world does not spell itself out ---')
     ok(bad.length === 0, bad.length === 0
       ? 'and ' + tbl + ' carries no number at all'
       : tbl + ' still counts at the player: ' + bad.map((l) => l.trim().slice(0, 70)).join(' | '))
+  }
+}
+
+console.log('\n--- 8u. every ranged arm is drawn as the thing it is ---')
+{
+  // §7f-iv: "The horn bow is identical to a normal bow when held and walking.
+  // Only in combat does it change into the appearance it actually has."
+  //
+  // The carried drawing told two of the eight bows apart and painted the other
+  // six in one brown, and it was reached by asking RANGED_ITEMS, which also
+  // holds a hand cannon and three javelins: both of those were slung on their
+  // owners' backs as bows.
+  //
+  // Two things to ask, and neither needs a photograph. Does every ranged arm
+  // belong to exactly one of the three drawings, and does every bow look
+  // different from every other bow. A table that paints six bows one colour
+  // passes any check that only asks whether the word is in the file.
+  const B = ctx.__h.bows()
+  const bowOf = (it) => B.look[it]
+  const homeless = B.ranged.filter((it) =>
+    !bowOf(it) && !B.thrown.includes(it) && !B.shot.includes(it))
+  ok(homeless.length === 0, homeless.length === 0
+    ? 'all ' + B.ranged.length + ' ranged arms are a bow, a javelin or a gonne'
+    : 'drawn as nothing in particular: ' + homeless.join(', '))
+  const double = B.ranged.filter((it) =>
+    [!!bowOf(it), B.thrown.includes(it), B.shot.includes(it)].filter(Boolean).length > 1)
+  ok(double.length === 0, double.length === 0
+    ? 'and none of them is drawn two ways at once'
+    : 'drawn two ways: ' + double.join(', '))
+  // AND NO TWO BOWS ARE THE SAME PICTURE. This is the fault itself: six rows
+  // with one limb colour between them would have been six bows a citizen
+  // cannot tell apart, which is what was reported.
+  const seen = new Map(), same = []
+  for (const [it, b] of Object.entries(B.look)) {
+    const k = [b.limb, b.string, b.span, b.thick, !!b.glow, !!b.sigils, b.stock ?? 0].join('|')
+    if (seen.has(k)) same.push(seen.get(k) + ' and ' + it); else seen.set(k, it)
+  }
+  ok(same.length === 0, same.length === 0
+    ? 'and all ' + Object.keys(B.look).length + ' bows are told apart by their own drawing'
+    : 'these bows are drawn identically: ' + same.join(', '))
+  // and every bow the ENGINE has is in the table, which is the copied-table
+  // trap: a bow added to WEAPONS and not here draws as a wooden one.
+  const engineBows = Object.keys(E.WEAPONS).filter((w) => /bow$/.test(w))
+  const missing = engineBows.filter((w) => !bowOf(w))
+  ok(missing.length === 0, missing.length === 0
+    ? 'and the engine has no bow this window has never heard of'
+    : 'the engine has bows with no drawing: ' + missing.join(', '))
+}
+
+console.log('\n--- 8v. the body shoots, rather than standing still ---')
+{
+  // §7f-v: "When shooting with the bow the string goes backwards and the
+  // arrow goes flying, that is good, but the citizen is standing completely
+  // still. It looks weird."
+  //
+  // THE FIRST VERSION OF THIS CHECK WAS WORTHLESS and said so only when it was
+  // run against the fault. It drew the whole scene twice and compared every
+  // mark, which passes whether or not the body moves: a frame holds the water,
+  // the leaves, the day and the BOW, all of which were animating before any of
+  // this was written. A check that cannot fail is worse than no check.
+  //
+  // So it asks the legs, which is where a stance actually lives. They are
+  // drawn 3.4 wide and `7 - Math.abs(step)` tall, and `step` is zero for
+  // anybody standing: a leg exactly 7 tall is a man standing about, and a
+  // shorter one is a man braced. Nothing else in this window draws a leg.
+  // A STRUCK BODY DOES NOT SHOOT, which is right, and it made the first
+  // reading nonsense: `hurt` is 320ms from the last time this citizen was hit
+  // and an earlier section had hit them, so a frame drawn at t=1000 was a
+  // frame of somebody flinching. Every frame here is taken well clear of it.
+  const T0 = 400000
+  const archerState = (wep) => {
+    const st = fresh()
+    const p9 = st.players[ID]
+    p9.equipment.weapon = { item: wep, qty: 1 }
+    p9.inventory[0] = { item: wep === 'handgonne' ? 'shot' : 'arrows', qty: 99 }
+    p9.action = { type: 'attack', mobId: 'foe', since: 0 }
+    // THE TARGET IS OFF THE EDGE OF THE VIEW, so the only body in the frame is
+    // the archer's. `shooting` asks only that the mob exists and is more than
+    // one tile off; the drawing culls what nobody can see. With a goblin four
+    // tiles away this measured the GOBLIN'S legs as well, and passed happily
+    // against an archer who was not moving at all.
+    st.mobs.foe = { type: 'goblin', x: 90, y: 10, health: 5, hp: 5 }
+    st.tick = 600                             // even, so the exchange is on
+    return st
+  }
+  // THROUGH THE WINDOW'S OWN DOOR. `set()` puts the state in `world` and the
+  // drawing works off the PREPARED state, so a frame drawn after a bare set is
+  // a frame of whatever was there before: an earlier cut of this compared two
+  // frames of the state section 8s had left behind and reported that an archer
+  // and a man standing about are drawn identically. They were, because neither
+  // of them was in the picture.
+  const marksAt = (st, t) => {
+    // AND THE CLOCK GOES WITH IT. The window works out how far through an
+    // interval it is from `performance.now()` against the moment the state
+    // arrived, and this harness's clock does not move on its own: with the
+    // state landing at 1000 and the frame drawn at 400000, every frame was
+    // 399 seconds into a one-second interval and clamped to the very end of
+    // it. Two frames taken that way are the same frame, and the check read
+    // that as a stance that never changes.
+    CLOCK = T0 - 1
+    ctx.__h.msg({ type: 'state', state: JSON.parse(JSON.stringify(st)), worldId: WID })
+    CLOCK = t
+    penRect.length = 0
+    try { ctx.__h.drawAt(t) } catch (e) { return { threw: e.message } }
+    // 3.4 wide and between five and seven and a half tall. The width alone
+    // also catches a 1.2-tall mark elsewhere in the frame, which is not a leg
+    // and dragged the measurement with it.
+    const legs = penRect.filter((r) =>
+      Math.abs(r[2] - 3.4) < 0.001 && r[3] > 5 && r[3] <= 7.5)
+    // THE SPREAD, which is the stance. The two legs are drawn at
+    // X + 16 + step * 1.5 and X + 21 - step * 1.5 on the same row, so the gap
+    // between them is 5 - 3 * step: five for anybody standing, and wider for
+    // anybody braced. Their HEIGHT is 7 - |step| for both, which is a tenth of
+    // a pixel of difference and shares its value with the rear arm, so three
+    // goes at reading the heights could not tell a braced archer from a man
+    // standing about. The gap can.
+    const rows = new Map()
+    for (const r of legs) { const k = Math.round(r[1] * 10)
+      ;(rows.get(k) ?? rows.set(k, []).get(k)).push(r[0]) }
+    let gap = null
+    for (const xs of rows.values()) if (xs.length === 2)
+      gap = Math.round(Math.abs(xs[0] - xs[1]) * 100) / 100
+    return { threw: null, gap, legs: legs.map((r) => Math.round(r[3] * 100) / 100),
+      // the javelin's shaft, drawn 16 by 1.3 in the throwing hand and by
+      // nothing else in this window
+      shaft: penRect.some((r) => Math.abs(r[2] - 16) < 0.001 && Math.abs(r[3] - 1.3) < 0.001) }
+  }
+  const braced = (m) => m.gap !== null && m.gap > 5.01
+  {
+    const m = marksAt(archerState('horn-bow'), T0)
+    ok(!m.threw, m.threw ? 'the archer drawing throws: ' + m.threw
+      : 'an archer in a fight draws without throwing')
+    ok(!m.threw && m.legs.length > 0,
+      m.legs.length ? 'and the body is in the picture (' + m.legs.length + ' legs drawn)'
+        : 'nothing with legs was drawn at all, so this measures nothing')
+    ok(braced(m), braced(m)
+      ? 'and his feet are planted while he shoots, ' + m.gap + ' apart against five'
+      : 'an archer stands about while he shoots: his feet are ' + m.gap + ' apart')
+  }
+  // AND A MAN NOT SHOOTING IS NOT BRACED, or the test above is measuring
+  // something every citizen does.
+  {
+    const st = archerState('horn-bow')
+    delete st.players[ID].action; delete st.mobs.foe
+    const m = marksAt(st, T0)
+    ok(!braced(m), !braced(m)
+      ? 'and somebody standing about is drawn standing about (' + m.gap + ' apart)'
+      : 'everybody is braced all the time: feet ' + m.gap + ' apart')
+  }
+  // AND THE BRACE DEEPENS AS THE STRING COMES BACK. A stance that is merely
+  // a different fixed pose is a photograph; this is the motion.
+  {
+    const st = archerState('horn-bow')
+    const early = marksAt(st, T0), late = marksAt(st, T0 + 400)
+    const a9 = early.gap, b9 = late.gap
+    ok(a9 !== b9, a9 !== b9
+      ? 'and the brace changes through the draw (' + a9 + ' then ' + b9 + ')'
+      : 'the stance is one fixed pose: both frames are ' + a9)
+  }
+  // AND A THROWER IS NOT AN ARCHER. All three javelins are in RANGED_ITEMS, so
+  // a thrower was given the bowstring, the nocked arrow and the loose. The
+  // shaft in his hand is the thing an archer never has.
+  {
+    const j = marksAt(archerState('iron-javelin'), T0)
+    const b9 = marksAt(archerState('horn-bow'), T0)
+    ok(j.shaft, j.shaft ? 'a javelin thrower has a javelin in his hand'
+      : 'a thrower holds no javelin while he throws it')
+    ok(!b9.shaft, !b9.shaft ? 'and an archer does not' : 'an archer is holding a javelin')
   }
 }
 

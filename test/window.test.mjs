@@ -784,13 +784,23 @@ test('every weapon the world has is drawn by the one drawing', async () => {
   const fn = win.slice(a, win.indexOf('\n}\n', a) + 2)
   const r = win.indexOf('const RANGED_ITEMS = new Set([')
   const ranged = win.slice(r, win.indexOf('])', r) + 2)
+  // §7f-iv: and the two tables the one drawing divides the ranged arms by. A
+  // bow draws NOTHING in the hand now, on purpose: the body carries it slung
+  // off BOW_LOOK, and drawing it in both places is how an archer came to be
+  // holding two bows at once. A javelin has art of its own.
+  const bl = win.indexOf('const BOW_LOOK = {')
+  assert.ok(bl > 0, 'the one bow table is gone or renamed')
+  const bowLook = win.slice(bl, win.indexOf('\n}', bl) + 2)
+  const tr = win.indexOf('const THROWN_ITEMS = new Set([')
+  const thrown = win.slice(tr, win.indexOf('])', tr) + 2)
   // the drawing leans on one helper of the window's own, so it is lifted too
   // rather than stubbed: a stub that draws nothing would make every weapon
   // look silent and this test would then report the opposite of the truth
   const ph = win.indexOf('const poly9 = ')
   assert.ok(ph > 0, 'poly9 is gone or renamed')
   const poly9 = win.slice(ph, win.indexOf('\n', win.indexOf('cx.fill()', ph)))
-  const draw = new Function(ranged + '\n' + poly9 + '\n' + fn + '\nreturn heldWeapon')()
+  const draw = new Function(ranged + '\n' + bowLook + '\n' + thrown + '\n'
+    + poly9 + '\n' + fn + '\nreturn heldWeapon')()
 
   // a context that paints nothing and remembers being asked
   const pen = () => {
@@ -803,8 +813,14 @@ test('every weapon the world has is drawn by the one drawing', async () => {
     return cx
   }
 
+  const BOW_LOOK = new Function(bowLook + '\nreturn BOW_LOOK')()
   const silent = []
   for (const it of Object.keys(E.WEAPONS)) {
+    // §7f-iv: A BOW IS DRAWN ONCE, AND NOT HERE. Silence is the rule for a
+    // bow and a fault for everything else, so a bow has to be in the table
+    // that does draw it instead: the question is still "is every weapon in
+    // this world drawn", with two places to be drawn in rather than one.
+    if (BOW_LOOK[it]) continue
     const cx = pen()
     draw(cx, it, 1, 1000)
     if (cx.strokes < 2) silent.push(it)
@@ -812,6 +828,18 @@ test('every weapon the world has is drawn by the one drawing', async () => {
   assert.deepEqual(silent, [],
     silent.length + ' weapons are drawn as nothing at all, in the hand and at the hip: '
       + silent.join(', '))
+  const undrawnBows = Object.keys(E.WEAPONS).filter((w) => /bow$/.test(w) && !BOW_LOOK[w])
+  assert.deepEqual(undrawnBows, [],
+    'these bows are in neither drawing, so they are carried invisibly: '
+      + undrawnBows.join(', '))
+  // AND A BOW REALLY MUST BE SILENT HERE. "When I wield horn bow and turn
+  // towards the left, I am wielding two bows at the same time, one smaller and
+  // one normal": that was the slung drawing and this one, both at once.
+  const twice = Object.keys(BOW_LOOK).filter((w) => {
+    const cx = pen(); draw(cx, w, 1, 1000); return cx.strokes >= 2 })
+  assert.deepEqual(twice, [],
+    'these bows are drawn in the fist as well as on the back, so they are '
+      + 'carried two at a time: ' + twice.join(', '))
 
   // and both poses must reach it, or they will drift apart again
   assert.equal((win.match(/heldWeapon\(cx,/g) || []).length, 2,
@@ -826,22 +854,42 @@ test('every weapon the world has is drawn by the one drawing', async () => {
 // first one anybody is handed. The CARRIED drawing has told them apart for a
 // long time. The drawn one never did.
 test('the bow a citizen draws is the bow they are holding', () => {
+  // §7f-iv: AND SO IS THE ONE ON HIS BACK. The comment this test used to
+  // carry said the CARRIED drawing had told the bows apart for a long time. It
+  // never had: the slung bow was one hardcoded brown for all eight, which is
+  // "the horn bow is identical to a normal bow when held and walking, only in
+  // combat does it change into the appearance it actually has".
+  //
+  // This test could not see that, because it only ever read the stance. And
+  // its own slice ended at a line that no longer exists, so it had quietly
+  // become a test of the whole rest of the file.
   const i = win.indexOf("} else if (o.shooting) {")
   assert.ok(i > 0, 'the archer stance is gone or renamed')
-  const stance = win.slice(i, win.indexOf('\n  } else if (o.bow)', i))
-  assert.ok(stance.includes('o.wepItem'),
+  const end = win.indexOf('// head: skin, hair cap', i)
+  assert.ok(end > i, 'the stance no longer ends where the head begins')
+  const stance = win.slice(i, end)
+  assert.ok(/BOW_LOOK\[/.test(stance),
     'the stance does not look at which bow it is, so every bow is the same bow')
 
-  // the ones the world makes a point of: each must be told from the others
-  for (const [name, re] of [
-    ['dragonbow', /dragonbow/], ['sigil-bow', /sigil-bow/], ['a crossbow', /crossbow\$\/|crossbow/],
-  ]) {
-    assert.ok(re.test(stance), name + ' is drawn as a plain wooden bow again')
+  // AND THE SLUNG ONE READS THE SAME TABLE. Two drawings with two tables is
+  // how they came to disagree in the first place.
+  const sl = win.indexOf('} else if (BOW_LOOK[o.wepItem]) {\n    //')
+  assert.ok(sl > 0, 'the slung bow no longer reads the one table')
+  const slung = win.slice(sl, sl + 2200)
+  for (const field of ['limb', 'string', 'span', 'thick']) {
+    assert.ok(new RegExp('B\\.' + field).test(slung),
+      'the slung bow ignores its ' + field + ', so every bow is slung alike')
   }
-  // and the limb colour must actually vary, not be one constant
-  const limbs = [...stance.matchAll(/'#[0-9a-f]{6}'/g)].map((m) => m[0])
-  assert.ok(new Set(limbs).size >= 4,
-    'the stance paints ' + new Set(limbs).size + ' colours: every bow still looks alike')
+  // and the table itself must tell them apart: eight rows, no two the same
+  const bl = win.indexOf('const BOW_LOOK = {')
+  const table = win.slice(bl, win.indexOf('\n}', bl))
+  const rows = [...table.matchAll(/\{[^}]*\}/g)].map((m) => m[0])
+  assert.ok(rows.length >= 8, 'the table holds ' + rows.length + ' bows; the world has eight')
+  assert.equal(new Set(rows).size, rows.length,
+    'two bows are given identical rows, so a citizen cannot tell them apart')
+  for (const name of ['dragonbow', 'sigil-bow', 'horn-bow', 'crossbow']) {
+    assert.ok(table.includes(name), name + ' is drawn as a plain wooden bow again')
+  }
 })
 
 // ---- A WEAPON MOVES THE WAY ITS KIND MOVES, AND A GAMBIT IS NOT A JAB ----
@@ -879,16 +927,27 @@ test('each family of weapon swings its own arc, and a gambit swings further', ()
 })
 
 test('a bow is drawn and loosed on the beat, not wobbled at by a wall clock', () => {
-  const i = win.indexOf('const shotT =')
-  assert.ok(i > 0, 'the bow is back on a clock of its own')
+  // §7f-v: ONE CLOCK FOR THE WHOLE ARCHER. The bow block used to time the
+  // shot for itself; the body needs the same instant or the hands and the
+  // string disagree by a frame and the arrow leaves before the fingers do. So
+  // the clock is set once, with the stance, and both read it.
+  const i = win.indexOf('const aT = !archer')
+  assert.ok(i > 0, 'the shot is back on a clock of its own')
   const seg = win.slice(i, i + 700)
   assert.ok(/renderT\(/.test(seg), 'the draw must follow the interval the shot lands on')
   assert.ok(/o\.exchange|o\.gambit/.test(seg), 'and only when there is a shot to loose')
-  assert.ok(/loosed/.test(seg), 'the arrow must actually leave the string')
+  assert.ok(/aLoosed/.test(seg), 'the arrow must actually leave the string')
+  // and the bow takes those rather than working them out a second time
+  const b = win.indexOf('const shotT =')
+  assert.ok(b > 0, 'the stance no longer reads a shot clock at all')
+  assert.match(win.slice(b, b + 120), /shotT = aT/,
+    'the bow times the shot for itself again, so the body and the string can disagree')
 
   // the old wall clock must be gone from the stance
   const a = win.indexOf("} else if (o.shooting) {")
-  const stance = win.slice(a, win.indexOf('\n  } else if (o.bow)', a))
+  const end = win.indexOf('// head: skin, hair cap', a)
+  assert.ok(end > a, 'the stance no longer ends where the head begins')
+  const stance = win.slice(a, end)
   assert.ok(!/const pull = \(Math\.sin\(o\.now/.test(stance),
     'the pull is a wall clock again, so the string breathes and nothing is ever loosed')
 })
@@ -905,10 +964,12 @@ test('a flurry swings as many times as it has blows', () => {
   assert.ok(/GAMBIT_BLOWS/.test(seg),
     'the count must be the engine’s own, the same one the arrows are drawn by')
   assert.ok(/% 1/.test(seg), 'the interval must be divided by the blows, or it is still one swing')
-  // and the bow counts the same way
-  const b = win.indexOf('const nShot8 =')
+  // and the bow counts the same way, off the archer's own clock (§7f-v)
+  const b = win.indexOf('const aBlows =')
   assert.ok(b > 0, 'a flurry of arrows is still one draw')
   assert.ok(/GAMBIT_BLOWS/.test(win.slice(b, b + 260)), 'and off the same count')
+  assert.ok(/% 1/.test(win.slice(b, b + 400)),
+    'the interval must be divided by the blows for the bow too, or a flurry is one draw')
 })
 
 // ---- AND NOBODY HOLDS A WEAPON BY ITS HEAD ----
@@ -923,9 +984,19 @@ test('a weapon reaches away from the hand, not back through it', async () => {
   const fn = win.slice(a, win.indexOf('\n}\n', a) + 2)
   const r = win.indexOf('const RANGED_ITEMS = new Set([')
   const ranged = win.slice(r, win.indexOf('])', r) + 2)
+  // §7f-iv: and the two tables the one drawing divides the ranged arms by. A
+  // bow draws NOTHING in the hand now, on purpose: the body carries it slung
+  // off BOW_LOOK, and drawing it in both places is how an archer came to be
+  // holding two bows at once. A javelin has art of its own.
+  const bl = win.indexOf('const BOW_LOOK = {')
+  assert.ok(bl > 0, 'the one bow table is gone or renamed')
+  const bowLook = win.slice(bl, win.indexOf('\n}', bl) + 2)
+  const tr = win.indexOf('const THROWN_ITEMS = new Set([')
+  const thrown = win.slice(tr, win.indexOf('])', tr) + 2)
   const ph = win.indexOf('const poly9 = ')
   const poly9 = win.slice(ph, win.indexOf('\n', win.indexOf('cx.fill()', ph)))
-  const draw = new Function(ranged + '\n' + poly9 + '\n' + fn + '\nreturn heldWeapon')()
+  const draw = new Function(ranged + '\n' + bowLook + '\n' + thrown + '\n'
+    + poly9 + '\n' + fn + '\nreturn heldWeapon')()
 
   // a context that remembers where it was asked to paint
   const spans = (it) => {
@@ -2615,7 +2686,12 @@ test('a right-click reaches what is under a creature, and the glass opens a list
   // ground is looked at, and returned
   const mobAt = handler.indexOf("if (best?.kind === 'mob') {")
   assert.ok(mobAt > 0, 'the creature branch has moved')
-  const mobBody = handler.slice(mobAt, mobAt + 1600)
+  // TO THE END OF THE BRANCH, not a fixed number of characters. The branch
+  // gained the yard gambit (20e-ii) and the two things asked below fell past
+  // a 1600-character window, which reads as the right button having lost them.
+  const mobEnd = handler.indexOf("if (best?.kind === 'citizen') {", mobAt)
+  assert.ok(mobEnd > mobAt, 'the citizen branch no longer follows the creature branch')
+  const mobBody = handler.slice(mobAt, mobEnd)
   assert.match(mobBody, /if \(rightPress\) \{/,
     'a creature standing on a pile still hides it from the right button')
   assert.match(mobBody, /take the/, 'the pile under a creature cannot be taken')

@@ -5690,6 +5690,33 @@ const RANGED_ITEMS = new Set([
   "steel-javelin",
   "wooden-bow"
 ])   // §6dg
+// §7f-iv: WHAT EACH BOW IS MADE OF, in ONE place.
+//
+// "The horn bow is identical to a normal bow when held and walking. Only in
+// combat does it change into the appearance it actually has."
+//
+// Exactly so, and there were THREE drawings of a bow in this window: the one
+// slung on the back, the one in the fist, and the one in the archer's stance.
+// Only the stance told the bows apart, and it carried its own private table
+// to do it, with a comment claiming the carried drawing had told them apart
+// for a long time. It never had: the slung bow was one hardcoded brown for
+// all eight, so the rarest arm in the world was the first one anybody is
+// given right up until the moment a fight started.
+//
+// A copied table drifts, and these had already drifted apart, so there is one
+// table and every drawing reads it. `span` is the half-height of the limb
+// arc, `thick` the limb, and `glow` and `sigils` the two that announce
+// themselves.
+const BOW_LOOK = {
+  'wooden-bow':     { limb: '#6b5330', string: '#d9d3c0', span: 8,   thick: 2.6 },
+  'horn-bow':       { limb: '#9a7b4a', string: '#d9d3c0', span: 8.5, thick: 2.8, horn: true },
+  'heartwood-bow':  { limb: '#b08a3e', string: '#e2d6a8', span: 8,   thick: 2.7 },
+  'hollow-bow':     { limb: '#cdbfa6', string: '#e8e4d0', span: 8,   thick: 2.4, hollow: true },
+  'sigil-bow':      { limb: '#7a6d4a', string: '#d9d3c0', span: 8,   thick: 2.6, sigils: true },
+  dragonbow:        { limb: '#d8d0b8', string: '#e8c08a', span: 9.5, thick: 3,   glow: true },
+  crossbow:         { limb: '#8a8078', string: '#c9c1b6', span: 5.5, thick: 2.2, stock: 9 },
+  'great-crossbow': { limb: '#6e675c', string: '#c9c1b6', span: 7,   thick: 3,   stock: 12 },
+}
 // §6dg: what a weapon draws FROM. A bow wants arrows, a gonne wants shot, and a
 // javelin wants more javelins -- the engine's `ammoOf`, which answers with the
 // weapon's own name when it is `selfAmmo`.
@@ -8659,6 +8686,27 @@ const GAMBIT_SAYS = {
 // arm it, then choose who. That also means one control works for a mouse and
 // a thumb alike, and you cannot spend your arm by misclicking.
 let gambitArmed = false
+// Whether a gambit can be thrown at that body from here, asked the way the
+// engine asks it. A reach of one strikes along the lines you can step, so the
+// four faced tiles and no corner; a longer haft or a bow may cross a corner,
+// and nothing at all strikes the tile it stands on. Copied from `inReach`
+// rather than guessed, because a window that is more generous than the rule
+// sends deeds the pillar throws away without saying why.
+function gambitReaches (p, t) {
+  const r = reachOfItem(p?.equipment?.weapon?.item)
+  const cheb = Math.max(Math.abs(p.x - t.x), Math.abs(p.y - t.y))
+  if (cheb < 1) return false
+  if (r <= 1) return Math.abs(p.x - t.x) + Math.abs(p.y - t.y) === 1
+  return cheb <= r
+}
+// One door for both targets. A dummy and a citizen take the same input, which
+// is the whole point of 20e giving the yard's mobs 64-hex ids: one shape, one
+// sender, no second verb.
+function spendGambit (tid, t) {
+  gambitArmed = false
+  send({ do: 'gambit', targetId: tid })
+  feed('You strike off the rhythm.')
+}
 const splats = []     // { x, y, amount, at } damage made visible
 const effects = []    // { kind, x, y, at } rites and works made visible
 // what each deed looks like from across a clearing. Only kinds this window can
@@ -8757,7 +8805,8 @@ function drawGoalMarker(s, tNow) {
   let gx = null, gy = null, isAct = true
   if (intent.kind === 'walk') { gx = intent.x; gy = intent.y; isAct = false }
   else if (intent.kind === 'pickup') { const g2 = s.ground[intent.id]; if (g2) { gx = g2.x; gy = g2.y } }
-  else if (intent.kind === 'prowess' || intent.kind === 'meet' || intent.kind === 'pvpattack') {
+  else if (intent.kind === 'prowess' || intent.kind === 'meet' || intent.kind === 'pvpattack'
+           || intent.kind === 'gambitmob') {
     const e2 = s.mobs[intent.id] ?? s.players[intent.id]
     if (e2) {
       const o2 = (s.mobs[intent.id] ? prevState?.mobs?.[intent.id] : prevState?.players?.[intent.id])
@@ -9602,8 +9651,12 @@ function kitGive(item, how) {
   } else {
     const free = p.inventory.findIndex((sl) => !sl)
     if (free === -1) { feed('Your pack is full.'); return }
-    p.inventory[free] = { item, qty: STACKABLE.has(item) ? 100 : 1 }
-    feed('A ' + nm + ', in your pack.')
+    const many = STACKABLE.has(item)
+    p.inventory[free] = { item, qty: many ? 100 : 1 }
+    // "A arrows, in your pack." A stack is a plural and a hundred of them is
+    // not "a". The world's names carry their own number: arrows, bones, logs.
+    feed(many ? (nm.charAt(0).toUpperCase() + nm.slice(1) + ', in your pack.')
+      : ('A' + (/^[aeiou]/i.test(nm) ? 'n' : '') + ' ' + nm + ', in your pack.'))
   }
   // THROUGH `withPeers`, LIKE THE TICK. This handed `nought.state` straight to
   // the renderer, which hangs its drawing caches on whatever object it is
@@ -10798,6 +10851,19 @@ function _onState(s, worldId, local) {
     // something with a bow in their hands. The only way to shoot was to stand
     // at the right distance first and then click, which is not a command
     // anybody should have to compose.
+    // 20e: a gambit walked to is spent the moment it can be, which for a bow
+    // is from wherever the arrow carries. It never persists like a hunt does:
+    // the arm is spent once and the decision was taken before the walk.
+    // The condition carries the reach test rather than the body, because this
+    // chain ends in `stepToward`: a branch that merely declines to act eats
+    // the step as well, and the citizen stands where they were clicking at
+    // something across the yard.
+    else if (intent.kind === 'gambitmob'
+             && (!gambitArmed || goal.hp <= 0 || gambitReaches(me, goal))) {
+      if (goal.hp <= 0) feed('It is not there any more.')
+      else if (gambitArmed) spendGambit(intent.id, goal)
+      intent = null                                   // or it stood down on the way
+    }
     else if (intent.kind === 'prowess'
              && RANGED_ITEMS.has(me.equipment?.weapon?.item)
              && hasAmmoFor(me, me.equipment?.weapon?.item)   // §6dg: arrows, shot or javelins
@@ -11225,13 +11291,6 @@ function heldWeapon (cx, it, F, now) {
       cx.quadraticCurveTo(F * 3, 4, 0, 8); cx.stroke()
       cx.fillStyle = '#6e675c'
       for (const cy9 of [1.5, 4, 6.5]) { cx.beginPath(); cx.arc(F * 1.2, cy9, 1.1, 0, 7); cx.fill() }
-    } else if (o.wepItem === 'crossbow') {
-      // carried flat across the back: a stock and a prod
-      cx.fillStyle = '#6b5330'; cx.fillRect(-1, -1, 2, 9)
-      cx.strokeStyle = '#8a8078'; cx.lineWidth = 1.4
-      cx.beginPath(); cx.moveTo(-4, 1); cx.quadraticCurveTo(0, 3.4, 4, 1); cx.stroke()
-      cx.strokeStyle = '#c9c1b6'; cx.lineWidth = 0.7
-      cx.beginPath(); cx.moveTo(-4, 1); cx.lineTo(0, 5); cx.lineTo(4, 1); cx.stroke()
     } else if (o.wepItem === 'handgonne') {
       // §6av: A HAND CANNON, carried muzzle-down across the body. It had no
       // held sprite at all and fell through every branch, so the loudest thing
@@ -11247,18 +11306,41 @@ function heldWeapon (cx, it, F, now) {
       cx.fillStyle = 'rgba(255,170,70,' + glow.toFixed(2) + ')'       // the match, burning
       cx.beginPath(); cx.arc(1.9, -3.4, 1.1, 0, 7); cx.fill()
       cx.restore()
-    } else if (RANGED_ITEMS.has(o.wepItem)) {
-      // a bow slung: horn brown, sigil blue-lit, dragon bone-pale
-      const dbow = o.wepItem === 'dragonbow', sbow = o.wepItem === 'sigil-bow'
-      cx.strokeStyle = dbow ? '#d8d0b8' : sbow ? '#7a6d4a' : '#6b5330'
-      cx.lineWidth = dbow ? 1.8 : 1.4
-      cx.beginPath(); cx.moveTo(-1, -6); cx.quadraticCurveTo(F * 4.4, 1, -1, 8); cx.stroke()
-      cx.strokeStyle = dbow ? 'rgba(255,190,110,.9)' : '#c9c1b6'; cx.lineWidth = 0.6
-      cx.beginPath(); cx.moveTo(-1, -6); cx.lineTo(-1, 8); cx.stroke()
-      if (dbow) { cx.fillStyle = 'rgba(255,150,50,.5)'
-        cx.beginPath(); cx.arc(0, 1, 4.4, 0, 7); cx.fill() }
-      if (sbow) { cx.fillStyle = 'rgba(150,190,240,.55)'
-        for (const sy9 of [-3, 1, 5]) { cx.beginPath(); cx.arc(F * 1.4, sy9, 1.1, 0, 7); cx.fill() } }
+    } else if (BOW_LOOK[o.wepItem]) {
+      // §7f-iv: NOTHING. A BOW IS DRAWN ONCE.
+      //
+      // (The crossbow had a branch of its own here as well as a row in the
+      // table, so it was carried twice like the rest of them. Found by the
+      // check written for this rule rather than by looking, which is the one
+      // case where a check beats a photograph: three pixels of difference.)
+      //
+      // "When I wield horn bow and turn towards the left, I am wielding two
+      // bows at the same time, one smaller and one normal."
+      //
+      // Here it is, and it was not the facing. A bow is slung on the back by
+      // the body drawing AND was drawn again in the fist by this branch, so
+      // every archer standing still carried two: the slung one at span 8 and
+      // this one, a smaller curve, rotated 0.7 at the hand. Turning left puts
+      // the hand on the near side of the body and sets them side by side,
+      // which is when it became obvious. An earlier note in the fight branch
+      // said the reported fault was "still out there" and asked not to be
+      // read as the explanation. It was two drawings, not one drawing twice.
+      //
+      // The back carries it. There is nothing to draw in the hand.
+    } else if (THROWN_ITEMS.has(o.wepItem)) {
+      // §6dg: A JAVELIN IS NOT A BOW. All three were in RANGED_ITEMS and fell
+      // into the branch above, so a thrower walked about with a bow in his
+      // fist and a second bow on his back. It is a short shaft with a long
+      // head, carried point-up, and there is a bundle of them: a javelin is
+      // its own ammunition.
+      const lit9 = o.wepItem === 'quick-javelin' ? '#8ce0ff'
+        : o.wepItem === 'steel-javelin' ? '#dfe6ee' : '#c9862a'
+      for (const dx9 of [-1.3, 0.9]) {       // the spare, held behind the first
+        cx.fillStyle = '#4a3a22'; cx.fillRect(dx9 - 0.5, -7, 1.1, 15)
+        cx.fillStyle = lit9
+        poly9(cx, [[dx9 - 1.4, -7], [dx9, -11], [dx9 + 1.4, -7]])
+      }
+      cx.fillStyle = '#2a2114'; cx.fillRect(-2.2, 0, 4.4, 1.4)      // the grip
     } else {
       // §7f: AND A FAMILY, FOR THE FOURTEEN WITH NO LINE OF THEIR OWN.
       //
@@ -12196,7 +12278,7 @@ function drawCitizen(X, Y, o) {
   // whole body; tending and crafting lean it; hauling settles it under the
   // weight. Nothing here moves the feet, so it composes with the walk.
   const STOOP = { kneel: 5.5, dig: 6.5, tend: 2.2, craft: 1.4, haul: 1.8 }[o.anim] ?? 0
-  const step = o.anim === 'walk' ? Math.sin(now / 110) : 0
+  let step = o.anim === 'walk' ? Math.sin(now / 110) : 0
   const hurt = (o.now - (hitFlash[o.pid] ?? -9999)) < 320
   const recoil = hurt ? (1 - (o.now - (hitFlash[o.pid] ?? 0)) / 320) : 0
   if (hurt) { X -= (o.face ?? 1) * recoil * 7; Y += recoil * 2.5 } // struck: thrown back
@@ -12233,13 +12315,6 @@ function drawCitizen(X, Y, o) {
   // back, comes through more, and leans the body further in. Nothing here
   // invents a second animation, because a gambit is not a different act.
   const gam9 = striking && o.gambit
-  // §7f: AND A FLURRY IS FOUR BLOWS, SO IT IS FOUR SWINGS.
-  //
-  // A quick-dagger gambit rolls four, a horn-bow three, and the arm made ONE
-  // movement for any of them: the marks landed four at a time over a citizen
-  // who had swung once. The count is the engine's own, already copied here
-  // for the number of arrows drawn flying, so the arm counts the same way.
-  // The interval is divided by the blows and the swing repeats inside it.
   const blows9 = gam9 ? (GAMBIT_BLOWS[o.wepItem] ?? 1) : 1
   const beat9 = blows9 > 1 ? (renderT(now) * blows9) % 1 : renderT(now)
   const strikeT = striking
@@ -12255,6 +12330,57 @@ function drawCitizen(X, Y, o) {
   const ARC9 = SWING_OF(o.wepItem || '')
   const lunge = striking && (o.exchange || gam9)
     ? strikeT * ARC9[2] * (gam9 ? 1.5 : 1) * o.face : 0
+  // §7f-v: AND THE BODY SHOOTS.
+  //
+  // "When shooting with the bow the string goes backwards and the arrow goes
+  // flying, that is good, but the citizen is standing completely still. It
+  // looks weird."
+  //
+  // Quite right: `striking` excludes a shot deliberately, because an archer
+  // must not swing, and NOTHING was put in its place. The bow drew and loosed
+  // in front of a body that never moved a muscle, which reads as a bow
+  // working by itself.
+  //
+  // So the shot is timed ONCE, here, and the body and the bow both read it:
+  // the string comes back over the first two thirds of the interval the shot
+  // lands on, then snaps. The bow block used to compute this for itself and
+  // now takes these. One clock for the whole archer, or the hands and the
+  // string disagree by a frame and the arrow leaves before the fingers do.
+  const archer = o.shooting && !SHOT_WEAPONS.has(o.wepItem) && !hurt
+  const aBlows = archer && o.gambit ? (GAMBIT_BLOWS[o.wepItem] ?? 1) : 1
+  const aT = !archer ? -1
+    : (o.exchange || o.gambit)
+      ? (aBlows > 1 ? (renderT(now) * aBlows) % 1 : renderT(now)) : -1
+  const aLoosed = aT >= 0.66
+  // between shots a bow keeps a light hold: a person waiting, not at rest
+  const aPull = aT < 0 ? 0.22 + Math.sin(now / 620) * 0.07 : aLoosed ? 0 : aT / 0.66
+  // §7f-v: AND A THROW IS THE OTHER WAY ROUND. The tool arm's angle is
+  // measured from straight down and the rotation carries the facing, so a
+  // NEGATIVE angle raises the arm forward and a POSITIVE one takes it back
+  // over the shoulder, which is where a javelin starts. Wind up through the
+  // first two thirds, then snap through and let go. One angle, read by the arm
+  // that throws and by the shaft in its hand, or the shaft leaves from
+  // somewhere the hand is not.
+  const aThrow = aT < 0 ? 2.05 + Math.sin(now / 700) * 0.06
+    : !aLoosed ? 2.15 + aT * 0.3
+    : 1.9 - ((aT - 0.66) / 0.34) * 3.6
+  // A BLADED STANCE, and it is in the FEET first. The two legs take `step` in
+  // opposite directions, so one steady negative value is a man stood square
+  // with his weight spread: braced rather than walking. The brace deepens as
+  // the string comes back and lets go on the loose, which is the whole of
+  // what an archer's body does.
+  if (archer) step = -(0.45 + aPull * 0.4)
+  // and the weight goes back onto the rear foot at full draw, forward as it
+  // is released. Two pixels. It is the difference between a bow working by
+  // itself and somebody shooting it.
+  if (archer) X += (o.face ?? 1) * (aLoosed ? 1.1 : -aPull * 1.6)
+  // §7f: AND A FLURRY IS FOUR BLOWS, SO IT IS FOUR SWINGS.
+  //
+  // A quick-dagger gambit rolls four, a horn-bow three, and the arm made ONE
+  // movement for any of them: the marks landed four at a time over a citizen
+  // who had swung once. The count is the engine's own, already copied here
+  // for the number of arrows drawn flying, so the arm counts the same way.
+  // The interval is divided by the blows and the swing repeats inside it.
   X += lunge; Y += bob + STOOP
   const F = o.face
 
@@ -12308,13 +12434,30 @@ function drawCitizen(X, Y, o) {
   // The drawing is unchanged and now happens below, after the body and
   // before the head.
   if (o.shooting) { /* drawn after the body: see aimed, below */
-  } else if (o.bow) { // the bow rides the back, string catching the light
+  } else if (BOW_LOOK[o.wepItem]) {
+    // §7f-iv: THE BOW RIDES THE BACK, AND IT IS THE BOW THEY ARE CARRYING.
+    //
+    // This was one brown arc for all eight, drawn for everything in
+    // RANGED_ITEMS: a javelin thrower walked about with a bow slung on his
+    // back and so did a man carrying a hand cannon. It reads BOW_LOOK now and
+    // only for the things that are actually bows.
+    const B = BOW_LOOK[o.wepItem]
     const BF = o.face ?? 1
-    cx.strokeStyle = '#5c4023'; cx.lineWidth = 2.4
-    cx.beginPath(); cx.arc(X + 20 - BF * 7, Y + 19, 8, -1.2, 1.2); cx.stroke()
-    cx.strokeStyle = '#d9d3c0'; cx.lineWidth = 0.9
-    cx.beginPath(); cx.moveTo(X + 20 - BF * 7 + Math.cos(-1.2) * 8, Y + 19 + Math.sin(-1.2) * 8)
-    cx.lineTo(X + 20 - BF * 7 + Math.cos(1.2) * 8, Y + 19 + Math.sin(1.2) * 8); cx.stroke()
+    const bx = X + 20 - BF * 7, by = Y + 19
+    if (B.stock) {   // a crossbow is slung flat: the stock is most of what it is
+      cx.fillStyle = '#5c4023'
+      cx.fillRect(bx - B.stock / 2, by - 1.2, B.stock, 2.6)
+    }
+    cx.strokeStyle = B.limb; cx.lineWidth = B.thick
+    cx.beginPath(); cx.arc(bx, by, B.span, -1.2, 1.2); cx.stroke()
+    cx.strokeStyle = B.string; cx.lineWidth = 0.9
+    cx.beginPath(); cx.moveTo(bx + Math.cos(-1.2) * B.span, by + Math.sin(-1.2) * B.span)
+    cx.lineTo(bx + Math.cos(1.2) * B.span, by + Math.sin(1.2) * B.span); cx.stroke()
+    // and the two that say what they are from across a field
+    if (B.glow) { cx.fillStyle = 'rgba(255,150,50,.38)'
+      cx.beginPath(); cx.arc(bx, by, B.span * 0.8, 0, 7); cx.fill() }
+    if (B.sigils) { cx.fillStyle = 'rgba(150,190,240,.55)'
+      for (const sy9 of [-4, 0, 4]) { cx.beginPath(); cx.arc(bx + 1, by + sy9, 1.1, 0, 7); cx.fill() } }
   }
   if (o.cape) {
     const sway = Math.sin(o.now / 420 + X) * 1.6 + (o.anim === 'walk' ? Math.sin(o.now / 130) * 2.2 : 0)
@@ -12510,6 +12653,14 @@ function drawCitizen(X, Y, o) {
     : 0
   cx.rotate(F * (WORK ? workSwing
     : o.anim === 'gather' ? -0.6 + swing * 0.9
+    // §7f-v: THE BOW ARM IS HELD OUT, not hanging at the hip. Measured from
+    // straight down, so this is a hair above level: the arm the bow sits on,
+    // locked where an archer locks it. It gives a little as the string comes
+    // back, which is what a braced arm does under load.
+    // §7f-v: a thrower's arm goes BACK and comes through; an archer's is
+    // locked where the bow sits. Measured from straight down, so past -1.57
+    // is above the horizontal and behind the head.
+    : archer ? (THROWN_ITEMS.has(o.wepItem) ? aThrow : -1.30 + aPull * 0.06)
     : (o.anim === 'fight' && !o.shooting)
       ? ARC9[0] * (gam9 ? 1.25 : 1) + swing * ARC9[1] * (gam9 ? 1.3 : 1)
     : 0.15))
@@ -12570,7 +12721,13 @@ function drawCitizen(X, Y, o) {
     // the hand. A bow is the exception and draws nothing here: the archer's
     // stance above already holds it, and an arm swinging a second weapon
     // underneath is how the archer came to be carrying a sword as well.
-    if (o.wepItem && !RANGED_ITEMS.has(o.wepItem)) {
+    // §6dg: AND A JAVELIN IS A WEAPON IN THE HAND TOO. Thrown arms are in
+    // RANGED_ITEMS, so a thrower fighting at arm's length -- which is what
+    // happens when the thing he was throwing at arrives -- swung an empty
+    // hand. It is drawn here unless it is in the air: while the throw is being
+    // made the stance below holds it, and both would be two javelins.
+    if (o.wepItem && (!RANGED_ITEMS.has(o.wepItem)
+        || (THROWN_ITEMS.has(o.wepItem) && !o.shooting))) {
       cx.save(); cx.translate(0, 7.4)
       // §7f: A SPEAR IS CARRIED UPRIGHT AND THRUST POINT-FIRST.
       //
@@ -12581,7 +12738,10 @@ function drawCitizen(X, Y, o) {
       //
       // Turned, not redrawn. It is the same spear in the same hand, held
       // the other way, which is what a person does with a spear.
-      if (/-spear$|^bone-spear$/.test(o.wepItem)) { cx.rotate(Math.PI); cx.translate(0, 4) }
+      // §6dg: AND A JAVELIN THE SAME. It is carried point-up like a spear,
+      // which is right walking down a road, and a thrower who has let the
+      // thing he was throwing at get to arm's length is thrusting with it.
+      if (/-spear$|^bone-spear$|-javelin$/.test(o.wepItem)) { cx.rotate(Math.PI); cx.translate(0, 4) }
       heldWeapon(cx, o.wepItem, F, o.now)
       cx.restore()
     }
@@ -12650,6 +12810,42 @@ function drawCitizen(X, Y, o) {
     cx.fillStyle = 'rgba(255,170,70,' + gl.toFixed(2) + ')'
     cx.beginPath(); cx.arc(1.4, -2.4, 1.1, 0, 7); cx.fill()          // the match
     cx.restore()
+  } else if (o.shooting && THROWN_ITEMS.has(o.wepItem)) {
+    // §7f-v: A JAVELIN IS THROWN, NOT DRAWN.
+    //
+    // All three were in RANGED_ITEMS and nothing below asked which, so a
+    // thrower was given the archer's stance: a bowstring coming back, an
+    // arrow on it, and the arrow loosed from a bow that was not in his hand.
+    // The hand cannon's own note says a gun is not a bow and this is the
+    // third kind in the same place.
+    //
+    // A throw is one motion: the shaft goes back past the shoulder, comes
+    // through, and is GONE. It takes the same clock as the draw, so a flurry
+    // is that many throws.
+    // ONLY THE SHAFT. The arm is the TOOL ARM, drawn with the body above and
+    // already swinging on `aThrow`: an arm drawn here as well is a thrower
+    // with three of them. So this works out where that arm's hand ended up
+    // and puts the javelin in it.
+    const TF = o.face ?? 1
+    const lit7 = o.wepItem === 'quick-javelin' ? '#8ce0ff'
+      : o.wepItem === 'steel-javelin' ? '#dfe6ee' : '#c9862a'
+    // the shoulder the arm hangs from, and the hand at the end of it: the
+    // same numbers the arm itself uses, turned by the same angle.
+    const shx = X + (TF > 0 ? 26.5 : 13.5), shy = Y + 18
+    const th = TF * aThrow
+    const hx7 = shx - 7.4 * Math.sin(th)
+    const hy7 = shy + 7.4 * Math.cos(th)
+    // ONCE IT IS GONE IT IS GONE. The shaft in flight belongs to the world's
+    // own tracer, which draws what was loosed crossing the ground; a body that
+    // keeps hold of it has thrown nothing.
+    if (!aLoosed) {
+      const tilt = -0.2
+      cx.save(); cx.translate(hx7, hy7); cx.rotate(TF > 0 ? tilt : Math.PI - tilt)
+      cx.fillStyle = '#4a3a22'; cx.fillRect(-7, -0.65, 16, 1.3)
+      cx.fillStyle = lit7
+      cx.beginPath(); cx.moveTo(9, -2); cx.lineTo(14, 0); cx.lineTo(9, 2); cx.closePath(); cx.fill()
+      cx.restore()
+    }
   } else if (o.shooting) {
     // §7f: AND EVERY BOW WAS THE SAME BOW, a wooden one.
     //
@@ -12665,13 +12861,11 @@ function drawCitizen(X, Y, o) {
     // it is the same act.
     const BF = o.face ?? 1
     const it8 = o.wepItem || ''
-    const dbow8 = it8 === 'dragonbow', sbow8 = it8 === 'sigil-bow'
-    const horn8 = it8 === 'horn-bow', heart8 = it8 === 'heartwood-bow'
-    const hollow8 = it8 === 'hollow-bow', xbow8 = /crossbow$/.test(it8)
-    const limb8 = dbow8 ? '#d8d0b8' : sbow8 ? '#7a6d4a' : horn8 ? '#9a7b4a'
-      : heart8 ? '#b08a3e' : hollow8 ? '#cdbfa6' : '#6b5330'
-    const span8 = xbow8 ? 5.5 : dbow8 ? 9.5 : horn8 ? 8.5 : 8
-    const thick8 = dbow8 ? 3 : xbow8 ? 2.2 : 2.6
+    // §7f-iv: read from BOW_LOOK, which the slung drawing reads too. This held
+    // its own copy of the same six colours and they had already drifted.
+    const B8 = BOW_LOOK[it8] ?? BOW_LOOK['wooden-bow']
+    const dbow8 = it8 === 'dragonbow', xbow8 = !!B8.stock
+    const limb8 = B8.limb, span8 = B8.span, thick8 = B8.thick
     // §7f: AND A BOW IS DRAWN AND LOOSED, not wobbled at.
     //
     // The pull was `sin(now / 300)`: a wall clock, running whether or not
@@ -12687,26 +12881,38 @@ function drawCitizen(X, Y, o) {
     // than a person at rest.
     // a flurry of arrows is that many draws, on the same count the shafts
     // are drawn flying by
-    const nShot8 = o.gambit ? (GAMBIT_BLOWS[o.wepItem] ?? 1) : 1
-    const shotT = (o.exchange || o.gambit)
-      ? (nShot8 > 1 ? (renderT(o.now) * nShot8) % 1 : renderT(o.now)) : -1
-    const loosed = shotT >= 0.66
-    const pull = shotT < 0 ? 0.22 + Math.sin(o.now / 620) * 0.07
-      : loosed ? 0 : shotT / 0.66
+    // §7f-v: the one clock, set above with the body's own stance.
+    const shotT = aT, loosed = aLoosed, pull = aPull
     cx.strokeStyle = limb8; cx.lineWidth = thick8
     cx.beginPath(); cx.arc(X + 20 + BF * 9, Y + 18, span8,
       BF > 0 ? -1.35 : 1.79, BF > 0 ? 1.35 : 4.49); cx.stroke()
     if (xbow8) {   // a crossbow has a stock, and that is most of what it is
       cx.fillStyle = '#5c4023'
-      cx.fillRect(X + 20 + (BF > 0 ? 2 : -11), Y + 17, 9, 2.4)
+      cx.fillRect(X + 20 + (BF > 0 ? 2 : -2 - B8.stock), Y + 17, B8.stock, 2.4)
     }
-    cx.strokeStyle = hollow8 ? '#e8e4d0' : '#d9d3c0'; cx.lineWidth = 0.9
+    cx.strokeStyle = B8.string; cx.lineWidth = 0.9
     const sx1 = X + 20 + BF * 9 + Math.cos(BF > 0 ? -1.35 : 1.79) * span8
     const sy1 = Y + 18 + Math.sin(-1.35) * span8
     const sx2 = X + 20 + BF * 9 + Math.cos(BF > 0 ? 1.35 : 4.49) * span8
     const sy2 = Y + 18 + Math.sin(1.35) * span8
     const nockX = X + 20 + BF * (9 - 5 * pull)
     cx.beginPath(); cx.moveTo(sx1, sy1); cx.lineTo(nockX, Y + 18); cx.lineTo(sx2, sy2); cx.stroke()
+    // §7f-v: AND THE HAND THAT IS PULLING IT.
+    //
+    // The string came back on its own. The draw arm is the rear one, so it
+    // comes ACROSS the body to the nock and goes with it: a sleeve from the
+    // far shoulder, and the hand on the string wherever the string is. This
+    // is the half of the stance you actually watch, because it is the half
+    // that moves.
+    if (!xbow8) {
+      const shX = X + 20 - BF * 4, shY = Y + 17.5
+      cx.strokeStyle = tunicDk; cx.lineWidth = 3.4
+      cx.beginPath(); cx.moveTo(shX, shY); cx.lineTo(nockX - BF * 1.2, Y + 18); cx.stroke()
+      cx.strokeStyle = tunic; cx.lineWidth = 1.1
+      cx.beginPath(); cx.moveTo(shX, shY - 1); cx.lineTo(nockX - BF * 1.2, Y + 17); cx.stroke()
+      cx.fillStyle = skin
+      cx.beginPath(); cx.arc(nockX - BF * 0.4, Y + 18, 2.2, 0, 7); cx.fill()
+    }
     // and what is on the string: an arrow, until it is loosed and gone
     if (!loosed) {
       cx.strokeStyle = dbow8 ? '#e8c08a' : '#8a5a2a'; cx.lineWidth = 1.6
@@ -12731,11 +12937,11 @@ function drawCitizen(X, Y, o) {
       cx.beginPath(); cx.moveTo(sx1, sy1)
       cx.lineTo(X + 20 + BF * (9 + wob), Y + 18); cx.lineTo(sx2, sy2); cx.stroke()
     }
-    if (dbow8) {   // the dragonbow burns at the nock
+    if (B8.glow) {   // the dragonbow burns at the nock
       cx.fillStyle = 'rgba(255,150,50,.5)'
       cx.beginPath(); cx.arc(X + 20 + BF * 9, Y + 18, 4.4, 0, 7); cx.fill()
     }
-    if (sbow8) {   // and the sigil-bow is lit along its limbs
+    if (B8.sigils) {   // and the sigil-bow is lit along its limbs
       cx.fillStyle = 'rgba(150,190,240,.55)'
       for (const sy9 of [-4, 0, 4]) {
         cx.beginPath(); cx.arc(X + 20 + BF * 10, Y + 18 + sy9, 1.1, 0, 7); cx.fill()
@@ -17405,11 +17611,12 @@ function drawScene(now) {
       chain: p.equipment?.weapon?.item === 'old-chain',
       starSword: p.equipment?.weapon?.item === 'quick-sword',
       cape: capeOf(p),
-      // EVERY BOW IS A BOW. This read `=== 'wooden-bow'`, so a citizen
-      // holding a horn-bow, a crossbow, a sigil-bow or the dragonbow was
-      // drawn empty-handed and never nocked an arrow. The finest weapon in
-      // the world was invisible on the person carrying it.
-      bow: RANGED_ITEMS.has(p.equipment?.weapon?.item),
+      // §7f-iv: THERE IS NO `bow` FIELD ANY MORE. It read
+      // `RANGED_ITEMS.has(weapon)` and the drawing asked it instead of asking
+      // what the weapon IS, so a hand cannon and three javelins were slung on
+      // their owners' backs as bows. The drawing reads BOW_LOOK off `wepItem`,
+      // which is on this object and on the falling citizen's as well: a dying
+      // archer had no `bow` field at all and so no bow.
       // §6dg: and what is in the quiver, so a fire arrow is alight on the
       // string. The tracer learned this the same way (see nockedIsFire).
       fireNocked: nockedIsFire(p),
@@ -21189,6 +21396,37 @@ function worldPress(e, asLeft) {
     const { id, m } = best
     _pressName = say1(m.type)
     _pressLook = () => lookAtMob(m)
+    // 20e: AND A GAMBIT MAY BE SPENT ON A DUMMY. The armed gambit was read on
+    // the citizen branch alone, so the yard, the one place in the world built
+    // for finding out what your own gambit does, was the one place it could
+    // not be spent: the press fell through to `goForMob` and swung an
+    // ordinary blow. The engine has taken a mob id in `targetId` since 20e
+    // and this window simply never sent one, which is the same shape of fault
+    // 20e itself describes: two halves of one permission, disagreeing
+    // quietly.
+    //
+    // The target is the yard's, and nothing else. A goblin is not a gambit
+    // target under the rule, so say that rather than send a deed the pillar
+    // will refuse, and leave the gambit armed: nothing has been spent.
+    //
+    // 7ek holds here too: the RIGHT button never does the left one's work, so
+    // an armed gambit is spent by the left press and offered by name on the
+    // right, where the menu lists it only when it is actually available.
+    const gamb9 = () => {
+      flashClick(m.x, m.y, true)
+      if (gambitReaches(me, m)) { spendGambit(id, m); return }
+      intent = { kind: 'gambitmob', id }   // walk in, then spend it
+    }
+    const mayGambit = gambitArmed && !!GAMBIT_OF[me.equipment?.weapon?.item]
+      && MOB_STATS[m.type]?.dummy === true
+    if (!rightPress && gambitArmed && GAMBIT_OF[me.equipment?.weapon?.item]) {
+      if (!mayGambit) {
+        feed('A gambit is for a citizen, or for the targets in a training yard.')
+        return
+      }
+      gamb9()
+      return
+    }
     // §7ei: A BEAST STANDING ON A PILE HIDES IT. The creature is found before
     // the ground is looked at and returns, so what a wolf drops and then
     // stands over cannot be reached at all: right-clicking the bones struck
@@ -21204,6 +21442,7 @@ function worldPress(e, asLeft) {
       const pile = Object.entries(world.ground ?? {}).filter(([, g3]) => g3.x === m.x && g3.y === m.y)
       const st9 = MOB_STATS[m.type] ?? {}
       chooseAction([
+        ...(mayGambit ? [{ label: 'spend your gambit on it', act: gamb9 }] : []),
         { label: 'attack', act: () => goForMob(id) },
         ...pile.slice(0, 5).map(([gid, g3]) => ({ label: 'take the ' + say1(g3.item),
           act: () => { send({ do: 'pickup', groundId: gid, confirm: false })
@@ -21221,9 +21460,7 @@ function worldPress(e, asLeft) {
     _pressLook = () => lookAtCitizen(pid, p)
     _pressLookAs = 'look at ' + (p.name ?? 'them')
     if (gambitArmed && GAMBIT_OF[me.equipment?.weapon?.item]) {
-      gambitArmed = false
-      send({ do: 'gambit', targetId: pid })
-      feed('You strike off the rhythm.')
+      spendGambit(pid, p)
       return
     }
     flashClick(p.x, p.y, true)

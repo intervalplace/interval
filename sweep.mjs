@@ -279,6 +279,15 @@ const AFTER = (plan, state, myId) => `<script>
   // archer's stance is actually drawn. A bow at rest and a bow being drawn
   // are two different pictures and only one of them was ever photographed.
   const SHOOT = ${JSON.stringify(process.argv.includes('--shoot'))}
+  // --pull <ms>: WHERE IN THE DRAW TO CATCH IT. The stance is a motion and a
+  // photograph is an instant, so one picture of an archer says nothing about
+  // whether the motion is right: the string comes back over the first two
+  // thirds of an interval and snaps at 0.66. Chrome's virtual clock does not
+  // advance INSIDE a task but does advance between them, so settling a chosen
+  // number of milliseconds after the fight state lands is exactly a chosen
+  // point in the draw. 200 is the string coming back, 600 is nearly full, 800
+  // is loosed and gone. NO BACKTICKS IN THIS BLOCK, it is a template literal.
+  const PULL = ${JSON.stringify(Number(arg('--pull') ?? 600))}
   // --gambit: set the arm, so the mark that says you are set can be seen
   const GAMBIT = ${JSON.stringify(process.argv.includes('--gambit'))}
   // --life: fill the country's living things at once and photograph them.
@@ -462,9 +471,26 @@ const AFTER = (plan, state, myId) => `<script>
             const meS = STATE.players[ME]
             STATE.mobs.sweepfoe = { type: 'goblin', x: meS.x - 4, y: meS.y,
               health: 5, hp: 5, maxHealth: 5 }
-            meS.action = { type: 'attack', mobId: 'sweepfoe' }
+            // the since field is the tick the fight began, and the exchange
+            // flag wants an EVEN number of ticks since: left undefined it
+            // read 0, which is even only when the sweep's own tick is, so
+            // half the archer pictures ever taken were of a bow at rest and
+            // nobody could tell which. NO BACKTICKS IN THIS BLOCK.
+            meS.action = { type: 'attack', mobId: 'sweepfoe', since: STATE.tick }
+            // AND THE INTERVAL HAS TO MOVE. The vantage block has already fed
+            // tick 601 and drawn it, and this window keeps per-interval
+            // working for a state it has already seen, so a fight pushed at
+            // the same tick was accepted into the world and drawn from what was
+            // worked out before it arrived. Three photographs came back
+            // showing a bow slung on a back while the window had been handed
+            // the weapon, the action and the target: all three were in the
+            // report and none of them was in the picture. A world never
+            // changes inside an interval, so this is the sweep's fault rather
+            // than the window's. NO BACKTICKS IN THIS BLOCK.
+            STATE.tick += 2
+            meS.action.since = STATE.tick
             feedOne({ type: 'state', state: JSON.parse(JSON.stringify(STATE)), worldId: 'sweep' })
-            await settle(600)
+            await settle(PULL)
           }
           if (FACE) {
             const meF = STATE.players[ME]
@@ -536,6 +562,20 @@ const AFTER = (plan, state, myId) => `<script>
               if (groundWalled(mx + dx, my + dy) && !isWetAt(mx + dx, my + dy)) n++
             return n })()
           + ', country ' + (biomeToldAt(mx, my) ?? 'NOT TOLD')
+          // §7f-v: AND WHETHER THE ARCHER IS ACTUALLY SHOOTING. Three pictures
+          // taken with --shoot came back showing a bow slung on a back, and
+          // there is no way to tell from a picture whether that is the window
+          // refusing to draw the stance or the sweep failing to ask for it.
+          // So it says what the window was given. NO BACKTICKS IN THIS BLOCK.
+          + (SHOOT ? ' | shoot: weapon ' + (STATE.players[ME].equipment
+              && STATE.players[ME].equipment.weapon
+              && STATE.players[ME].equipment.weapon.item)
+            + ', action ' + JSON.stringify(STATE.players[ME].action)
+            + ', foe ' + JSON.stringify(STATE.mobs.sweepfoe
+              && [STATE.mobs.sweepfoe.x, STATE.mobs.sweepfoe.y])
+            + ', me ' + STATE.players[ME].x + ',' + STATE.players[ME].y
+            + ', world says ' + JSON.stringify(world && world.players
+              && world.players[ME] && world.players[ME].action) : '')
           // and what the window SAID, which is where a refusal lands: a menu
           // is not the only answer a press can give
           + (feedLines.length ? ' | said: ' + feedLines.slice(-2).join(' / ') : '')

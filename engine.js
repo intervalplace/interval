@@ -15784,7 +15784,9 @@ function nextState(state, inputs, _legacyBeacon) {
         // is no `armUntil` field in this constitution and inventing one put an
         // unknown field straight into the ledger.
         p.lastSwing = s.tick;
-        announce(s, (p.name ?? pid.slice(0, 6)) + ' strikes the butt for ' + dmg9 + '.');
+        // the YARD HAS TWO TARGETS and this named one of them: a gambit spent
+        // on a pell announced that somebody had struck the butt.
+        announce(s, (p.name ?? pid.slice(0, 6)) + ' strikes the ' + dmm.type + ' for ' + dmg9 + '.');
         return s;
       }
       let q = s.players[inp.targetId];

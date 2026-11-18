@@ -1,7 +1,7 @@
 # Interval. Testing & Freeze Evidence
 
 Release 1.0.6, protocol spec v1.05, consensus spec v1.10, rules hash
-`182092db3afb3d9b…`.
+`98db26327d61a921…`.
 
 This document states exactly what is tested, with what inputs, for how
 long. Coverage is **finite and enumerated**, the claims below are about
@@ -10,7 +10,7 @@ possible executions.
 
 ## Unit + property suite (`npm test`)
 
-`node --test test/*.test.mjs`, 690 tests across:
+`node --test test/*.test.mjs`, 692 tests across:
 
 - `leak.test.mjs`, §21c: no write reaches the caller's state. Exercises the
   paths where one citizen touches another (striking, being hunted, trading,
@@ -112,7 +112,9 @@ possible executions.
 - `identity.test.mjs`, standing and calling (spec 10): proof that both windows
   derive a citizen's identity, and the XP curve beneath it, exactly as the
   engine does, past mastery included.
-- `rooms.test.mjs`, every drawn room is a declared room. PLAN_ROOMS answers
+- `rooms.test.mjs`, every drawn room is a declared room, and nothing in a
+  hand-drawn place stands in its own room with no floor under it: the second
+  half of the island, which the first test never looked at. PLAN_ROOMS answers
   both "where may a stall stand" and, through `isIndoor`, "is this tile inside
   a building", and the paving reads the second. A room left off the table is
   one the world calls outdoors: no floor, no roof, and whatever the drawing put

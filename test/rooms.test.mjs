@@ -18,9 +18,10 @@
 // front onto Oxenford's market, and two village shelters with one wall out.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { missingRooms } from '../roomcheck.mjs'
+import { missingRooms, rooflessPlaces } from '../roomcheck.mjs'
 import { PLANS5_V6 } from '../worldgen-shire-v6.mjs'
 import { VILLAGE_PLANS } from '../worldgen-villages-v7.mjs'
+import { PLACES_V7 } from '../worldgen-places-v7.mjs'
 
 test('no drawn room is missing from PLAN_ROOMS', () => {
   const guilty = []
@@ -31,4 +32,31 @@ test('no drawn room is missing from PLAN_ROOMS', () => {
   assert.deepEqual(guilty, [],
     'these rooms are drawn but not declared, so they get no floor and no '
     + 'roof and whatever stands in them stands outdoors: ' + guilty.join('; '))
+})
+
+// §7bd-ii: AND THE HALF OF THE WORLD THE TEST ABOVE NEVER LOOKED AT.
+//
+// The test above asks the question of a DRAWN SETTLEMENT, which is eleven
+// towns and five villages, and it has answered "nothing is missing" since it
+// was written. It was telling the truth about a sixth of the buildings here.
+//
+// A hand-drawn place and a holding carry their own drawing, and its floor is
+// the comma. A fitting REPLACES the floor character it stands on, so the
+// hearth, the bed and the barrel in the bothy at Bleakfell had no boards under
+// them and the floor was the gaps between them: the window draws a hearth that
+// is not on a floor as a ring of stones in the open, so it was a campfire on
+// the grass in a walled room with a bed beside it. Every holding on the island
+// and seven places had it, and three more were drawn with a floor and denied
+// one by a flag that contradicted the legend.
+test('nothing in a hand-drawn place stands in its own room with no floor', () => {
+  const guilty = []
+  for (const tag of Object.keys(PLACES_V7)) {
+    for (const b of rooflessPlaces(tag)) {
+      guilty.push(tag + ' ' + JSON.stringify(b.rect) + ' (' + b.bare
+        + ' tile(s) with no floor: ' + b.why.join(', ') + ')')
+    }
+  }
+  assert.deepEqual(guilty, [],
+    'these are rooms by the drawing and the world lays no floor in them, so '
+    + 'what stands in them stands outdoors: ' + guilty.join('; '))
 })
