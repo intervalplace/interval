@@ -477,18 +477,30 @@ const AFTER = (plan, state, myId) => `<script>
             // half the archer pictures ever taken were of a bow at rest and
             // nobody could tell which. NO BACKTICKS IN THIS BLOCK.
             meS.action = { type: 'attack', mobId: 'sweepfoe', since: STATE.tick }
-            // AND THE INTERVAL HAS TO MOVE. The vantage block has already fed
-            // tick 601 and drawn it, and this window keeps per-interval
-            // working for a state it has already seen, so a fight pushed at
-            // the same tick was accepted into the world and drawn from what was
-            // worked out before it arrived. Three photographs came back
-            // showing a bow slung on a back while the window had been handed
-            // the weapon, the action and the target: all three were in the
-            // report and none of them was in the picture. A world never
-            // changes inside an interval, so this is the sweep's fault rather
-            // than the window's. NO BACKTICKS IN THIS BLOCK.
-            STATE.tick += 2
-            meS.action.since = STATE.tick
+            // --shoot DOES NOT REACH THE STANCE, and this is as far as it got.
+            //
+            // The window is handed everything: the diagnostic below reports
+            // the horn bow equipped, the attack action on the target and the
+            // target four tiles off, and says the world took all three. The
+            // picture still comes back with the bow slung on his back, which
+            // is the drawing for a citizen who is NOT shooting.
+            //
+            // The vantage block above has already fed tick 601 and drawn it,
+            // so the fight arrives at an interval this window has already
+            // worked out, and that is the first thing to suspect. Pushing it
+            // at a later tick was tried and never produced a picture either:
+            // those runs sat in Chrome without finishing, and so did runs
+            // WITHOUT the bump afterwards, so the hang is not the bump and
+            // the bump is not the cure. It is out again because an unproven
+            // change to an instrument is worse than a known one. (It went in
+            // a commit before it had been run once, which it should not have.)
+            //
+            // So the stance is held by check-window-reach.mjs section 8v,
+            // which draws the real window at two points of one draw and
+            // measures the citizen's feet: 6.35 apart braced against 5
+            // standing, and it fails when the stance is taken out. A picture
+            // of it still wants a sweep that can set a fight up properly.
+            // NO BACKTICKS IN THIS BLOCK.
             feedOne({ type: 'state', state: JSON.parse(JSON.stringify(STATE)), worldId: 'sweep' })
             await settle(PULL)
           }
