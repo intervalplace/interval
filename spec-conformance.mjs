@@ -191,10 +191,19 @@ for (const m of engineSrc.matchAll(/§\s?(\d+[a-z]{0,3}(?:-[iv]+)?)\b/g)) {
   if (Number(m[1]) >= 1000) continue // a line number, not a section
   cited.add(m[1])
 }
+// §7ed-v: A CITATION RESOLVES IN EITHER DOCUMENT. The window's own rules live
+// in WINDOW.md now, which is deliberately not hashed, and the engine and the
+// generators cite some of them as principles rather than as law. A dangling
+// citation is still a fault; a citation that resolves in the other file is
+// not, and reading only SPEC.md turned the whole move into two failures.
 const headings = new Set()
-for (const m of spec.matchAll(/^#{1,4}\s+(\d+[a-z]{0,3}(?:-[iv]+)?)[.\s]/gm)) headings.add(m[1])
+const headingRe = /^#{1,4}\s+(\d+[a-z]{0,3}(?:-[iv]+)?)[.\s]/gm
+for (const m of spec.matchAll(headingRe)) headings.add(m[1])
+let windowDoc = ''
+try { windowDoc = fs.readFileSync(path.resolve(here, 'WINDOW.md'), 'utf8') } catch {}
+for (const m of windowDoc.matchAll(headingRe)) headings.add(m[1])
 const dangling = [...cited].filter(c => !headings.has(c)).sort()
-  .map(c => `engine.js cites §${c}, which is not a section heading in SPEC.md`)
+  .map(c => `engine.js cites §${c}, which is a section heading in neither SPEC.md nor WINDOW.md`)
 report('every SPEC section cited by engine.js exists', dangling,
   'A rule whose citation points nowhere has no written constitutional basis.')
 
@@ -356,13 +365,15 @@ function presentTense(passage) {
 // the same defect one building over.
 {
   const bad = new Set()
-  const heads = new Set([...spec.matchAll(/^#{2,3}\s+([0-9]+[a-z.-]*?)\.\s/gm)].map((m) => m[1]))
+  // §7ed-v: both documents, for the reason given at the engine's own check
+  const HR = /^#{2,3}\s+([0-9]+[a-z.-]*?)\.\s/gm
+  const heads = new Set([...(spec + '\n' + windowDoc).matchAll(HR)].map((m) => m[1]))
   const CITE = /§(\d+[a-z]*(?:-(?:ii|iii|iv|v|vi|vii))?)\b/g
   for (const f of fs.readdirSync(here)) {
     if (!/^(worldgen|terrain-mirror)[a-z0-9-]*\.mjs$/.test(f)) continue
     const text = fs.readFileSync(path.resolve(here, f), 'utf8')
     for (const m of text.matchAll(CITE)) {
-      if (!heads.has(m[1])) bad.add(`${f} cites §${m[1]}, which is not a section heading in SPEC.md`)
+      if (!heads.has(m[1])) bad.add(`${f} cites §${m[1]}, a heading in neither SPEC.md nor WINDOW.md`)
     }
   }
   report('every SPEC section the generator cites exists', [...bad].sort(),

@@ -2,7 +2,7 @@
 
 *A world with a constitution instead of an owner.*
 
-*Release 1.0.6 · protocol spec v1.05 · consensus spec v1.10 · rules hash `0c875b15a33f27a1`…
+*Release 1.0.6 · protocol spec v1.05 · consensus spec v1.10 · rules hash `d65200d6484373bf`…
 These four move together; a change to any one of them is a new release, and a
 change to the constitution is a new world.*
 
@@ -141,6 +141,11 @@ order:
 | [LIFTED.md](LIFTED.md) | rules relocated from the engine's own comments, binding and marked `[LIFTED]` until somebody reads them back against the code |
 | [HISTORY.md](HISTORY.md) | what was tried and repealed. Binds nothing, and is hashed anyway, because a constitution that can quietly drop its own record is not a record |
 
+[WINDOW.md](WINDOW.md) is **not** one of them and is not hashed. It holds what
+a window draws and how it answers a hand, which constrains no node: a note
+about which way a creature faces was forcing a refounding of the world until
+it was moved out (§7ed-v).
+
 A node that hashes any of them differently is playing a different game and is
 refused at the door, not as a version check, but because it literally is a
 different world. [CONSENSUS.md](CONSENSUS.md) governs how independent witnesses
@@ -182,6 +187,7 @@ Some things on the island are not in this file on purpose.
 | | |
 |---|---|
 | `SPEC.md` · `LIFTED.md` · `HISTORY.md` | the constitution: the rules **are** the game |
+| `WINDOW.md` | what a window draws. Not hashed, binds nothing, and a second window may ignore all of it |
 | `CONSENSUS.md` | how strangers agree the same world happened |
 | `rules-hash.mjs` | the one definition of what the constitution hashes to |
 | `engine.js` | the deterministic state machine (validation, application, intervals) |

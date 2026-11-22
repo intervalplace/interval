@@ -1,6 +1,6 @@
 # Interval Consensus Specification v1.10 (Byzantine Safety Upgrade)
 
-*Release 1.0.6, protocol spec v1.05, rules hash `0c875b15a33f27a1`…`*
+*Release 1.0.6, protocol spec v1.05, rules hash `d65200d6484373bf`…`*
 
 **Certified Interval Bundles, the agreement protocol for authoritative worlds.**
 

@@ -5690,7 +5690,7 @@ const RANGED_ITEMS = new Set([
   "steel-javelin",
   "wooden-bow"
 ])   // §6dg
-// §7f-iv: WHAT EACH BOW IS MADE OF, in ONE place.
+// §7eq: WHAT EACH BOW IS MADE OF, in ONE place.
 //
 // "The horn bow is identical to a normal bow when held and walking. Only in
 // combat does it change into the appearance it actually has."
@@ -11412,7 +11412,7 @@ function heldWeapon (cx, it, F, now) {
       cx.beginPath(); cx.arc(1.9, -3.4, 1.1, 0, 7); cx.fill()
       cx.restore()
     } else if (BOW_LOOK[o.wepItem]) {
-      // §7f-iv: NOTHING. A BOW IS DRAWN ONCE.
+      // §7eq: NOTHING. A BOW IS DRAWN ONCE.
       //
       // (The crossbow had a branch of its own here as well as a row in the
       // table, so it was carried twice like the rest of them. Found by the
@@ -12447,7 +12447,7 @@ function drawCitizen(X, Y, o) {
   // as a strike rather than an arm sliding forward.
   const lunge = striking && (o.exchange || gam9)
     ? strikeT * ARC9[2] * (gam9 ? 1.5 : 1) * o.face : 0
-  // §7f-v: AND THE BODY SHOOTS.
+  // §7er: AND THE BODY SHOOTS.
   //
   // "When shooting with the bow the string goes backwards and the arrow goes
   // flying, that is good, but the citizen is standing completely still. It
@@ -12471,7 +12471,7 @@ function drawCitizen(X, Y, o) {
   const aLoosed = aT >= 0.66
   // between shots a bow keeps a light hold: a person waiting, not at rest
   const aPull = aT < 0 ? 0.22 + Math.sin(now / 620) * 0.07 : aLoosed ? 0 : aT / 0.66
-  // §7f-v: AND A THROW IS THE OTHER WAY ROUND. The tool arm's angle is
+  // §7er: AND A THROW IS THE OTHER WAY ROUND. The tool arm's angle is
   // measured from straight down and the rotation carries the facing, so a
   // NEGATIVE angle raises the arm forward and a POSITIVE one takes it back
   // over the shoulder, which is where a javelin starts. Wind up through the
@@ -12552,7 +12552,7 @@ function drawCitizen(X, Y, o) {
   // before the head.
   if (o.shooting) { /* drawn after the body: see aimed, below */
   } else if (BOW_LOOK[o.wepItem]) {
-    // §7f-iv: THE BOW RIDES THE BACK, AND IT IS THE BOW THEY ARE CARRYING.
+    // §7eq: THE BOW RIDES THE BACK, AND IT IS THE BOW THEY ARE CARRYING.
     //
     // This was one brown arc for all eight, drawn for everything in
     // RANGED_ITEMS: a javelin thrower walked about with a bow slung on his
@@ -12771,11 +12771,11 @@ function drawCitizen(X, Y, o) {
     : 0
   cx.rotate(F * (WORK ? workSwing
     : o.anim === 'gather' ? -0.6 + swing * 0.9
-    // §7f-v: THE BOW ARM IS HELD OUT, not hanging at the hip. Measured from
+    // §7er: THE BOW ARM IS HELD OUT, not hanging at the hip. Measured from
     // straight down, so this is a hair above level: the arm the bow sits on,
     // locked where an archer locks it. It gives a little as the string comes
     // back, which is what a braced arm does under load.
-    // §7f-v: a thrower's arm goes BACK and comes through; an archer's is
+    // §7er: a thrower's arm goes BACK and comes through; an archer's is
     // locked where the bow sits. Measured from straight down, so past -1.57
     // is above the horizontal and behind the head.
     : archer ? (THROWN_ITEMS.has(o.wepItem) ? aThrow : -1.30 + aPull * 0.06)
@@ -12929,7 +12929,7 @@ function drawCitizen(X, Y, o) {
     cx.beginPath(); cx.arc(1.4, -2.4, 1.1, 0, 7); cx.fill()          // the match
     cx.restore()
   } else if (o.shooting && THROWN_ITEMS.has(o.wepItem)) {
-    // §7f-v: A JAVELIN IS THROWN, NOT DRAWN.
+    // §7er: A JAVELIN IS THROWN, NOT DRAWN.
     //
     // All three were in RANGED_ITEMS and nothing below asked which, so a
     // thrower was given the archer's stance: a bowstring coming back, an
@@ -12979,7 +12979,7 @@ function drawCitizen(X, Y, o) {
     // it is the same act.
     const BF = o.face ?? 1
     const it8 = o.wepItem || ''
-    // §7f-iv: read from BOW_LOOK, which the slung drawing reads too. This held
+    // §7eq: read from BOW_LOOK, which the slung drawing reads too. This held
     // its own copy of the same six colours and they had already drifted.
     const B8 = BOW_LOOK[it8] ?? BOW_LOOK['wooden-bow']
     const dbow8 = it8 === 'dragonbow', xbow8 = !!B8.stock
@@ -12999,7 +12999,7 @@ function drawCitizen(X, Y, o) {
     // than a person at rest.
     // a flurry of arrows is that many draws, on the same count the shafts
     // are drawn flying by
-    // §7f-v: the one clock, set above with the body's own stance.
+    // §7er: the one clock, set above with the body's own stance.
     const shotT = aT, loosed = aLoosed, pull = aPull
     cx.strokeStyle = limb8; cx.lineWidth = thick8
     cx.beginPath(); cx.arc(X + 20 + BF * 9, Y + 18, span8,
@@ -13015,7 +13015,7 @@ function drawCitizen(X, Y, o) {
     const sy2 = Y + 18 + Math.sin(1.35) * span8
     const nockX = X + 20 + BF * (9 - 5 * pull)
     cx.beginPath(); cx.moveTo(sx1, sy1); cx.lineTo(nockX, Y + 18); cx.lineTo(sx2, sy2); cx.stroke()
-    // §7f-v: AND THE HAND THAT IS PULLING IT.
+    // §7er: AND THE HAND THAT IS PULLING IT.
     //
     // The string came back on its own. The draw arm is the rear one, so it
     // comes ACROSS the body to the nock and goes with it: a sleeve from the
@@ -17767,7 +17767,7 @@ function drawScene(now) {
       chain: p.equipment?.weapon?.item === 'old-chain',
       starSword: p.equipment?.weapon?.item === 'quick-sword',
       cape: capeOf(p),
-      // §7f-iv: THERE IS NO `bow` FIELD ANY MORE. It read
+      // §7eq: THERE IS NO `bow` FIELD ANY MORE. It read
       // `RANGED_ITEMS.has(weapon)` and the drawing asked it instead of asking
       // what the weapon IS, so a hand cannon and three javelins were slung on
       // their owners' backs as bows. The drawing reads BOW_LOOK off `wepItem`,

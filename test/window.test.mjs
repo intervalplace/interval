@@ -784,7 +784,7 @@ test('every weapon the world has is drawn by the one drawing', async () => {
   const fn = win.slice(a, win.indexOf('\n}\n', a) + 2)
   const r = win.indexOf('const RANGED_ITEMS = new Set([')
   const ranged = win.slice(r, win.indexOf('])', r) + 2)
-  // §7f-iv: and the two tables the one drawing divides the ranged arms by. A
+  // §7eq: and the two tables the one drawing divides the ranged arms by. A
   // bow draws NOTHING in the hand now, on purpose: the body carries it slung
   // off BOW_LOOK, and drawing it in both places is how an archer came to be
   // holding two bows at once. A javelin has art of its own.
@@ -816,7 +816,7 @@ test('every weapon the world has is drawn by the one drawing', async () => {
   const BOW_LOOK = new Function(bowLook + '\nreturn BOW_LOOK')()
   const silent = []
   for (const it of Object.keys(E.WEAPONS)) {
-    // §7f-iv: A BOW IS DRAWN ONCE, AND NOT HERE. Silence is the rule for a
+    // §7eq: A BOW IS DRAWN ONCE, AND NOT HERE. Silence is the rule for a
     // bow and a fault for everything else, so a bow has to be in the table
     // that does draw it instead: the question is still "is every weapon in
     // this world drawn", with two places to be drawn in rather than one.
@@ -854,7 +854,7 @@ test('every weapon the world has is drawn by the one drawing', async () => {
 // first one anybody is handed. The CARRIED drawing has told them apart for a
 // long time. The drawn one never did.
 test('the bow a citizen draws is the bow they are holding', () => {
-  // §7f-iv: AND SO IS THE ONE ON HIS BACK. The comment this test used to
+  // §7eq: AND SO IS THE ONE ON HIS BACK. The comment this test used to
   // carry said the CARRIED drawing had told the bows apart for a long time. It
   // never had: the slung bow was one hardcoded brown for all eight, which is
   // "the horn bow is identical to a normal bow when held and walking, only in
@@ -927,7 +927,7 @@ test('each family of weapon swings its own arc, and a gambit swings further', ()
 })
 
 test('a bow is drawn and loosed on the beat, not wobbled at by a wall clock', () => {
-  // §7f-v: ONE CLOCK FOR THE WHOLE ARCHER. The bow block used to time the
+  // §7er: ONE CLOCK FOR THE WHOLE ARCHER. The bow block used to time the
   // shot for itself; the body needs the same instant or the hands and the
   // string disagree by a frame and the arrow leaves before the fingers do. So
   // the clock is set once, with the stance, and both read it.
@@ -964,7 +964,7 @@ test('a flurry swings as many times as it has blows', () => {
   assert.ok(/GAMBIT_BLOWS/.test(seg),
     'the count must be the engine’s own, the same one the arrows are drawn by')
   assert.ok(/% 1/.test(seg), 'the interval must be divided by the blows, or it is still one swing')
-  // and the bow counts the same way, off the archer's own clock (§7f-v)
+  // and the bow counts the same way, off the archer's own clock (§7er)
   const b = win.indexOf('const aBlows =')
   assert.ok(b > 0, 'a flurry of arrows is still one draw')
   assert.ok(/GAMBIT_BLOWS/.test(win.slice(b, b + 260)), 'and off the same count')
@@ -984,7 +984,7 @@ test('a weapon reaches away from the hand, not back through it', async () => {
   const fn = win.slice(a, win.indexOf('\n}\n', a) + 2)
   const r = win.indexOf('const RANGED_ITEMS = new Set([')
   const ranged = win.slice(r, win.indexOf('])', r) + 2)
-  // §7f-iv: and the two tables the one drawing divides the ranged arms by. A
+  // §7eq: and the two tables the one drawing divides the ranged arms by. A
   // bow draws NOTHING in the hand now, on purpose: the body carries it slung
   // off BOW_LOOK, and drawing it in both places is how an archer came to be
   // holding two bows at once. A javelin has art of its own.

@@ -26,7 +26,7 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 const root = path.join(here, '..')
 const src = fs.readFileSync(path.join(root, 'window-photo.html'), 'utf8')
 
-const START = '// §7f-v: WHAT THIS WINDOW COULD PUT ON WAS THREE THINGS.'
+const START = '// §7er: WHAT THIS WINDOW COULD PUT ON WAS THREE THINGS.'
 const END = 'function renderPack() {'
 const a = src.indexOf(START), b = src.indexOf(END)
 assert.ok(a > 0 && b > a, 'window-photo no longer has the sheet section')

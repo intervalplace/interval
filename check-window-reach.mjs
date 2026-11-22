@@ -170,7 +170,7 @@ vm.runInContext(body + `
   mini: () => { miniReady = false; buildMini() },
   ink: () => SEAM_INK,
   draw: () => drawScene(performance.now()),
-  // §7f-v: draw ONE frame at a chosen instant. A stance is a motion and the
+  // §7er: draw ONE frame at a chosen instant. A stance is a motion and the
   // only way to see a motion through a fake canvas is to draw it twice at
   // different moments and compare the marks. NO BACKTICKS IN THIS BLOCK.
   drawAt: (t) => drawScene(t),
@@ -240,7 +240,7 @@ vm.runInContext(body + `
   doing: () => doingNow(),
   seen: (v) => doingSeen(v),
   mobs: () => MOB_STATS,
-  // §7f-iv: the one bow table, and the two sets that divide the ranged arms
+  // §7eq: the one bow table, and the two sets that divide the ranged arms
   // between the three drawings. NO BACKTICKS IN THIS BLOCK.
   bows: () => ({ look: BOW_LOOK, ranged: [...RANGED_ITEMS],
     thrown: [...THROWN_ITEMS], shot: [...SHOT_WEAPONS] }),
@@ -2344,7 +2344,7 @@ console.log('\n--- 8w. a blow lands when the weapon gets there ---')
 
 console.log('\n--- 8u. every ranged arm is drawn as the thing it is ---')
 {
-  // §7f-iv: "The horn bow is identical to a normal bow when held and walking.
+  // §7eq: "The horn bow is identical to a normal bow when held and walking.
   // Only in combat does it change into the appearance it actually has."
   //
   // The carried drawing told two of the eight bows apart and painted the other
@@ -2390,7 +2390,7 @@ console.log('\n--- 8u. every ranged arm is drawn as the thing it is ---')
 
 console.log('\n--- 8v. the body shoots, rather than standing still ---')
 {
-  // §7f-v: "When shooting with the bow the string goes backwards and the
+  // §7er: "When shooting with the bow the string goes backwards and the
   // arrow goes flying, that is good, but the citizen is standing completely
   // still. It looks weird."
   //

@@ -574,7 +574,7 @@ const AFTER = (plan, state, myId) => `<script>
               if (groundWalled(mx + dx, my + dy) && !isWetAt(mx + dx, my + dy)) n++
             return n })()
           + ', country ' + (biomeToldAt(mx, my) ?? 'NOT TOLD')
-          // §7f-v: AND WHETHER THE ARCHER IS ACTUALLY SHOOTING. Three pictures
+          // §7er: AND WHETHER THE ARCHER IS ACTUALLY SHOOTING. Three pictures
           // taken with --shoot came back showing a bow slung on a back, and
           // there is no way to tell from a picture whether that is the window
           // refusing to draw the stance or the sweep failing to ask for it.
