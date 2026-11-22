@@ -33,11 +33,21 @@ here now. Two exceptions, corrected on the way out: §7f-iv and §7f-v were
 written against a §7f that is a rule about market houses and has nothing to do
 with bows, so they are **§7eq** and **§7er** here.
 
-One known fault left standing: the window cites a bare **§7f** thirty-four
-times, meaning its weapon-movement rule, and `SPEC.md`'s §7f is "One Trade To A
-House, And Never In The Doorway". That citation has been wrong since it was
-written and is not fixed here, because fixing it means authoring the rule it
-should have pointed at.
+One known fault left standing. The window writes a bare **§7f** 57 times under
+26 different headlines, and `SPEC.md`'s §7f is "One Trade To A House, And Never
+In The Doorway", which is a rule about seating market stalls.
+
+It was first recorded here as a mis-citation of the window's weapon-movement
+rule. That was wrong, and reading the headlines is what showed it: they cover
+the sound coming back on, the signposts, wall thickness, the edge of an empty
+pack slot, landmark art, dragon bones, bows, gambits and what the world calls
+`health`. **It is not a citation at all.** It is a tag from one round of window
+work, reused for everything done in that round, and the same is true of the
+§7f-ii, -iii, -vi, -viii and -ix beneath it.
+
+So there is no single rule to author and point them at. Either they are struck
+out as the markers they are, or each is given the section it actually belongs
+to. Neither is done here.
 
 ## 7ef. The world does not label itself
 
