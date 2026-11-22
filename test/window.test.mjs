@@ -2096,19 +2096,28 @@ test('a creature shows it when it is struck', () => {
   // health is compared against last tick's, and the drop marks the blow
   assert.match(win, /if \(o && s\.mobs\[mid\]\.hp < o\.hp\)/,
     'the hp drop that marks a blow is not watched for creatures')
-  assert.match(win, /mobHit\[mid\] = performance\.now\(\)/,
-    'nothing records when the blow landed')
-  // and the draw reads it, with the citizen's own 320ms
-  assert.match(win, /const _mhurt = Math\.max\(0, 1 - \(now - \(mobHit\[id\] \?\? -9999\)\) \/ 320\)/,
-    'the creature draw no longer reads the blow')
+  // §7ep: and it records WHEN THE WEAPON GETS THERE, not when the state did.
+  // This used to be a bare `performance.now()`, which is 460ms before the arm
+  // reaches the target: the beast jerked backwards before it had been hit.
+  assert.match(win, /mobHit\[mid\] = performance\.now\(\) \+ BLOW_LANDS \* TICK_MS/,
+    'nothing records when the blow landed, or it records the wrong moment')
+  // and the draw reads it, with the citizen's own 320ms, CLAMPED AT BOTH ENDS:
+  // a mark in the future makes a bare `1 - age/320` read above one, so the
+  // recoil was at its hardest before the blow.
+  assert.match(win, /const _mhurt = Math\.max\(0, Math\.min\(1, 1 - \(now - \(mobHit\[id\] \?\? -9999\)\) \/ 320\)\)/,
+    'the creature draw no longer reads the blow, or reads it unclamped')
   assert.match(win, /cx\.translate\(-MF \* _mhurt \* 7/,
     'a struck creature must be thrown back, the way a struck citizen is')
   // AND THE OTHER HALF: one that flinches but never strikes is being beaten
   // rather than fought, with all the motion on the citizen's side.
   assert.match(win, /const mobStruck = \{\}/, 'nothing records a blow a creature LANDS')
-  assert.match(win, /if \(s\.mobs\[mid\]\.mad === pid\) \{?\s*\n?\s*mobStruck\[mid\] = performance\.now\(\)/,
+  // §7ep: and it is marked for BLOW_ANSWER, set back by the 130ms the lunge
+  // takes to peak, so the beast's blow lands where the citizen's recoil is
+  // rather than at the top of the interval alongside the citizen's own swing.
+  assert.match(win, /if \(s\.mobs\[mid\]\.mad === pid\) \{[\s\S]{0,400}mobStruck\[mid\] = performance\.now\(\) \+ BLOW_ANSWER \* TICK_MS - 130/,
     'a lunge must belong to the beast that is coming for THAT citizen, not to '
-    + 'every beast standing near somebody who took a wound')
+    + 'every beast standing near somebody who took a wound, and it must be '
+    + 'timed to the blow rather than to the state arriving')
   assert.match(win, /MF \* _lunge/, 'the lunge goes toward what it is fighting')
 })
 
@@ -2274,10 +2283,14 @@ test('a health bar follows the last wound, not the wound itself', () => {
     `${ms}ms is not a tail: under three seconds a fight gaps it, over twenty `
     + 'it is the permanent bar again')
   // the creatures read it off the blow that is already recorded for the flinch
-  assert.match(win, /const _hurt = \(now - \(mobHit\[id\] \?\? -9e9\)\) < HURT_SHOWS_MS/,
-    'creatures no longer show a bar from the last blow')
+  // §7ep: and not before the blow lands, which a bare `< HURT_SHOWS_MS` is
+  // true of for every moment before a mark that is still in the future.
+  assert.match(win, /const _hurt = \(now - \(mobHit\[id\] \?\? -9e9\)\) >= 0/,
+    'creatures no longer show a bar from the last blow, or show it early')
+  assert.match(win, /&& \(now - \(mobHit\[id\] \?\? -9e9\)\) < HURT_SHOWS_MS/,
+    'the creature bar has no tail any more')
   // and the citizens off theirs, rather than off being below full
-  assert.match(win, /\(o\.now - \(o\.hitAt \?\? -9e9\)\) < HURT_SHOWS_MS \|\| o\.anim === 'fight'/,
+  assert.match(win, /\(o\.now - \(o\.hitAt \?\? -9e9\)\) < HURT_SHOWS_MS\)\n\s*\|\| o\.anim === 'fight'/,
     'a citizen still wears a bar for being wounded rather than for being hit')
   assert.ok(!/o\.hp < o\.maxHp \|\| o\.anim/.test(win),
     'the old while-wounded rule is still in the citizen draw')
@@ -2445,8 +2458,14 @@ test('a blow sounds like the weapon that struck it', () => {
   assert.match(win, /const weaponMetal = \(it\) =>/, 'every weapon sounds the same metal')
   assert.match(win, /if \(m === 'quick'\) tone/, 'quickmetal does not ring')
   // and your own blow is played, which is the sound that did not exist
-  assert.match(win, /strikeSound\(meS\.equipment\?\.weapon\?\.item, bl\.length > 1\)/,
+  // §7ep: played when the weapon arrives rather than when the state does, off
+  // the same constant the arm swings by. The weapon and the "is this a flurry"
+  // are read NOW and carried into the timer: reading them later would ask a
+  // state that has moved on.
+  assert.match(win, /const w8 = meS\.equipment\?\.weapon\?\.item, many8 = bl\.length > 1/,
     'your own blow landing still makes no sound')
+  assert.match(win, /setTimeout\(\(\) => \{ try \{ strikeSound\(w8, many8\) \} catch[\s\S]{0,80}BLOW_LANDS \* TICK_MS\)/,
+    'the clang is not timed to the blow landing')
 })
 
 test('a gambit does not sound like an ordinary blow', () => {
@@ -2471,7 +2490,9 @@ test('every creature has a voice of its own', () => {
     `only ${voiced.length} creatures have a voice; a generic snarl for the rest `
     + 'is a noise that carries no information')
   // and it is played only for a blow landed on YOU
-  assert.match(win, /if \(pid === myId\) try \{ creatureVoice\(s\.mobs\[mid\]\.type\)\(\)/,
+  // §7ep: and heard when it bites, on BLOW_ANSWER, which is where the citizen's
+  // recoil is. Both used to fire at the top of the interval.
+  assert.match(win, /if \(pid === myId\) \{ const ty8 = s\.mobs\[mid\]\.type[\s\S]{0,160}creatureVoice\(ty8\)[\s\S]{0,80}BLOW_ANSWER \* TICK_MS\)/,
     'every creature in the world would be heard fighting every other')
 })
 

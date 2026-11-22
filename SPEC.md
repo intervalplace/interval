@@ -17953,6 +17953,78 @@ note beside the gate still said "why the toll is a log", three years after it
 stopped being one.
 
 
+## 7en. A living thing stands on ground that will hold it
+
+**"I just saw rabbits walking on water."** The country's ambient life was put
+down at a random offset from the citizen and hopped at a random offset again,
+and neither asked what was underfoot. A hare on the downs was born on a beck
+as readily as on the turf, and one born on good ground could hop out onto the
+water a few seconds later.
+
+A hare may not stand on water and a **frog must**, which is why this is a list
+of waders rather than a ban: the fens are water, and a frog confined to dry
+land would never be seen in the one country it belongs to. Neither may stand
+inside a wall.
+
+**And if there is nowhere near you that will hold it, nothing appears.** The
+alternative is nudging a bad spot until it is legal, which walks every hare on
+a shoreline to the same tile. A country is allowed to be empty; most wakings
+nothing happens anyway, which is the whole design of this.
+
+## 7eo. The chart shows what stops you
+
+**"The barrow's mound was not visible on the minimap."** Measured: the mound is
+**1,225 tiles, every one of them blocked, and `groundKindAt` answers null on
+every one**, because a hill is not a surface. The chart was baked from
+`terrainOf` alone, so it fell through to its meadow fallback and painted a
+hill nobody can climb, in the middle of the heartlands, as a field.
+
+The same was true of every cliff, of the Ridge, and of the wall round a town:
+**3,049 tiles of dry land a citizen cannot cross, none of it on the chart.**
+
+This is §7ec one layer out. The world drawing had exactly this fault until the
+walls were served, and the fix there was the same: the window was not asking.
+The chart goes back over the walled tiles in stone, drawn OVER the surface
+rather than instead of it, because a town wall standing on flagstone is a wall
+first.
+
+## 7ep. The shape of a blow, and when it lands
+
+**"Combat animations should be more smooth, not so hacky. I know there is an
+interval every second but animations still do not have to look hacky."**
+
+Two faults wearing one face, and neither is about the tick rate.
+
+**The swing was `sin(beat * PI)`:** a symmetric curve across the whole
+interval, out and back at one speed. Nothing moves like that, and no amount of
+smoothing fixes it, because the problem is the shape. A blow is three unequal
+parts: it draws BACK slowly, goes THROUGH very fast, and settles over what is
+left. It now begins and ends at the guard, so an exchange tick no longer opens
+with the arm jumping from a quarter to nothing, and the step goes with it
+INCLUDING the wind-up, which is negative: the weight shifts back before it
+comes through. That is anticipation, and it is most of what makes a strike
+read as a strike rather than an arm sliding forward.
+
+**And everything else happened at the wrong time.** The damage, the creature's
+flinch, the clang of the weapon and the citizen's recoil all fired the instant
+the state arrived, which is **four hundred and sixty milliseconds before the
+arm reaches the target**. Effect, then cause, on every hit in the game. They
+are all on one constant now, `BLOW_LANDS`, which is where the arm is furthest
+out: the check written for this rule measured the curve's own peak and found
+the number still sixty milliseconds early.
+
+**An exchange is two blows, not one jolt.** The engine resolves both sides on
+the same tick and the window played both at once, so a fight was two figures
+lurching at each other at the top of every interval and then standing still
+for three quarters of a second. The answering blow lands later in the same
+interval: you strike, it reels, it strikes back.
+
+Everything timed forward has to be read with that in mind. Six places compared
+`now - mark` against a window and every one of them was true, or above one,
+for the whole stretch BEFORE the mark: a beast recoiled hardest before it had
+been hit, and a citizen staggered first and was struck afterwards. A mark in
+the future needs a floor at zero as well as a ceiling.
+
 ## 7h. Who Lives Here
 
 > **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:4470` by `spec-stubs.mjs`.

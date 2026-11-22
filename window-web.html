@@ -8707,6 +8707,61 @@ function spendGambit (tid, t) {
   send({ do: 'gambit', targetId: tid })
   feed('You strike off the rhythm.')
 }
+// §7ep: THE SHAPE OF A BLOW, in one place, because the arm that throws it and
+// the number it raises have to agree about when it lands.
+//
+// "Combat animations should be more smooth, not so hacky. I know there is an
+// interval every second but animations still do not have to look hacky."
+//
+// The old swing was `sin(beat * PI)`: a symmetric curve over the whole
+// interval, so the arm took half a second to reach the target and half a
+// second to come back, at the same speed throughout. That is the floaty look.
+// Nothing real moves like that. A blow is three unequal parts: it draws BACK
+// slowly, goes THROUGH very fast, and settles over what is left.
+//
+// And the number appeared at the top of the interval, which is four hundred
+// milliseconds BEFORE the weapon arrived. Effect before cause, every blow, on
+// everything that was ever hit. Half of "hacky" is that, and no amount of
+// smoothing the arm would have fixed it.
+const BLOW_BACK = 0.30        // of the interval, drawing back
+const BLOW_THROUGH = 0.16     // ...and driving through
+// WHEN THE WEAPON ARRIVES, which is where the arm is furthest out: the end of
+// the through phase, not some fraction of it. This was BLOW_THROUGH * 0.62 on
+// the reasoning that the cubic ease covers most of its travel early, and the
+// check written for this rule measured the curve's actual peak and said so:
+// the number was landing sixty milliseconds before the sword did.
+const BLOW_LANDS = BLOW_BACK + BLOW_THROUGH
+const BLOW_GUARD = 0.25       // where the arm rests between blows
+// §7ep: AND AN EXCHANGE IS TWO BLOWS, NOT ONE JOLT. The engine resolves both
+// sides of an exchange on the same tick, and the window played both at the
+// instant the state arrived: you and the thing you were fighting lurched at
+// each other simultaneously at the top of every interval and then stood still
+// for three quarters of a second. The answering blow lands later in the same
+// interval, so a fight reads as you strike, it reels, it strikes back.
+const BLOW_ANSWER = BLOW_LANDS + 0.18
+// smoothstep in, cubic out: the wind-up eases to a stop, the blow leaves at
+// once and arrives slowing, and the recovery eases back to the guard. Begins
+// and ends AT the guard, so there is no step across the interval boundary,
+// which is the other half of it: the arm used to jump from guard to nothing
+// the instant an exchange tick began.
+// `g` is where the arm actually is between blows. It is passed in rather than
+// assumed, because the guard BREATHES: it is BLOW_GUARD plus a slow sine, so
+// a curve that begins and ends at the bare constant still steps by up to
+// eight hundredths at the interval boundary. Leaving from where the arm is
+// leaves nothing to step over.
+const blowAt = (b, g = BLOW_GUARD) => {
+  if (b < BLOW_BACK) {
+    const k = b / BLOW_BACK
+    return g + (-0.30 - g) * (k * k * (3 - 2 * k))
+  }
+  if (b < BLOW_BACK + BLOW_THROUGH) {
+    const k = (b - BLOW_BACK) / BLOW_THROUGH
+    const e = 1 - (1 - k) * (1 - k) * (1 - k)
+    return -0.30 + 1.30 * e
+  }
+  const k = (b - BLOW_BACK - BLOW_THROUGH) / (1 - BLOW_BACK - BLOW_THROUGH)
+  return 1 + (g - 1) * (k * k * (3 - 2 * k))
+}
 const splats = []     // { x, y, amount, at } damage made visible
 const effects = []    // { kind, x, y, at } rites and works made visible
 // what each deed looks like from across a clearing. Only kinds this window can
@@ -8841,6 +8896,32 @@ function buildMini() {
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     g.fillStyle = cols[terrainOf(x, y)] ?? '#3d5a23'
     g.fillRect(x, y, 1, 1)
+  }
+  // §7eo: AND WHAT YOU CANNOT WALK ON, which this chart has never shown.
+  //
+  // Reported: "the barrow's mound was not visible on the minimap." Measured:
+  // the mound is 1,225 tiles, every one of them blocked, and `groundKindAt`
+  // answers NULL on every one, because a hill is not a surface. So the chart
+  // fell through to its meadow fallback and painted a hill nobody can climb,
+  // in the middle of the heartlands, as a field.
+  //
+  // The same is true of every cliff, the Ridge, and the wall round a town:
+  // 3,049 tiles of dry land a citizen cannot cross, none of it on the chart.
+  // A chart that does not show what stops you is not much of a chart, and
+  // this is the same fault the WORLD drawing had until the walls were served
+  // (see takeGroundTold): the window simply was not asking.
+  //
+  // Stone, and darker where the country is dark, so the Barrow reads as a
+  // raised thing on the heartlands and the crags do not turn into one grey
+  // slab. Drawn over the surface rather than instead of it, because a walled
+  // tile that DOES have a surface -- a town wall standing on flagstone -- is
+  // still a wall first.
+  if (typeof groundWalled === 'function') {
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      if (!groundWalled(x, y)) continue
+      g.fillStyle = (tileHash(x, y, 11) % 3) ? '#6b645a' : '#5d564d'
+      g.fillRect(x, y, 1, 1)
+    }
   }
   miniReady = true
 }
@@ -10423,9 +10504,17 @@ function _onState(s, worldId, local) {
   cache(s, '_groundStack', {})
   for (const [gid, g2] of (s._groundE ?? [])) (s._groundStack[g2.x + ',' + g2.y] ??= []).push(gid)
   if (prev) { // hit splats: damage this tick, made visible where it landed
+    // §7ep: WHEN THE WEAPON GETS THERE, not when the state does.
+    //
+    // A state arrives at the top of an interval and the window animates that
+    // interval's blow across it, so a number shown on arrival is shown four
+    // hundred milliseconds before the arm reaches the target. Every hit in the
+    // game was effect, then cause. The number waits for the weapon now, off
+    // the same constant the arm swings by.
+    const lands = performance.now() + BLOW_LANDS * TICK_MS
     for (const [mid, m] of Object.entries(s.mobs)) {
       const o2 = prev.mobs?.[mid]
-      if (o2 && o2.hp > m.hp && m.hp >= 0) splats.push({ x: m.x, y: m.y, amount: o2.hp - m.hp, at: performance.now() })
+      if (o2 && o2.hp > m.hp && m.hp >= 0) splats.push({ x: m.x, y: m.y, amount: o2.hp - m.hp, at: lands })
     }
     for (const [pid2, p2] of Object.entries(s.players)) {
       const o2 = prev.players?.[pid2]
@@ -10445,10 +10534,10 @@ function _onState(s, worldId, local) {
       const sum = bl ? bl.reduce((t, b) => t + b, 0) : 0
       if (bl && bl.length > 1 && sum === o2.hp - p2.hp) {
         bl.forEach((b, i) => splats.push({
-          x: p2.x, y: p2.y, amount: b, at: performance.now() + i * 70,
+          x: p2.x, y: p2.y, amount: b, at: lands + i * 70,
           fan: (i - (bl.length - 1) / 2) * 11, burst: true }))
       } else {
-        splats.push({ x: p2.x, y: p2.y, amount: o2.hp - p2.hp, at: performance.now() })
+        splats.push({ x: p2.x, y: p2.y, amount: o2.hp - p2.hp, at: lands })
       }
     }
     // §6af: A GAMBIT LOOKS LIKE ONE.
@@ -10652,7 +10741,10 @@ function _onState(s, worldId, local) {
   if (prospectiveT > 1.25) tickOffset = arrivedAt - s.tick * TICK_MS
   if (prevState) for (const pid in s.players) {
     const o = prevState.players[pid]
-    if (o && s.players[pid].hp < o.hp) hitFlash[pid] = performance.now()
+    // §7ep: the recoil waits for whatever struck it, the same way the beast's
+    // flinch waits for your sword.
+    if (o && s.players[pid].hp < o.hp)
+      hitFlash[pid] = performance.now() + BLOW_ANSWER * TICK_MS
   }
   // §7ej: AND SO DOES EVERYTHING ELSE. A citizen struck recoils -- 320ms,
   // `drawCitizen` has done it for a long time -- and nothing in the world
@@ -10667,7 +10759,12 @@ function _onState(s, worldId, local) {
   if (prevState) for (const mid in s.mobs) {
     const o = prevState.mobs?.[mid]
     if (o && s.mobs[mid].hp < o.hp) {
-      mobHit[mid] = performance.now()
+      // §7ep: THE FLINCH AND THE NOISE WAIT FOR THE WEAPON TOO. Both fired on
+      // the state's arrival, so a creature jerked backwards and the sword rang
+      // four hundred milliseconds before the sword got there. All three parts
+      // of a blow -- the arm, the number and the beast -- are on one constant
+      // now, and a fight reads as one event instead of three.
+      mobHit[mid] = performance.now() + BLOW_LANDS * TICK_MS
       // §7el: AND IT MAKES A SOUND, if it was MY blow. Your own weapon
       // landing was the one thing in a fight the window never played: the
       // only combat sound it had went off when your OWN health fell.
@@ -10684,7 +10781,9 @@ function _onState(s, worldId, local) {
           // top of the next tick (§36). More than one is a gambit, told
           // rather than guessed at from what this window last armed.
           const bl = Array.isArray(meS.blows) ? meS.blows.filter((b) => b > 0) : []
-          strikeSound(meS.equipment?.weapon?.item, bl.length > 1)
+          const w8 = meS.equipment?.weapon?.item, many8 = bl.length > 1
+          setTimeout(() => { try { strikeSound(w8, many8) } catch (e) {} },
+            BLOW_LANDS * TICK_MS)
         }
       } catch (e) { /* a fight with no sound is still a fight */ }
     }
@@ -10702,12 +10801,18 @@ function _onState(s, worldId, local) {
     const o = prevState.players[pid]
     if (!o || s.players[pid].hp >= o.hp) continue
     for (const mid in s.mobs) if (s.mobs[mid].mad === pid) {
-      mobStruck[mid] = performance.now()
+      // §7ep: the lunge PEAKS 130ms after this mark (see the sine on `_mlun`),
+      // so the mark is set back by that much to put the blow itself on
+      // BLOW_ANSWER, which is where the citizen's recoil is.
+      mobStruck[mid] = performance.now() + BLOW_ANSWER * TICK_MS - 130
       // §7el: AND THE BEAST IS HEARD. Only for a blow landed on ME: a window
       // that played every creature in the world fighting every other would
       // be a field of noise, and the one this matters for is the one with
       // its teeth in you.
-      if (pid === myId) try { creatureVoice(s.mobs[mid].type)() } catch (e) {}
+      // and it is heard when it bites, not when the interval begins
+      if (pid === myId) { const ty8 = s.mobs[mid].type
+        setTimeout(() => { try { creatureVoice(ty8)() } catch (e) {} },
+          BLOW_ANSWER * TICK_MS) }
     }
   }
   const me = s.players[myId]
@@ -12279,8 +12384,13 @@ function drawCitizen(X, Y, o) {
   // weight. Nothing here moves the feet, so it composes with the walk.
   const STOOP = { kneel: 5.5, dig: 6.5, tend: 2.2, craft: 1.4, haul: 1.8 }[o.anim] ?? 0
   let step = o.anim === 'walk' ? Math.sin(now / 110) : 0
-  const hurt = (o.now - (hitFlash[o.pid] ?? -9999)) < 320
-  const recoil = hurt ? (1 - (o.now - (hitFlash[o.pid] ?? 0)) / 320) : 0
+  // §7ep: and not before it happens. A flash timed to the answering blow is
+  // in the future until then, and a bare `< 320` is true of every moment
+  // before it: the citizen staggered first and was hit afterwards, and
+  // `striking` is switched off while hurt, so the swing went with it.
+  const _hitAge = o.now - (hitFlash[o.pid] ?? -9999)
+  const hurt = _hitAge >= 0 && _hitAge < 320
+  const recoil = hurt ? (1 - _hitAge / 320) : 0
   if (hurt) { X -= (o.face ?? 1) * recoil * 7; Y += recoil * 2.5 } // struck: thrown back
   // combat breathes (spec 6m), and so does the body: a full strike on the
   // exchange tick, a ready guard between. A hurt body does not strike:
@@ -12317,17 +12427,24 @@ function drawCitizen(X, Y, o) {
   const gam9 = striking && o.gambit
   const blows9 = gam9 ? (GAMBIT_BLOWS[o.wepItem] ?? 1) : 1
   const beat9 = blows9 > 1 ? (renderT(now) * blows9) % 1 : renderT(now)
-  const strikeT = striking
-    ? Math.max(0, Math.sin(Math.pow(beat9, gam9 ? 0.72 : 1) * Math.PI))
-    : 0
+  // §7ep: and the blow takes its shape from `blowAt`, which the splat is timed
+  // against. A gambit leans into the back-swing rather than getting a curve of
+  // its own: it is the same motion taken further, which is what §6af says it is.
+  // the guard, which breathes, and which the blow leaves from and returns to
+  const guard9 = BLOW_GUARD + Math.sin(now / 600) * 0.08
+  const strikeT = striking ? blowAt(gam9 ? Math.pow(beat9, 0.88) : beat9, guard9) : 0
   const swing = hurt && o.anim === 'fight' ? -0.35:
     striking
     // the arc's own size lives in SWING_OF now, so this is a plain 0..1 of
     // how far through the blow we are. A gambit comes off the rhythm, so it
     // does not wait for an exchange tick to be drawn.
-    ? ((o.exchange || gam9) ? strikeT : 0.25 + Math.sin(now / 600) * 0.08):
+    ? ((o.exchange || gam9) ? strikeT : guard9):
     o.anim === 'gather' ? Math.sin(now / (o.tool === 'rod' ? 700 : 200)) : 0
   const ARC9 = SWING_OF(o.wepItem || '')
+  // §7ep: the step goes with the blow, INCLUDING the wind-up, which is
+  // negative: the weight shifts back onto the rear foot before it comes
+  // through. That is anticipation, and it is most of what makes a strike read
+  // as a strike rather than an arm sliding forward.
   const lunge = striking && (o.exchange || gam9)
     ? strikeT * ARC9[2] * (gam9 ? 1.5 : 1) * o.face : 0
   // §7f-v: AND THE BODY SHOOTS.
@@ -12469,7 +12586,8 @@ function drawCitizen(X, Y, o) {
           [X + 20 - CF * (10 + Math.abs(sway)), Y + 30 + sway * 0.4],
           [X + 20 - CF * 5, Y + 29]], capeC, o.cape.trim ? '#e2b63e' : undefined)
   }
-  const flash = o.hitAt && now - o.hitAt < 220
+  // §7ep: and not before the blow it belongs to has landed
+  const flash = o.hitAt && now - o.hitAt >= 0 && now - o.hitAt < 220
   const tunic = flash ? '#ffffff' : look.tunic
   const tunicDk = flash ? '#dddddd' : look.tunicDk
   const skin = flash ? '#ffffff' : look.skin
@@ -13118,7 +13236,8 @@ function drawCitizen(X, Y, o) {
   // §7ef: AND A CITIZEN'S ON THE SAME TERMS. This read `o.hp < o.maxHp`, so a
   // citizen who took one blow and walked away wore a bar until they healed.
   // Eight seconds from the last wound, or while they are in a fight.
-  if ((o.now - (o.hitAt ?? -9e9)) < HURT_SHOWS_MS || o.anim === 'fight') {
+  if (((o.now - (o.hitAt ?? -9e9)) >= 0 && (o.now - (o.hitAt ?? -9e9)) < HURT_SHOWS_MS)
+      || o.anim === 'fight') {
     cx.fillStyle = '#4a1008'; cx.fillRect(X + 12, Y - 3, 16, 2.4)
     cx.fillStyle = '#c0392b'; cx.fillRect(X + 12, Y - 3, 16 * (o.hp / o.maxHp), 2.4)
   }
@@ -13180,6 +13299,33 @@ const LIFE = {
 }
 const FLIERS = new Set(['pigeon', 'swallow', 'lark', 'crow', 'hawk', 'heron',
   'carrion', 'gull', 'moth', 'flit'])
+// §7en: AND A HARE DOES NOT WALK ON WATER.
+//
+// Reported: "I just saw rabbits walking on water." The ground-dwellers were
+// put down at a random offset from the citizen and hopped at a random offset
+// again, and neither asked what was underfoot, so a hare on the downs was
+// born on a beck as readily as on the turf and could hop out onto it.
+//
+// A frog is the opposite case and the reason this is a set rather than a
+// flat ban: the fens are water, and a frog that may only stand on dry land
+// would never be seen in the one country it belongs to. So a wader may be on
+// the wet and a hare may not, and neither may be inside a wall.
+const WADERS = new Set(['frog'])
+const lifeMayStand = (kind, x, y) => {
+  if (x < 0 || y < 0 || x >= W || y >= H) return false
+  if (groundWalled(x, y)) return false
+  return WADERS.has(kind) || !isWetAt(x, y)
+}
+// WHERE TO PUT ONE DOWN. Tries a handful of offsets and takes the first that
+// will hold it, rather than nudging a bad one until it is legal: a nudge
+// walks every hare on a shoreline to the same tile.
+const lifeSpot = (kind, cxx, cyy) => {
+  for (let i = 0; i < 12; i++) {
+    const x = cxx + (Math.random() * 10 - 5), y = cyy + (Math.random() * 8 - 4)
+    if (lifeMayStand(kind, Math.round(x), Math.round(y))) return [x, y]
+  }
+  return null                      // nowhere near here will hold it: let it be
+}
 function lifeTick(s, now, isDay) {
   // thin the dead out first, so the cap is about what is actually alive
   if (lives.length) lives = lives.filter((l) => now - l.born < l.life)
@@ -13199,6 +13345,11 @@ function lifeTick(s, now, isDay) {
   if (Math.random() > 0.34) return            // most wakings nothing happens
   const kind = pool[(Math.random() * pool.length) | 0]
   const fly = FLIERS.has(kind)
+  // §7en: a bird crosses the view and may cross anything; a walking thing
+  // needs ground that will hold it, and if there is none nearby it simply
+  // does not appear. The country is allowed to be empty.
+  const spot = fly ? null : lifeSpot(kind, meL.x, meL.y)
+  if (!fly && !spot) return
   // born off one edge of the view and crossing it, or sat on the ground near
   // enough to be noticed and far enough not to be in the way
   const span = 13
@@ -13210,8 +13361,7 @@ function lifeTick(s, now, isDay) {
         vy: (Math.random() - 0.5) * 0.0004,
         bob: Math.random() * 7, hi: 10 + Math.random() * 16 }
     : { kind, fly: false, born: now, life: 6000 + Math.random() * 5000,
-        x: meL.x + (Math.random() * 10 - 5), y: meL.y + (Math.random() * 8 - 4),
-        hopAt: now, hx: 0, hy: 0 })
+        x: spot[0], y: spot[1], hopAt: now, hx: 0, hy: 0 })
 }
 function drawScene(now) {
   const s = curState; if (!s || !groundReady) return
@@ -16327,12 +16477,17 @@ function drawScene(now) {
       // the GROUND is already opaque, and the result is a pale square lying
       // on the grass. The citizen has no flash either. A thing that is thrown
       // back has visibly been hit.
-      const _mhurt = Math.max(0, 1 - (now - (mobHit[id] ?? -9999)) / 320)
+      // §7ep: clamped at BOTH ends. The flinch is timed to the moment the
+      // weapon lands, so until then `now - mobHit` is negative and this read
+      // ABOVE one: the beast recoiled hardest before it had been hit.
+      const _mhurt = Math.max(0, Math.min(1, 1 - (now - (mobHit[id] ?? -9999)) / 320))
       // THE LUNGE: forward over 260ms, out fast and back slower, which is the
       // shape of a blow rather than a bob. Shorter than the recoil on purpose,
       // so an exchange reads as two separate things happening and not one
       // wobble.
-      const _mlun = Math.max(0, 1 - (now - (mobStruck[id] ?? -9999)) / 260)
+      // §7ep: clamped at both ends, like the flinch above and for the same
+      // reason: the mark is in the future until the blow is thrown.
+      const _mlun = Math.max(0, Math.min(1, 1 - (now - (mobStruck[id] ?? -9999)) / 260))
       const _lunge = Math.sin(_mlun * Math.PI) * 6
       // TRY/FINALLY, AND THIS IS NOT BELT AND BRACES.
       //
@@ -16436,7 +16591,8 @@ function drawScene(now) {
       // is what keeps the table whole.
       // §7ef: LATELY hurt, not merely wounded. `mobHit` already carries when
       // the last blow landed, for the flinch.
-      const _hurt = (now - (mobHit[id] ?? -9e9)) < HURT_SHOWS_MS
+      const _hurt = (now - (mobHit[id] ?? -9e9)) >= 0
+        && (now - (mobHit[id] ?? -9e9)) < HURT_SHOWS_MS
       // §7ef: AND THE HEALTH BAR ON THE SAME TERMS AS THE NAME. A sheep at
       // full health standing in a field is not in a fight and has nothing to
       // report. Drawn in twelve places, one per creature, so the decision is
@@ -17794,7 +17950,14 @@ function drawScene(now) {
     } else {
       // a hopper: still, then a short jump, then still again
       if (now - L.hopAt > 1400) { L.hopAt = now
-        L.hx = (Math.random() - 0.5) * 1.6; L.hy = (Math.random() - 0.5) * 1.2 }
+        // §7en: AND IT ONLY HOPS WHERE IT COULD LAND. A hop was a random
+        // offset taken whatever was there, so a hare born on good turf beside
+        // a beck hopped out onto the water a few seconds later. It sits still
+        // rather than hop into a wall or a river, which is also what a hare
+        // does when it has nowhere to go.
+        const hx9 = (Math.random() - 0.5) * 1.6, hy9 = (Math.random() - 0.5) * 1.2
+        const ok9 = lifeMayStand(L.kind, Math.round(L.x + hx9), Math.round(L.y + hy9))
+        L.hx = ok9 ? hx9 : 0; L.hy = ok9 ? hy9 : 0 }
       const k = Math.min(1, (now - L.hopAt) / 420)
       const hopX = L.x + L.hx * k, hopY = L.y + L.hy * k
       const lift = Math.sin(k * Math.PI) * 5
@@ -17869,6 +18032,11 @@ function drawScene(now) {
   for (let i = splats.length - 1; i >= 0; i--) {
     const sp = splats[i]
     const age = now - sp.at
+    // §7ep: NOT YET. A splat is timed to the moment the weapon arrives, so it
+    // sits in the list with its moment still ahead of it. Without this the
+    // negative age drew it early AND below the target, since the rise is
+    // `age / 90`: it would have sunk into the ground and floated up.
+    if (age < 0) continue
     // a splat lasts in proportion to what it says: seven hundred for an
     // ordinary blow, up to sixteen hundred for the kind of number that decides
     // a fight. Twenty points is where a blow stops being ordinary.

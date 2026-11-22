@@ -165,6 +165,9 @@ vm.runInContext(body + `
   // chart draws the marks of the list before this one
   seams: (list) => { _seamsTold = list; _seamLeadTold = null },
   chart: (now) => drawSunMap(curState, now),
+  // §7eo: and the little chart in the corner, which is baked once per world.
+  // NO BACKTICKS IN THIS BLOCK.
+  mini: () => { miniReady = false; buildMini() },
   ink: () => SEAM_INK,
   draw: () => drawScene(performance.now()),
   // §7f-v: draw ONE frame at a chosen instant. A stance is a motion and the
@@ -1278,6 +1281,43 @@ console.log('\n--- 8i. the ground a citizen cannot walk on says so ---')
     !sent.some((a) => a && a.do === 'walk')
       ? 'and it files no walk into a place the engine will refuse'
       : 'the window filed a walk into a wall')
+  // §7eo: AND THE CHART SHOWS IT TOO. "The barrow's mound was not visible on
+  // the minimap."
+  //
+  // The same fault as the one above, one layer out and three thousand tiles
+  // wide. The chart was baked from `terrainOf` alone and a wall is NOT a
+  // surface: the mound is 1,225 tiles, every one blocked, every one answering
+  // null, so the chart painted a hill nobody can climb as a field. The Ridge,
+  // every cliff and every town wall were missing from it for the same reason.
+  //
+  // Asked of the ink the chart actually lays on the ridge tile against the
+  // ink it lays on the ground beside it, because that is the whole question:
+  // can you tell them apart by looking.
+  {
+    ctx.__h.setWH(40, 30)
+    penInk.length = 0
+    let threw2 = null
+    try { ctx.__h.mini() } catch (e) { threw2 = e.message }
+    ok(!threw2, threw2 ? 'baking the chart threw: ' + threw2 : 'the chart bakes')
+    // The surface pass lays one fill per tile in row order, then the wall pass
+    // lays one more on each walled tile. So the chart's answer about a wall is
+    // whatever came AFTER the first w*h fills, and reading the grid by index
+    // alone asks the surface pass what it thinks of a wall, which is nothing.
+    const SURF = 40 * 30
+    const beside = penInk[10 * 40 + 17]
+    const extra = penInk.slice(SURF)
+    ok(extra.length === 4,
+      extra.length === 4
+        ? 'and it goes back over the 4 tiles of the ridge'
+        : 'the chart laid ' + extra.length + ' marks on walls where 4 tiles are walled')
+    const same = extra.filter((c) => c === beside)
+    ok(extra.length > 0 && same.length === 0,
+      extra.length && !same.length
+        ? 'and paints them (' + [...new Set(extra)].join(', ') + ') unlike the ground '
+          + 'beside them (' + beside + ')'
+        : 'the chart paints a wall exactly as it paints the field next to it ('
+          + beside + '), so nothing impassable is on it')
+  }
   ctx.__h.takeGround({ w: 40, h: 30, rows: [], biomes: [], blocked: [] })
 }
 
@@ -2208,6 +2248,97 @@ console.log('\n--- 8k. the world does not spell itself out ---')
     ok(bad.length === 0, bad.length === 0
       ? 'and ' + tbl + ' carries no number at all'
       : tbl + ' still counts at the player: ' + bad.map((l) => l.trim().slice(0, 70)).join(' | '))
+  }
+}
+
+console.log('\n--- 8w. a blow lands when the weapon gets there ---')
+{
+  // §7ep: "Combat animations should be more smooth, not so hacky. I know there
+  // is an interval every second but animations still do not have to look
+  // hacky."
+  //
+  // Two separate faults wore the same face. The swing was sin(beat * PI), a
+  // symmetric curve over the whole interval at one speed throughout, which is
+  // the floaty look; and every OTHER part of a blow -- the number, the beast's
+  // flinch, the clang, the citizen's recoil -- fired the instant the state
+  // arrived, four hundred milliseconds before the arm reached the target.
+  // Effect, then cause, on every hit in the game.
+  //
+  // The curve is a pure function and is lifted and run here. The timing is
+  // asked of the window: feed a state in which something has just been hit,
+  // and see when the number appears.
+  // NOTE: the source is `html` here. `win` is the fake window object this
+  // file builds, and asking IT for indexOf throws rather than failing.
+  const bl9 = html.indexOf('const blowAt = (b,')
+  ok(bl9 > 0, bl9 > 0 ? 'the blow has a shape of its own'
+    : 'blowAt is gone or renamed, so nothing below measures anything')
+  const consts = html.slice(html.indexOf('const BLOW_BACK'), bl9)
+  const curve = html.slice(bl9, html.indexOf('\nconst splats', bl9))
+  const blowAt = new Function(consts + '\n' + curve + '\nreturn blowAt')()
+  const K = new Function(consts + '\nreturn { BLOW_BACK, BLOW_THROUGH, BLOW_LANDS, '
+    + 'BLOW_GUARD, BLOW_ANSWER }')()
+  // IT BEGINS AND ENDS AT THE GUARD. The old one began at zero while the arm
+  // between blows sat at a quarter, so every exchange tick opened with a jump.
+  const at0 = blowAt(0), at1 = blowAt(0.999)
+  ok(Math.abs(at0 - K.BLOW_GUARD) < 0.02 && Math.abs(at1 - K.BLOW_GUARD) < 0.03,
+    Math.abs(at0 - K.BLOW_GUARD) < 0.02 && Math.abs(at1 - K.BLOW_GUARD) < 0.03
+      ? 'the blow begins and ends at the guard, so no interval opens with a jump'
+      : 'the arm jumps across the interval boundary: ' + at0.toFixed(3)
+        + ' at the start and ' + at1.toFixed(3) + ' at the end, against a guard of '
+        + K.BLOW_GUARD)
+  // IT WINDS UP. Anticipation is the difference between a strike and an arm
+  // sliding forward, and a sine has none: it leaves from rest going forward.
+  let low = 1
+  for (let b = 0; b < K.BLOW_BACK; b += 0.005) low = Math.min(low, blowAt(b))
+  ok(low < -0.2, low < -0.2
+    ? 'and draws back to ' + low.toFixed(2) + ' before it comes through'
+    : 'the arm never draws back (lowest ' + low.toFixed(2) + '), so there is no wind-up')
+  // AND IT ARRIVES WHERE IT SAYS IT DOES, which is the constant everything
+  // else in a blow is timed against.
+  let peak = -9, peakAt = 0
+  for (let b = 0; b < 1; b += 0.002) { const v = blowAt(b); if (v > peak) { peak = v; peakAt = b } }
+  ok(Math.abs(peakAt - K.BLOW_LANDS) < 0.06,
+    Math.abs(peakAt - K.BLOW_LANDS) < 0.06
+      ? 'and is furthest out at ' + peakAt.toFixed(2) + ', which is where BLOW_LANDS says'
+      : 'the arm is furthest out at ' + peakAt.toFixed(2) + ' and the number is timed '
+        + 'to ' + K.BLOW_LANDS + ': they do not agree')
+  // AND THE BLOW IS FASTER THAN THE RECOVERY. This is the whole of "not so
+  // hacky": a symmetric sine passes every test above and still looks wrong,
+  // because it travels out at the same speed it comes back.
+  const speed = (a, b) => Math.abs(blowAt(b) - blowAt(a)) / (b - a)
+  const through = speed(K.BLOW_BACK, K.BLOW_BACK + K.BLOW_THROUGH * 0.5)
+  const back = speed(0.8, 0.95)
+  ok(through > back * 3, through > back * 3
+    ? 'and comes through ' + (through / back).toFixed(1) + ' times faster than it recovers'
+    : 'the blow goes out at the speed it comes back (' + through.toFixed(1) + ' against '
+      + back.toFixed(1) + '), which is the floaty swing again')
+  // THE ANSWERING BLOW IS LATER. An exchange is two blows, and both used to
+  // happen at the top of the interval, together.
+  ok(K.BLOW_ANSWER > K.BLOW_LANDS + 0.1 && K.BLOW_ANSWER < 0.95,
+    K.BLOW_ANSWER > K.BLOW_LANDS + 0.1 && K.BLOW_ANSWER < 0.95
+      ? 'and what hits back lands later in the same interval, at ' + K.BLOW_ANSWER.toFixed(2)
+      : 'the answering blow lands at ' + K.BLOW_ANSWER + ', which is not an exchange')
+  // AND THE NUMBER WAITS. Asked of the window: hit a creature and watch.
+  {
+    const st = fresh()
+    st.mobs.foe = { type: 'goblin', x: 11, y: 10, health: 40, hp: 40 }
+    ctx.__h.msg({ type: 'state', state: JSON.parse(JSON.stringify(st)), worldId: WID })
+    const st2 = JSON.parse(JSON.stringify(st))
+    st2.tick = st.tick + 1; st2.mobs.foe.hp = 33; st2.mobs.foe.health = 33
+    CLOCK = 500000
+    ctx.__h.msg({ type: 'state', state: st2, worldId: WID })
+    const numbersAt = (t) => { CLOCK = t; penSaid.length = 0
+      try { ctx.__h.drawAt(t) } catch (e) { return 'THREW ' + e.message }
+      return penSaid.filter((x) => x === '7' || x === 7).length }
+    const early = numbersAt(500000 + 60)
+    const late = numbersAt(500000 + K.BLOW_LANDS * 1000 + 80)
+    ok(early === 0, early === 0
+      ? 'and the number is not on the screen before the weapon is'
+      : 'the damage is shown ' + Math.round(K.BLOW_LANDS * 1000) + 'ms before the blow '
+        + 'lands (' + early + ' drawn at the top of the interval)')
+    ok(late > 0, late > 0
+      ? 'and it is there once the blow has landed'
+      : 'the number never appears at all, so this measures nothing')
   }
 }
 
