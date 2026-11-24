@@ -1685,9 +1685,21 @@ test('the landmark fallback names what it could not draw', () => {
   // and the fallback uses it: the arm with no condition on it
   const at = win.lastIndexOf('undrawnKind(')
   assert.ok(at > 0, 'nothing calls undrawnKind')
-  const before = win.slice(Math.max(0, at - 400), at)
+  // §7ep-vii: A WIDER LOOK BACK. This read 400 characters and the arm now
+  // carries the note explaining why it does not say `K`, which pushed the
+  // `} else {` out of range. The question is unchanged: is this call in the
+  // arm with no condition on it.
+  const before = win.slice(Math.max(0, at - 1600), at)
   assert.ok(/\} else \{/.test(before),
     'undrawnKind is not called from the fallback arm of the landmark chain')
+  // AND IT ASKS THE NODE, NOT `K`. `K` is declared inside the LM18 block and
+  // this arm is in the chain below it, so `undrawnKind(K)` threw a
+  // ReferenceError inside drawScene and killed the frame: the one branch
+  // whose job is to report a word the window cannot draw could not run. A
+  // landmark with no kind at all reached it, which is how it was found.
+  assert.match(win.slice(at, at + 40), /undrawnKind\(n\.kind\)/,
+    'the fallback asks for a name that is not in scope there, so it throws '
+    + 'instead of reporting, and an all-green screen is what that looks like')
 })
 
 // §7ec: THE WINDOW'S GROUND IS THE WORLD'S GROUND.
