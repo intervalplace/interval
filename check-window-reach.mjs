@@ -2321,6 +2321,35 @@ console.log('\n--- 8z. every landmark kind can be drawn ---')
   ok(broke.length === 0, broke.length === 0
     ? 'all ' + kinds.length + ' landmark kinds draw without throwing'
     : broke.length + ' landmark kinds kill the frame: ' + broke.slice(0, 6).join(' | '))
+
+  // AND THE OTHER TWO LONG CHAINS, for the same reason. The landmark chain is
+  // not the only one in this window that runs to hundreds of lines of
+  // `else if`, and the fault was a NAME OUT OF SCOPE in one arm, which reading
+  // the source does not find and which only the arm itself can show.
+  {
+    const bad = []
+    for (const type of E.NODE_TYPES) {
+      const st = fresh()
+      st.nodes['n1'] = { type, x: 11, y: 10, depletedUntil: 0 }
+      ctx.__h.msg({ type: 'state', state: JSON.parse(JSON.stringify(st)), worldId: WID })
+      try { ctx.__h.drawAt(700000) } catch (e) { bad.push(type + ': ' + e.message) }
+    }
+    ok(bad.length === 0, bad.length === 0
+      ? 'and all ' + E.NODE_TYPES.length + ' node types draw without throwing'
+      : bad.length + ' node types kill the frame: ' + bad.slice(0, 6).join(' | '))
+  }
+  {
+    const bad = []
+    for (const type of Object.keys(E.MOB_STATS)) {
+      const st = fresh()
+      st.mobs['m1'] = { type, x: 11, y: 10, health: 3, hp: 3 }
+      ctx.__h.msg({ type: 'state', state: JSON.parse(JSON.stringify(st)), worldId: WID })
+      try { ctx.__h.drawAt(700000) } catch (e) { bad.push(type + ': ' + e.message) }
+    }
+    ok(bad.length === 0, bad.length === 0
+      ? 'and all ' + Object.keys(E.MOB_STATS).length + ' creatures draw without throwing'
+      : bad.length + ' creatures kill the frame: ' + bad.slice(0, 6).join(' | '))
+  }
 }
 
 console.log('\n--- 8y. the boat says why it will not go ---')

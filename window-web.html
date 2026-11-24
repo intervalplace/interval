@@ -7512,7 +7512,7 @@ let lastCancelAt = 0
 //
 // Bump it with any change a player could see. It costs nothing and it is the
 // only thing in the window that can tell you WHICH window you are looking at.
-const BUILD = 'b114'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b115'  // stamp: if your screen says an older build, hard-refresh
 // ===========================================================================
 // WHAT A CITIZEN IS SEEN TO BE DOING
 //
@@ -15149,7 +15149,14 @@ function drawScene(now) {
           // the world stands up a word this window has no art for. Say so once,
           // and draw something that is plainly a marker and plainly not the
           // thing, so nobody mistakes the gap for the world.
-          undrawnKind(K)
+          //
+          // §7ep-vii: AND `K` IS NOT IN SCOPE HERE EITHER, which made this the
+          // worse half of the same fault. This is the arm an unknown kind
+          // lands on, so the ONE branch whose whole job is to report a word
+          // the window cannot draw threw a ReferenceError instead of
+          // reporting it, and took the frame down with it. A landmark with no
+          // `kind` at all does exactly that.
+          undrawnKind(n.kind)
           shadow(X, Y, 7)
           cx.fillStyle = '#6f6b64'
           for (let i = 0; i < 4; i++) {
