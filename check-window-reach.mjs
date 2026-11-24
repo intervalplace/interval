@@ -2297,6 +2297,32 @@ console.log('\n--- 8k. the world does not spell itself out ---')
   }
 }
 
+console.log('\n--- 8z. every landmark kind can be drawn ---')
+{
+  // "The screen froze. It said something like K is not defined at object draw.
+  // And now my citizen is stuck. I tried reloading the window and the screen
+  // is just all green now."
+  //
+  // A throw inside drawScene kills the frame, so the ground blits and nothing
+  // else does: an all-green screen is this fault, not an empty world, and it
+  // repeats on every frame so reloading cannot help.
+  //
+  // Nothing has ever stood one of each landmark in front of this window and
+  // drawn it. The kinds are the ENGINE'S list, so a kind added there is
+  // covered here the day it is added.
+  const kinds = [...(E.LANDMARK_KINDS || [])]
+  const broke = []
+  for (const kind of kinds) {
+    const st = fresh()
+    st.nodes['lm'] = { type: 'landmark', kind, x: 11, y: 10, depletedUntil: 0 }
+    ctx.__h.msg({ type: 'state', state: JSON.parse(JSON.stringify(st)), worldId: WID })
+    try { ctx.__h.drawAt(700000) } catch (e) { broke.push(kind + ': ' + e.message) }
+  }
+  ok(broke.length === 0, broke.length === 0
+    ? 'all ' + kinds.length + ' landmark kinds draw without throwing'
+    : broke.length + ' landmark kinds kill the frame: ' + broke.slice(0, 6).join(' | '))
+}
+
 console.log('\n--- 8y. the boat says why it will not go ---')
 {
   // §7ep-iii: "I click sail and it says in the log that I step aboard and it

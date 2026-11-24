@@ -7512,7 +7512,7 @@ let lastCancelAt = 0
 //
 // Bump it with any change a player could see. It costs nothing and it is the
 // only thing in the window that can tell you WHICH window you are looking at.
-const BUILD = 'b113'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b114'  // stamp: if your screen says an older build, hard-refresh
 // ===========================================================================
 // WHAT A CITIZEN IS SEEN TO BE DOING
 //
@@ -15106,7 +15106,27 @@ function drawScene(now) {
           cx.beginPath(); cx.ellipse(X + 13, Y + 15, 1.9, 0.9, 0, 0, 7); cx.fill()
           cx.fillStyle = 'rgba(120,140,120,.35)'         // the grass comes right up
           cx.fillRect(X + 2, Y + 20, 28, 3)
-        } else if (K === 'broken-tower') {
+        } else if (n.kind === 'broken-tower') {
+          // §7ep-vii: `K` IS NOT IN SCOPE HERE, AND HAS NOT BEEN SINCE OCTOBER.
+          //
+          // `K` is `n.kind` declared inside the LM18 block; `broken-tower` is
+          // not one of the eighteen and is drawn in THIS chain, where the name
+          // does not exist. So drawing one threw a ReferenceError inside
+          // drawScene, which kills the whole frame: the ground blits and
+          // nothing else does.
+          //
+          // Reported as "the screen froze, it said K is not defined at object
+          // draw, and now my citizen is stuck. I reloaded and the screen is
+          // just all green." All green IS this fault, and it repeats every
+          // frame, so reloading cannot clear it: the only way out is to not be
+          // looking at the tower.
+          //
+          // Every other arm of this chain asks `n.kind`. This one was changed
+          // from the chain's ENDING -- where it was the fallback and `K` was
+          // never consulted -- into an arm of its own, and the condition came
+          // with it. Nothing had ever stood a landmark of each kind in front
+          // of this window and drawn it, which is now section 8z.
+
           // §7f-ix: ITS OWN ARM, NOT THE FALLBACK.
           //
           // This chain used to END in the broken tower, so every landmark kind
