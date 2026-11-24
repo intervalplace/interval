@@ -18852,6 +18852,7 @@ module.exports = {
   // §5g-ii: the root over the living, the path a citizen keeps, and the one
   // question anybody asks of that path.
   livingRootOf, livingPathOf, provesLiving, recordDigest: _recordDigest, rootOfLeaves, pathInLeaves, provesDigest, EMPTY_ROOT,
+  FERRY_PAIR, LISTS_FERRY, SAIL_AFTER_BLOW,
   MASTERY, VIGIL_TICKS, SLEEP_AFTER, isAwake, effLevel, standingOf, callingOf, unaidedOf, WEAPONS, SWORN, SWEAR_LEVEL, SWEAR_COUNTRIES, maxHealth, callingHit, guardOf, armourOf, hitOf, accOf, STYLES, WIELD_REQS, countedSuccess, validateState, validateGenesis, validateImports, carriedFrom, validateInputShape, normalizeInput, slotOf, supportsWorldGenerator, minQuorumFor, maxByzantine, byzantineSafe, initCrypto, SKILLS, EQUIP_SLOTS, NODE_TYPES, INV_SLOTS, ITEMS, isValidName, cityRectOf, norwickRectOf, wildsRectOf, inCity, PRICES, inWilds, spawnOf, makeGenesis, newWorld, sameWorld, addPlayer, seatImport, landingVaultId, addNode, addMob, nextState, MOB_STATS, RECIPES, EQUIPPABLE,
   // §6m-viii: the larder, so a window can tell food from goods rather than
   // carrying a guess. healOf reads this table; it is not a second copy.

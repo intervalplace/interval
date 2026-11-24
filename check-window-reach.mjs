@@ -97,6 +97,7 @@ class FakeAC {
   createOscillator () { return anode('osc') }
 }
 const win = {}
+const timers = []          // §7ep: what the window asked to happen later
 const winErrors = []
 const sent = []
 let CLOCK = 1000
@@ -106,7 +107,14 @@ const ctx = {
   // to a bar on the page and to console.error. A harness that discards both
   // cannot tell a window that refused a state from one that took it.
   console: { log: noop, warn: noop, error: (...a) => winErrors.push(a.map(String).join(' ')) },
-  setTimeout: noop, setInterval: noop, clearTimeout: noop, requestAnimationFrame: noop,
+  // §7ep: TIMERS ARE KEPT, NOT THROWN AWAY. This was `noop`, so everything the
+  // window schedules for later -- which now includes the clang of your own
+  // blow and the beast's voice, both timed to the moment the weapon lands --
+  // was unobservable here: a check could not tell a sound that was scheduled
+  // from one that was never called for. They are collected and fired on
+  // demand, which is also the only way to run them deterministically.
+  setTimeout: (f, ms) => { if (typeof f === 'function') timers.push([f, ms ?? 0]); return 0 },
+  setInterval: noop, clearTimeout: noop, requestAnimationFrame: noop,
   fetch: () => new Promise(noop),
   WebSocket: function () { this.readyState = 1
     this.send = (r) => { try { const m = JSON.parse(r); if (m.type === 'act') sent.push(m.action) } catch {} }
@@ -182,6 +190,10 @@ vm.runInContext(body + `
   // NO BACKTICKS IN THIS BLOCK: it is a template literal.
   openSocket: (w) => { ws = w },
   intent: () => intent,
+  // §7ep-iii: the crossing's rules, which the window takes from /api/tables
+  // and a harness has no pillar to fetch from. NO BACKTICKS IN THIS BLOCK.
+  tellFerries: (pair, lists, after) => {
+    FERRY_PAIR_W = pair; LISTS_FERRY_W = lists; SAIL_AFTER_BLOW_W = after },
   // 20e: whether the arm is set, read off the window rather than inferred
   // from what it said. NO BACKTICKS IN THIS BLOCK.
   armed: () => gambitArmed,
@@ -253,6 +265,13 @@ vm.runInContext(body + `
 // a press menu only opens at the pointer when the window knows where the
 // pointer was, which is what the global pointerdown is for
 for (const f of win.pointerdown ?? []) f({ clientX: 100, clientY: 100, target: {} })
+// §7ep: run whatever the window scheduled for later, oldest first. It lives
+// out here rather than on `__h` because `timers` is this file's array, not the
+// window's: the window only ever sees the setTimeout above.
+const fireTimers = () => { const n = timers.length
+  const due = timers.splice(0, timers.length)
+  for (const [f] of due) { try { f() } catch (e) { winErrors.push('timer: ' + e.message) } }
+  return n }
 const takeMenu = ctx.__h.spy()
 // a socket the window believes in, so `send` gets past its own door
 const SOCK = { readyState: 1, close: noop,
@@ -1310,6 +1329,33 @@ console.log('\n--- 8i. the ground a citizen cannot walk on says so ---')
       extra.length === 4
         ? 'and it goes back over the 4 tiles of the ridge'
         : 'the chart laid ' + extra.length + ' marks on walls where 4 tiles are walled')
+    // AND NOT ON THE WATER. `blockedAt` is true of the sea too, and on this
+    // island NINETY-NINE PER CENT of the blocked tiles are wet: the first cut
+    // of this painted the whole ocean as stone and every lake with it, which
+    // is "on the minimap, a lake now looks like a mountain or something". The
+    // check above passed it happily, because a ridge was still a ridge.
+    {
+      penInk.length = 0
+      // A PAYLOAD WITH NEITHER ROWS NOR COUNTRIES IS REFUSED, deliberately, so
+      // one has to be present or this changes nothing and quietly re-measures
+      // the ridge from the block above. It did, and reported four water tiles
+      // painted as stone when the window had never been told about any water.
+      const took2 = ctx.__h.takeGround({ w: 40, h: 30, rows: [],
+        biomes: [[20, [[0, 40, 'fens']]]],
+        blocked: [[20, [[5, 3]]]], water: [[20, [[5, 3]]]] })
+      ok(took2 && ctx.__h.wet(6, 20) && ctx.__h.walled(6, 20),
+        took2 && ctx.__h.wet(6, 20) && ctx.__h.walled(6, 20)
+          ? 'the window takes a lake that is also blocked ground'
+          : 'the window did not take the lake, so nothing below is measured')
+      penInk.length = 0
+      ctx.__h.mini()
+      const wetMarks = penInk.slice(SURF)
+      ok(wetMarks.length === 0,
+        wetMarks.length === 0
+          ? 'and lays no stone on water, which is 99% of what is blocked'
+          : 'the chart painted ' + wetMarks.length + ' water tiles as stone ('
+            + [...new Set(wetMarks)].join(', ') + '), so the sea is a mountain range')
+    }
     const same = extra.filter((c) => c === beside)
     ok(extra.length > 0 && same.length === 0,
       extra.length && !same.length
@@ -2248,6 +2294,141 @@ console.log('\n--- 8k. the world does not spell itself out ---')
     ok(bad.length === 0, bad.length === 0
       ? 'and ' + tbl + ' carries no number at all'
       : tbl + ' still counts at the player: ' + bad.map((l) => l.trim().slice(0, 70)).join(' | '))
+  }
+}
+
+console.log('\n--- 8y. the boat says why it will not go ---')
+{
+  // §7ep-iii: "I click sail and it says in the log that I step aboard and it
+  // takes me across. But I need a charter to enable that route. So it should
+  // say so, instead of saying it takes me across when the game is actually
+  // rejecting me. That is a silent failure."
+  //
+  // `sail` has eight ways to be refused and the window knew none of them, so
+  // it announced the crossing on the way out and the pillar threw the deed
+  // away without a word. The reasons are the world's own, served on
+  // /api/tables rather than copied.
+  const LF = E.LISTS_FERRY, PAIR = E.FERRY_PAIR
+  // the window takes these from the pillar; here they are handed over directly
+  ctx.__h.tellFerries(PAIR, LF, E.SAIL_AFTER_BLOW)
+  ok(!!LF && !!PAIR, LF && PAIR
+    ? 'the engine tells a window which crossing is the Lists, and the pairs'
+    : 'the ferry rules are not exported, so no window can explain a refusal')
+  const quay = (set) => {
+    const st = fresh()
+    // the quay the citizen stands at, and its opposite number
+    const mine = Object.keys(PAIR).find((k) => PAIR[k] === LF) ?? Object.keys(PAIR)[0]
+    st.nodes[mine] = { type: 'ferry', x: 11, y: 10, depletedUntil: 0 }
+    st.nodes[PAIR[mine]] = { type: 'ferry', x: 300, y: 300, depletedUntil: 0 }
+    set(st.players[ID], st)
+    ctx.__h.msg({ type: 'state', state: JSON.parse(JSON.stringify(st)), worldId: WID })
+    ctx.__h.hush(); sent.length = 0
+    ctx.__h.press(11, 10, false)
+    return { said: ctx.__h.said().join(' '), sailed: sent.some((a) => a && a.do === 'sail') }
+  }
+  // no charter, nothing worn: the one the report was about
+  {
+    const r = quay((p) => { p.chartered = false })
+    ok(!r.sailed && /charter/i.test(r.said),
+      !r.sailed && /charter/i.test(r.said)
+        ? 'without a charter it says so and files nothing: ' + r.said.slice(0, 64)
+        : 'the window ' + (r.sailed ? 'filed a sail it will not get' : 'filed nothing')
+          + ' and said: ' + (r.said || 'nothing'))
+  }
+  // wearing armour, which the Lists refuses either way
+  {
+    const r = quay((p) => { p.chartered = true; p.equipment.body = { item: 'iron-plate', qty: 1 } })
+    ok(!r.sailed && /armour/i.test(r.said),
+      !r.sailed && /armour/i.test(r.said)
+        ? 'and in armour it names the armour: ' + r.said.slice(0, 64)
+        : 'in armour the window said: ' + (r.said || 'nothing')
+          + (r.sailed ? ' and filed the sail anyway' : ''))
+  }
+  // and when nothing is in the way it goes, which is the other half: a window
+  // that refuses everything is no better than one that refuses nothing
+  {
+    const r = quay((p) => { p.chartered = true })
+    ok(r.sailed, r.sailed
+      ? 'and with a charter and no armour it files the crossing'
+      : 'the window refuses a crossing the engine would allow: ' + r.said)
+  }
+}
+
+console.log('\n--- 8x. a blow you land makes a noise, when it lands ---')
+{
+  // §7ep: "There were no sounds at all, only the music was playing. Burying
+  // its bones did make a sound, though."
+  //
+  // So the audio graph is awake and a deed's sound works; combat specifically
+  // is silent. The clang of your own blow and the beast's voice were moved
+  // into timers when they were re-timed to the moment the weapon lands, and
+  // this harness treated setTimeout as a no-op, so nothing here could tell a
+  // sound that was SCHEDULED from one that was never called for at all. The
+  // timers are kept now and fired deliberately.
+  const st = fresh()
+  st.mobs.foe = { type: 'mere-lamprey', x: 11, y: 10, health: 44, hp: 44 }
+  st.players[ID].equipment.weapon = { item: 'iron-sword', qty: 1 }
+  st.players[ID].action = { type: 'attack', mobId: 'foe', since: 0 }
+  ctx.__h.msg({ type: 'state', state: JSON.parse(JSON.stringify(st)), worldId: WID })
+  ctx.__h.wake()
+  // the blow: the same state one interval on, with the creature lighter
+  const st2 = JSON.parse(JSON.stringify(st))
+  st2.tick = st.tick + 1
+  st2.mobs.foe.hp = 37; st2.mobs.foe.health = 37
+  st2.players[ID].blows = [7]
+  built.length = 0
+  ctx.__h.msg({ type: 'state', state: st2, worldId: WID })
+  const atOnce = built.length
+  const fired = fireTimers()
+  const after = built.length
+  ok(fired > 0, fired > 0
+    ? 'a blow you land schedules ' + fired + ' thing(s) for when it arrives'
+    : 'nothing at all is scheduled when your blow lands, so the clang cannot play')
+  ok(after > atOnce, after > atOnce
+    ? 'and firing them builds ' + (after - atOnce) + ' sounds'
+    : 'the scheduled work built no sound (' + atOnce + ' before, ' + after + ' after)')
+  // AND NOT BEFORE. The whole reason it is in a timer is that the state
+  // arrives 460ms before the weapon does.
+  ok(atOnce === 0, atOnce === 0
+    ? 'and none of it sounded at the top of the interval'
+    : atOnce + ' sounds played the instant the state arrived, before the blow')
+
+  // AND EVERY BLOW LEAVES A NUMBER. "I do not think all hitsplats were showing
+  // properly. The lamprey was just suddenly dead, even though I thought it had
+  // more health left." A blow whose number never appears is a blow that did
+  // not happen as far as anybody watching can tell, and six of them in a row
+  // is a creature dying out of nowhere.
+  //
+  // Six consecutive intervals, each taking seven off it, each frame drawn at
+  // the moment that interval's blow lands.
+  {
+    let tick = 900, hp = 44, shown = 0, drawn = []
+    CLOCK = 600000
+    const st0 = fresh()
+    st0.tick = tick
+    st0.mobs.foe = { type: 'mere-lamprey', x: 11, y: 10, health: hp, hp }
+    st0.players[ID].equipment.weapon = { item: 'iron-sword', qty: 1 }
+    st0.players[ID].action = { type: 'attack', mobId: 'foe', since: 0 }
+    ctx.__h.msg({ type: 'state', state: JSON.parse(JSON.stringify(st0)), worldId: WID })
+    for (let i = 0; i < 6; i++) {
+      hp -= 7; tick += 1
+      const sN = JSON.parse(JSON.stringify(st0))
+      sN.tick = tick; sN.mobs.foe.hp = hp; sN.mobs.foe.health = hp
+      CLOCK += 1000
+      ctx.__h.msg({ type: 'state', state: sN, worldId: WID })
+      // and the frame at the moment this blow arrives
+      CLOCK += Math.round(0.46 * 1000)
+      penSaid.length = 0
+      try { ctx.__h.drawAt(CLOCK) } catch (e) { drawn.push('THREW ' + e.message); break }
+      const here = penSaid.filter((x) => String(x) === '7').length
+      drawn.push(here)
+      if (here > 0) shown++
+      CLOCK += 540
+    }
+    ok(shown === 6, shown === 6
+      ? 'and six blows in a row leave six numbers, one for each'
+      : 'only ' + shown + ' of 6 blows left a number (per interval: '
+        + drawn.join(', ') + ') so a creature dies out of nowhere')
   }
 }
 

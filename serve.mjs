@@ -1777,6 +1777,12 @@ const server = http.createServer((req, res) => {
         items: [...(E.ITEMS || [])], equippable: [...(E.EQUIPPABLE || [])],
         stackable: [...(E.STACKABLE || [])], twoHanded: [...(E.TWO_HANDED || [])],
         armour: E.ARMOUR, nodeTypes: E.NODE_TYPES,
+        // §7ep-iii: THE CROSSING'S OWN RULES, so a window can say why a boat
+        // refused it. `sail` has eight ways to be refused and the window knew
+        // none of them: it announced "the boat takes you across" and the
+        // pillar threw the deed away in silence.
+        ferryPair: E.FERRY_PAIR, listsFerry: E.LISTS_FERRY,
+        sailAfterBlow: E.SAIL_AFTER_BLOW,
         // §7f-ix: and the words a landmark may be, so a window can be held to
         // the whole list rather than to whatever the island happened to grow
         landmarkKinds: [...(E.LANDMARK_KINDS || [])],

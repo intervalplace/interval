@@ -5425,6 +5425,12 @@ let SWORN_T = null, SWEAR_LEVEL = 50, CAP_UNSWORN = 50, CAP_OTHER = 70
 // swear. Travel rather than a level, and the engine's own number.
 let SWEAR_COUNTRIES_W = 5
 let MASTERY_T = 100, APPR_SLOTS = 3, APPR_LAPSE = 43200, APPR_MILES = [100, 105, 110]
+// §7ep-iii: THE CROSSING'S OWN RULES, told rather than guessed. `sail` has
+// eight ways to be refused and this window knew none of them, so it announced
+// "you step aboard, the boat takes you across" and the pillar threw the deed
+// away without a word. Null until the pillar answers: a window that has not
+// been told says the plain thing rather than inventing a rule.
+let FERRY_PAIR_W = null, LISTS_FERRY_W = null, SAIL_AFTER_BLOW_W = 8
 ;(async () => {
   try {
     // §5w: the live tables come from the RESOLVED NODE, not origin-relative.
@@ -5452,6 +5458,9 @@ let MASTERY_T = 100, APPR_SLOTS = 3, APPR_LAPSE = 43200, APPR_MILES = [100, 105,
     if (t.apprenticeSlots) APPR_SLOTS = t.apprenticeSlots
     if (t.apprenticeLapse) APPR_LAPSE = t.apprenticeLapse
     if (t.apprenticeMilestones) APPR_MILES = t.apprenticeMilestones
+    if (t.ferryPair) FERRY_PAIR_W = t.ferryPair
+    if (t.listsFerry) LISTS_FERRY_W = t.listsFerry
+    if (t.sailAfterBlow) SAIL_AFTER_BLOW_W = t.sailAfterBlow
     // §7f-viii: AND THE LEDGERS, which this window fetched and then ignored.
     //
     // `/api/tables` has served the recipes, the prices, the beasts and the
@@ -7004,7 +7013,19 @@ function setMusic(on) {
   if (b) { b.textContent = on ? 'music: on' : 'music: off'; b.dataset.on = on ? '1' : '0' }
 }
 
-function wakeAudio() { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)() } catch {} } }
+// §7ep-ii: AND A SUSPENDED CONTEXT IS WOKEN, not just a missing one.
+//
+// This only ever CREATED the context, and it is called from exactly two
+// places: the gate and the speaker button. A browser that has not seen a
+// gesture starts an AudioContext SUSPENDED and nothing here ever resumed one,
+// so a window that came up any other way than somebody pressing the gate was
+// silent for the rest of the session with no way back short of toggling the
+// speaker. Resuming is free when it is already running, and a resume outside a
+// gesture is refused harmlessly rather than throwing.
+function wakeAudio() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)() } catch {} }
+  if (AC && AC.state === 'suspended') { try { AC.resume() } catch {} }
+}
 function tone(freq, dur, opts = {}) {
   if (!AC || !soundOn) return
   const t0 = AC.currentTime + (opts.at ?? 0)
@@ -7480,7 +7501,18 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b112'  // stamp: if your screen says an older build, hard-refresh
+// §7ep-v: THE STAMP IS ONLY WORTH ANYTHING IF IT MOVES.
+//
+// This sat at b112 through four rounds of window work -- the gambit, the bows,
+// the archer's body, the shape of a blow, the ambient life, the chart. Its own
+// comment tells somebody to hard-refresh if their screen shows an older build,
+// and there was no older build to show: every report of "I tried it and
+// nothing happened" was unanswerable, because neither of us could tell a fault
+// in the window from a page the browser had kept.
+//
+// Bump it with any change a player could see. It costs nothing and it is the
+// only thing in the window that can tell you WHICH window you are looking at.
+const BUILD = 'b113'  // stamp: if your screen says an older build, hard-refresh
 // ===========================================================================
 // WHAT A CITIZEN IS SEEN TO BE DOING
 //
@@ -7630,6 +7662,10 @@ const send = a => {
   // your own hands and it should answer the press. A deed the engine refuses
   // still says so in the feed; a deed that answers half a second late feels
   // like a window that is not listening.
+  // §7ep-ii: a press is a gesture, which is the one moment a browser will let
+  // a suspended context start. Doing it here costs nothing and means the
+  // window recovers its own sound the first time anybody does anything.
+  wakeAudio()
   actionSound(a.do)
   // §7ek: and the box over the thing you pressed goes red, because something
   // happened. See flashClick.
@@ -8918,7 +8954,14 @@ function buildMini() {
   // still a wall first.
   if (typeof groundWalled === 'function') {
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      if (!groundWalled(x, y)) continue
+      // DRY LAND ONLY, which is what the rule says and what the first cut did
+      // not do. `blockedAt` is true of water as well, and of the island's
+      // blocked tiles NINETY-NINE PER CENT are sea or lake: the chart came
+      // back with the whole ocean painted as stone, reported as "on the
+      // minimap, a lake now looks like a mountain or something". The sea is
+      // already drawn as the sea by the surface pass; what was missing from
+      // this chart was the cliffs, the Ridge, the Barrow and the town walls.
+      if (!groundWalled(x, y) || isWetAt(x, y)) continue
       g.fillStyle = (tileHash(x, y, 11) % 3) ? '#6b645a' : '#5d564d'
       g.fillRect(x, y, 1, 1)
     }
@@ -14085,12 +14128,39 @@ function drawScene(now) {
           cx.fillStyle = 'rgba(0,0,0,.18)'; cx.fillRect(X+10, Y+26, 20, 1.6)
           cx.fillStyle = '#5a4326'; cx.fillRect(X+8, Y+6, 24, 3)
         } else if (K === 'shelf') {
-          poly([[X+7,Y+2],[X+33,Y+2],[X+33,Y+34],[X+7,Y+34]], '#6b5330', '#291d0e')
-          cx.fillStyle = '#4a3720'
-          for (const sy of [12, 22, 32]) cx.fillRect(X+8, Y+sy, 24, 2.6)
-          cx.fillStyle = '#c9b98a'; cx.fillRect(X+10, Y+6, 5, 6); cx.fillRect(X+17, Y+7, 4, 5)
-          cx.fillStyle = '#8a6d3e'; cx.fillRect(X+24, Y+5, 6, 7)
-          cx.fillStyle = '#a8916a'; cx.fillRect(X+11, Y+16, 6, 6); cx.fillRect(X+22, Y+17, 7, 5)
+          // §7dg: A RACK IS NOT A SHELF, and this drew the shelf either way.
+          //
+          // "Is it a little weird to have bookshelves outside by the boat?"
+          // Measured: NINETEEN of the island's forty-three shelves stand on
+          // something that is not a floor, four of them on the Fenmarch quay,
+          // and every one was drawn as the same warm indoor bookcase with
+          // books on it. §7dg already settled what the difference looks like
+          // when the smokerack was drawn: joinery in warm brown lives indoors,
+          // and a thing standing in the weather is grey, open and empty.
+          //
+          // So the same word is drawn as what it is where it is. Indoors it is
+          // a case of books; out in a work yard it is the open stand that
+          // everything in a yard is: two posts, three poles, nothing on it
+          // that rain would spoil.
+          if (terrainOf(n.x, n.y) === 'floor') {
+            poly([[X+7,Y+2],[X+33,Y+2],[X+33,Y+34],[X+7,Y+34]], '#6b5330', '#291d0e')
+            cx.fillStyle = '#4a3720'
+            for (const sy of [12, 22, 32]) cx.fillRect(X+8, Y+sy, 24, 2.6)
+            cx.fillStyle = '#c9b98a'; cx.fillRect(X+10, Y+6, 5, 6); cx.fillRect(X+17, Y+7, 4, 5)
+            cx.fillStyle = '#8a6d3e'; cx.fillRect(X+24, Y+5, 6, 7)
+            cx.fillStyle = '#a8916a'; cx.fillRect(X+11, Y+16, 6, 6); cx.fillRect(X+22, Y+17, 7, 5)
+          } else {
+            // the posts, weathered, with daylight between them
+            cx.fillStyle = '#5a5349'
+            cx.fillRect(X + 9, Y + 6, 3.2, 28); cx.fillRect(X + 28, Y + 6, 3.2, 28)
+            cx.fillStyle = '#6b6357'
+            for (const ry of [11, 20, 29]) cx.fillRect(X + 8, Y + ry, 24, 2.2)
+            // a brace, because an open frame needs one to stand up
+            cx.strokeStyle = '#4e4840'; cx.lineWidth = 1.6
+            cx.beginPath(); cx.moveTo(X + 10, Y + 32); cx.lineTo(X + 29, Y + 10); cx.stroke()
+            // and the grain of weather on the near post
+            cx.fillStyle = 'rgba(232,226,210,.18)'; cx.fillRect(X + 9, Y + 6, 1.1, 28)
+          }
         } else if (K === 'barrel' || K === 'crate') {
           if (K === 'barrel') {
             cx.fillStyle = '#a8763f'
@@ -17084,12 +17154,29 @@ function drawScene(now) {
             cx.fillRect(X + 6, Y - 1, 28 * Math.max(0, m.hp / 44), 3.4)
           cx.restore()
         }
-        cx.fillStyle = '#4a5a3a'; cx.fillRect(X + 6, Y + 3, 28, 2)
-        cx.fillStyle = left <= 8 ? '#d8a03a' : '#7a9a5a'
-        cx.fillRect(X + 6, Y + 3, 28 * Math.max(0, left / 64), 2)
-        cx.fillStyle = left <= 8 ? '#e8c060' : 'rgba(180,200,160,.8)'
-        cx.font = '600 7px ui-monospace,monospace'; cx.textAlign = 'center'
-        cx.fillText(left + ' left', X + 20, Y - 4); cx.textAlign = 'left'
+        // §7ef: AND THE TALLY KEEPS THE SAME RULE AS EVERY OTHER NUMBER.
+        //
+        // The hitpoint bar above is behind `_showHp` -- pointed at, fighting,
+        // or wounded -- and this was not, so a lamprey wore "64 left" over its
+        // head at all times, from across the meres, for ever. That is the wall
+        // of text §7ef was written to take down, on the one creature that has
+        // something worth saying.
+        //
+        // It is still the only number in the world that goes down, and it is
+        // still shown; it is shown when you are looking at the thing, like
+        // everything else.
+        if (_showHp) {
+          cx.fillStyle = '#4a5a3a'; cx.fillRect(X + 6, Y + 3, 28, 2)
+          cx.fillStyle = left <= 8 ? '#d8a03a' : '#7a9a5a'
+          cx.fillRect(X + 6, Y + 3, 28 * Math.max(0, left / 64), 2)
+          cx.fillStyle = left <= 8 ? '#e8c060' : 'rgba(180,200,160,.8)'
+          cx.font = '600 7px ui-monospace,monospace'; cx.textAlign = 'center'
+          // AND IT SAYS WHAT IT IS COUNTING. "It said 64 left above its head"
+          // and then another lamprey said 64 too, which is correct and reads
+          // as a stuck number: each of the seven has its own sixty-four lives.
+          // The bare number could not say that; the word does.
+          cx.fillText(left + ' lives', X + 20, Y - 4); cx.textAlign = 'left'
+        }
         return
       }
       if (m.type === 'fen-adder') {
@@ -20993,13 +21080,37 @@ function invOptions(i) {
     const st = (meNow.inventory ?? []).filter(x => x?.item === 'steel').length
     const sm = lvlOf('earthcraft')
     const canMake = sp >= 2 && st >= 1 && sm >= 40
-    const alive = Object.values(world?.mobs ?? {})
-      .filter(x => x.type === 'mere-lamprey' && (x.spent ?? 0) === 0).length
+    // §7ep-iv: AND IT DOES NOT ANNOUNCE THE END OF THE WORLD FROM A LOCAL
+    // READING. This counted the lampreys in `world.mobs` and said "the meres
+    // are empty. Every barb that will ever exist already exists" whenever that
+    // count was zero, which is also what an unloaded or stale `world` looks
+    // like. Reported by somebody who had just fought one. An ending that
+    // permanent may only be said when the world has actually been seen to be
+    // in it: if there are no lampreys AND no creatures at all, this window
+    // does not know, and says the thing that is true either way.
+    const mobsNow = Object.values(world?.mobs ?? {})
+    const lamps = mobsNow.filter(x => x.type === 'mere-lamprey')
+    const alive = lamps.filter(x => (x.spent ?? 0) === 0).length
+    const known = mobsNow.length > 0 && lamps.length > 0
+    const lookLine = alive > 0
+      ? alive + (alive === 1 ? ' lamprey is left in the world.' : ' lampreys are left in the world.')
+        + ' When they are gone there is no more spit, and no more barbs than the ones that exist.'
+      : known
+        ? 'The meres are empty. Every barb that will ever exist already exists.'
+        : 'Spit from a mere lamprey. There will never be more of it than the lampreys leave.'
+    // §7ep-iv: AND THE LEFT PRESS TRIES THE ONE THING IT IS FOR.
+    //
+    // "When clicking lamprey spit it said every barb that will ever exist
+    // already exists. But that is not true, it was rather because I did not
+    // have enough nor did I have the skill requirement."
+    //
+    // Both halves of that: the sentence was wrong, and it was reached at all
+    // because the LOOK was first in the list and a left press does the first
+    // thing. Dragon bones put the look first on purpose, because burying and
+    // hafting are opposed and a mis-tap must not spend them. Spit has exactly
+    // one use, so the default is that use, and when it cannot be done the
+    // refusal says which of the three things is missing.
     return { name, opts: [
-      { label: 'look at the lamprey spit', act: () => feed(alive > 0
-        ? alive + (alive === 1 ? ' lamprey is left in the world.' : ' lampreys are left in the world.')
-          + ' When they are gone there is no more spit, and no more barbs than the ones that exist.':
-        'The meres are empty. Every barb that will ever exist already exists.') },
       { label: canMake ? 'set a BARB (2 spit + 1 steel)':
                        'set a barb, ' + (sm < 40 ? 'earthcraft 40 (you have ' + sm + ')':
                          sp < 2 ? 'you have ' + sp + ' of 2 spit' : 'you need a bar of steel'),
@@ -21008,6 +21119,7 @@ function invOptions(i) {
           send({ do: 'smith', recipe: 'barb' })
           feed('You work the spit into the ring. It bites all round: every beast within reach, '
              + 'one swing. Worthless in a duel; the only answer anybody has to a crowd.') } },
+      { label: 'look at the lamprey spit', act: () => feed(lookLine) },
       ...tail,
     ] }
   }
@@ -22270,6 +22382,49 @@ function worldPress(e, asLeft) {
       }
       if (n.type === 'ferry') {
         if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }; feed('A quay, and a boat at it.'); return }
+        // §7ep-iii: AND IT SAYS WHY IT WILL NOT GO.
+        //
+        // "I click sail and it says in the log that I step aboard and it takes
+        // me across. But I need a charter to enable that route. So it should
+        // say so, instead of saying it takes me across when the game is
+        // actually rejecting me. That is a silent failure."
+        //
+        // Exactly §7ek's fault: the window announced the crossing on the way
+        // out and the pillar refused it in silence. The boat has eight
+        // refusals and the reasons are the world's own, fetched from
+        // /api/tables rather than copied, so a rule that changes there changes
+        // here. A window that has not been told anything says nothing new and
+        // still sends: the engine is the authority either way.
+        const why = (() => {
+          // KNOWN, OR NOTHING. With no tables fetched, `far` and the Lists are
+          // both null and `far === LISTS_FERRY_W` is TRUE: every quay on the
+          // island announced that the boatman did not know you and wanted a
+          // charter. A window that has not been told must say nothing new.
+          const told = !!(FERRY_PAIR_W && LISTS_FERRY_W)
+          const far = told ? FERRY_PAIR_W[id] : null
+          const toLists = told && (far === LISTS_FERRY_W || id === LISTS_FERRY_W)
+          if (far && !world.nodes?.[far]) return 'There is no quay at the other end.'
+          if (toLists) {
+            const worn = ['head', 'body', 'legs', 'offhand']
+              .filter((sl) => me.equipment?.[sl])
+            if (worn.length) {
+              return 'The Lists take no armour. You are still wearing '
+                + worn.map((sl) => say1(me.equipment[sl].item)).join(' and ') + '.'
+            }
+          }
+          if (told && far === LISTS_FERRY_W && me.chartered !== true
+              && !(me.inventory ?? []).some((sl) => sl?.item === 'charter')) {
+            return 'The boatman does not know you. That crossing wants a charter, '
+              + 'and the explorer sells one.'
+          }
+          if ((me.rootedUntil ?? 0) > (world.tick ?? 0)) return 'You cannot move.'
+          if ((me.brandedUntil ?? 0) > (world.tick ?? 0))
+            return 'You are branded. A brand is not sailed away from.'
+          if ((world.tick ?? 0) - (me.lastSwing ?? -99) < SAIL_AFTER_BLOW_W)
+            return 'You have just swung. A fight you are in is a fight you are in.'
+          return null
+        })()
+        if (why) { feed(why); flashClick(n.x, n.y, false); return }
         send({ do: 'sail' })
         feed('You step aboard. The boat takes you across.')
         flashClick(n.x, n.y, false); return

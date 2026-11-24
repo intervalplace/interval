@@ -516,6 +516,17 @@ rather than instead of it, because a town wall standing on flagstone is a wall
 first.
 
 
+### 7eo-ii. And stone on dry land only
+
+The rule above says "dry land" and the code did not. `blockedAt` is true of
+water as well, and on this island **99% of the blocked tiles are sea or lake**,
+so the first cut painted the whole ocean as stone. Reported the same evening:
+*"on the minimap, a lake now looks like a mountain or something."*
+
+The check written for §7eo passed it without a murmur, because a ridge was
+still a ridge. It asks about the water now, with a lake that is also blocked
+ground, which is the shape the island actually has.
+
 ## 7ep. The shape of a blow, and when it lands
 
 **"Combat animations should be more smooth, not so hacky. I know there is an
@@ -616,3 +627,85 @@ the fight state lands is exactly a chosen point in the draw. The sweep also
 left `since` undefined, and the exchange flag wants an even number of ticks
 since, so half the archer pictures ever taken were of a bow at rest and nobody
 could tell which.
+
+## 7ep-ii. A suspended sound is woken by any press
+
+`wakeAudio` only ever CREATED the context, and it is called from two places:
+the gate and the speaker button. A browser that has not seen a gesture starts
+an AudioContext **suspended**, and nothing resumed one, so a window that came
+up any way other than somebody pressing the gate was silent for the session
+with no way back short of toggling the speaker twice.
+
+Every press goes through `send`, and a press is a gesture, which is the one
+moment a browser will start a suspended context. Resuming costs nothing when it
+is already running and is refused harmlessly outside a gesture.
+
+This is offered as the likely cause of *"there were no sounds at all, only the
+music was playing, burying its bones did make a sound though"* and **not as a
+confirmed one**: the sound path measures as working. A blow you land schedules
+four things and firing them builds eight sounds, none of them at the top of the
+interval, and six blows in a row leave six numbers. Burying plays from inside
+the press; combat plays from the state arriving, which is the one difference
+the window has, and a suspended context is the one thing that tells those apart.
+
+## 7ep-iii. A boat says why it will not go
+
+*"I click sail and it says in the log that I step aboard and it takes me
+across. But I need a charter to enable that route. So it should say so, instead
+of saying it takes me across when the game is actually rejecting me. That is a
+silent failure."*
+
+§7ek, exactly: the window announced the crossing on the way out and the pillar
+threw the deed away in silence. `sail` has **eight** ways to refuse, and the
+window knew none of them: no quay at the far end, armour at the Lists either
+way, no charter, rooted, branded, having just swung, and an opponent who has.
+
+The reasons are the world's own, served on `/api/tables` rather than copied,
+because this is a rule that will change and a copy of it would go stale the way
+every copied table in this project has. **A window that has not been told says
+nothing new and still sends**: with nothing fetched, `far` and the Lists are
+both null, `far === LISTS_FERRY` is TRUE, and the first cut told every quay on
+the island that the boatman did not know you.
+
+## 7ep-iv. One use means one default
+
+*"When clicking lamprey spit it said every barb that will ever exist already
+exists. But that is not true, it was rather because I did not have enough nor
+did I have the skill requirement."*
+
+Both halves were faults. The sentence was wrong: it counted the lampreys in
+`world.mobs` and announced the end of the world whenever that count was zero,
+which is also what an unloaded or stale state looks like, to somebody who had
+just fought one. An ending that permanent may only be said when the world has
+been seen to be in it.
+
+And it was reached at all because the LOOK was first in the list and a left
+press does the first thing. Dragon bones put the look first on purpose, because
+burying and hafting are opposed and a mis-tap must not spend them. Spit has
+exactly one use, so the default is that use, and the refusal names which of the
+three things is missing.
+
+## 7ep-v. The stamp has to move
+
+`BUILD` sat at `b112` through four rounds of window work. Its own comment tells
+somebody to hard-refresh if their screen shows an older build, and there was no
+older build to show, so every report of *"I tried it and nothing happened"* was
+unanswerable: neither of us could tell a fault in the window from a page the
+browser had kept.
+
+Bump it with any change a player could see. It is the only thing in the window
+that can say WHICH window you are looking at.
+
+## 7ep-vi. A shelf in the weather is a rack
+
+*"Is it a little weird to have bookshelves outside by the boat?"*
+
+Measured: **19 of the island's 43 shelves stand on something that is not a
+floor**, four of them on the Fenmarch quay, and every one was drawn as the same
+warm indoor bookcase with books on it.
+
+§7dg settled the principle when the smokerack was drawn: joinery in warm brown
+lives indoors, and a thing standing in the weather is grey, open and empty. The
+same word is drawn as what it is where it is, so a yard gets the open stand
+that everything in a yard is. The generator is left alone: a work yard having a
+stand in it is right, and only the drawing was wrong.
